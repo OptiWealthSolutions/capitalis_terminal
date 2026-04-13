@@ -1,0 +1,24 @@
+{
+    "rules": {
+        "returnOnEquity": {
+            "op": ">=",
+            "type": "dynamic_sector",
+            "multiplier": 1.3
+        },
+        "currentRatio": {
+            "op": ">=",
+            "type": "dynamic_sector",
+            "multiplier": 1.1
+        }
+    },
+    "criteria": {
+        "debtToEquity": {
+            "op": "<=",
+            "val": 1.0
+        },
+        "profitMargins": {
+            "op": ">=",
+            "val": 15.0
+        }
+    }
+}

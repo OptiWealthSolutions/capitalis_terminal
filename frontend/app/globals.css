@@ -1,0 +1,142 @@
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ---- Base Reset ---- */
+:root {
+  --bg-primary: #0D1117;
+  --bg-secondary: #151A22;
+  --bg-tertiary: #1E232F;
+  --bg-border: #2D3347;
+  --text-primary: #E6EDF3;
+  --text-secondary: #8B949E;
+  --accent-blue: #3B82F6;
+  --accent-orange: #F5A623;
+  --accent-green: #2ECC40;
+  --accent-red: #FF4136;
+}
+
+* {
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0;
+}
+
+html,
+body {
+  max-width: 100vw;
+  overflow-x: hidden;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ---- Scrollbar ---- */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg-primary);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--bg-border);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-secondary);
+}
+
+/* ---- Selection ---- */
+::selection {
+  background: rgba(59, 130, 246, 0.3);
+  color: var(--text-primary);
+}
+
+/* ---- Terminal Table ---- */
+.terminal-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+}
+.terminal-table th {
+  text-align: left;
+  padding: 6px 12px;
+  color: var(--text-secondary);
+  font-weight: 500;
+  text-transform: uppercase;
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  border-bottom: 1px solid var(--bg-border);
+}
+.terminal-table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid rgba(45, 51, 71, 0.5);
+  color: var(--text-primary);
+}
+.terminal-table tr:hover td {
+  background-color: rgba(30, 35, 47, 0.6);
+}
+
+/* ---- Metric Card ---- */
+.metric-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--bg-border);
+  border-radius: 4px;
+  padding: 16px;
+}
+
+/* ---- Section divider ---- */
+.section-divider {
+  border: none;
+  border-top: 1px solid var(--bg-border);
+  margin: 20px 0;
+}
+
+/* ---- Ticker Tape ---- */
+.ticker-tape {
+  background: var(--bg-secondary);
+  border-left: 4px solid var(--accent-blue);
+  padding: 12px 20px;
+  display: flex;
+  gap: 32px;
+  flex-wrap: wrap;
+  font-size: 0.85rem;
+}
+
+/* ---- Animations ---- */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.fade-in {
+  animation: fadeIn 0.2s ease-out forwards;
+}
+
+/* ---- Plotly chart dark override ---- */
+.js-plotly-plot .plotly .modebar {
+  background: transparent !important;
+}
+
+/* ---- Loading skeleton ---- */
+@keyframes shimmer {
+  0% { background-position: -1000px 0; }
+  100% { background-position: 1000px 0; }
+}
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--bg-secondary) 25%,
+    var(--bg-tertiary) 50%,
+    var(--bg-secondary) 75%
+  );
+  background-size: 1000px 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 3px;
+}

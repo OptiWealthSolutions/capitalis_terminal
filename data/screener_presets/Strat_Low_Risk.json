@@ -1,0 +1,16 @@
+{
+    "criteria": {
+        "trailingPE": {
+            "op": "<=",
+            "val": 27.0
+        },
+        "currentRatio": {
+            "op": ">=",
+            "val": 1.5
+        },
+        "returnOnEquity": {
+            "op": ">=",
+            "val": 0.1
+        }
+    }
+}

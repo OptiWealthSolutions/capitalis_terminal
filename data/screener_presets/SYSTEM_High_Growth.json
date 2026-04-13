@@ -1,0 +1,19 @@
+{
+    "rules": {
+        "earningsGrowth": {
+            "op": ">=",
+            "type": "dynamic_sector",
+            "multiplier": 1.5
+        }
+    },
+    "criteria": {
+        "earningsGrowth": {
+            "op": ">=",
+            "val": 20.0
+        },
+        "returnOnEquity": {
+            "op": ">=",
+            "val": 15.0
+        }
+    }
+}

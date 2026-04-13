@@ -1,0 +1,24 @@
+{
+    "rules": {
+        "forwardPE": {
+            "op": "<=",
+            "type": "dynamic_sector",
+            "multiplier": 0.7
+        },
+        "priceToBook": {
+            "op": "<=",
+            "type": "dynamic_sector",
+            "multiplier": 0.8
+        }
+    },
+    "criteria": {
+        "dividendYield": {
+            "op": ">=",
+            "val": 0.04
+        },
+        "forwardPE": {
+            "op": ">",
+            "val": 0.0
+        }
+    }
+}

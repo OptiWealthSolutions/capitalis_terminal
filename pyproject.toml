@@ -1,0 +1,46 @@
+[tool.poetry]
+name = "capitalis-v2"
+version = "2.0.0"
+description = "Institutional Quantitative Investment Terminal"
+authors = ["Your Name <you@example.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+
+# --- Core UI & Data Manipulation ---
+streamlit = "^1.33.0"
+pandas = "^2.2.2"
+numpy = "^1.26.4"
+
+# --- Financial Data & APIs ---
+yfinance = "^0.2.38"
+tvscreener = "^1.0.3"
+requests = "^2.31.0"
+alpha-vantage = "^2.3.1"
+pandas-datareader = "^0.10.0" # Pour les facteurs Fama-French
+
+# --- Quantitative Modeling & Risk ---
+scikit-learn = "^1.4.2"
+arch = "^6.3.0" # Pour les modèles GARCH
+statsmodels = "^0.14.2" # Pour les régressions (Fama-French)
+
+# --- Machine Learning & Interpretability ---
+joblib = "^1.4.2"
+shap = "^0.45.0"
+matplotlib = "^3.8.4" # Dépendance de SHAP pour les plots
+
+# --- Plotting & Reporting ---
+plotly = "^5.22.0"
+fpdf2 = "^2.7.8" # fpdf est déprécié, fpdf2 est la version maintenue
+
+# --- Data Persistence ---
+duckdb = "^1.0.0"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.2.0"
+ipykernel = "^6.29.4" # Pour l'exécution dans les notebooks
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

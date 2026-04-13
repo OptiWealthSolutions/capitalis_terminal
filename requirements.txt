@@ -1,0 +1,38 @@
+# ==========================================
+# CAPITALIS V2 - REQUIREMENTS
+# ==========================================
+
+# 1. Core Data Science, Math & Quant Models
+numpy>=1.21.0
+pandas>=1.3.0
+scipy>=1.7.0
+statsmodels>=0.12.2
+scikit-learn>=0.24.2
+arch
+
+# 2. Finance & Data Fetching
+yfinance>=0.2.0
+pandas-datareader>=0.10.0
+vectorbt
+requests
+beautifulsoup4
+lxml
+html5lib
+
+# 3. Visualization, UI & Reporting
+streamlit>=1.31.0
+plotly>=5.3.0
+kaleido
+matplotlib>=3.4.2
+seaborn>=0.11.2
+fpdf
+
+# 4. Tools & MLOps
+python-dotenv>=0.19.0
+pytest>=6.2.4
+mlflow
+
+# 5. Jupyter Ecosystem (Mac ARM64 Compatibility)
+jupyter>=1.0.0
+ipykernel>=6.0.0
+pyzmq>=22.0.0

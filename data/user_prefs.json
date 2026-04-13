@@ -1,0 +1,8 @@
+{
+    "accent_color": "#235c9a",
+    "default_capital": 18000,
+    "chart_template": "seaborn",
+    "currency": "EUR (\u20ac)",
+    "decimals": 2,
+    "ui_density": "Normale"
+}
