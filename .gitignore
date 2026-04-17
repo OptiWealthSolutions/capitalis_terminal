@@ -1,18 +1,8 @@
-# Dépendances Node
+# Indispensable pour ton cas précis :
+.venv/
 node_modules/
 frontend/node_modules/
-
-# Build Next.js
 .next/
 frontend/.next/
-
-# Environnement Python
-.venv/
-venv/
-env/
-__pycache__/
-
-# Autres fichiers lourds
 *.dylib
 *.node
-*.gz
