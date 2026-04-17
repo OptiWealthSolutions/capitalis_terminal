@@ -54,10 +54,11 @@ def get_price_history(
         if df.empty:
             raise HTTPException(status_code=404, detail=f"No data found for ticker {t!r}.")
 
-        close = df["Close"]
-        if isinstance(close, pd.DataFrame):
-            close = close.iloc[:, 0]
+        # Flatten MultiIndex columns produced by single-ticker downloads in yfinance >= 0.2.x
+        if isinstance(df.columns, pd.MultiIndex):
+            df.columns = [col[0] for col in df.columns]
 
+        close = df["Close"].squeeze()
         df["SMA_50"] = close.rolling(window=50).mean()
         df["SMA_200"] = close.rolling(window=200).mean()
     except HTTPException:
@@ -71,13 +72,13 @@ def get_price_history(
         "period": period,
         "interval": interval,
         "dates": df.index.strftime("%Y-%m-%d").tolist(),
-        "open": df["Open"].round(4).tolist(),
-        "high": df["High"].round(4).tolist(),
-        "low": df["Low"].round(4).tolist(),
-        "close": df["Close"].round(4).tolist(),
-        "volume": df["Volume"].tolist(),
-        "sma_50": df["SMA_50"].round(4).tolist(),
-        "sma_200": df["SMA_200"].round(4).tolist(),
+        "open": df["Open"].squeeze().round(4).tolist(),
+        "high": df["High"].squeeze().round(4).tolist(),
+        "low": df["Low"].squeeze().round(4).tolist(),
+        "close": df["Close"].squeeze().round(4).tolist(),
+        "volume": df["Volume"].squeeze().tolist(),
+        "sma_50": df["SMA_50"].squeeze().round(4).tolist(),
+        "sma_200": df["SMA_200"].squeeze().round(4).tolist(),
     }
     cache.set(key, result, ttl=EQUITY_TTL)
     return result
@@ -102,7 +103,7 @@ def get_fundamentals(ticker: str) -> Any:
         logger.error("yfinance fundamentals error for %s: %s", t, exc, exc_info=True)
         raise HTTPException(status_code=503, detail="Fundamentals unavailable.")
 
-    if not info or info.get("regularMarketPrice") is None and info.get("currentPrice") is None:
+    if not info or info.get("marketCap") is None:
         raise HTTPException(status_code=404, detail=f"No fundamental data found for {t!r}.")
 
     selected_fields = [
@@ -120,6 +121,32 @@ def get_fundamentals(ticker: str) -> Any:
     ]
     result = {k: info.get(k) for k in selected_fields}
     result["ticker"] = t
+
+    # Normalize common field aliases across yfinance versions
+    if result.get("currentPrice") is None:
+        result["currentPrice"] = info.get("regularMarketPrice") or info.get("navPrice")
+    if result.get("previousClose") is None:
+        result["previousClose"] = info.get("regularMarketPreviousClose")
+    if result.get("marketCap") is None:
+        result["marketCap"] = info.get("marketCapitalization")
+    if result.get("trailingPE") is None:
+        result["trailingPE"] = info.get("trailingPe") or info.get("pe_ratio")
+    if result.get("forwardPE") is None:
+        result["forwardPE"] = info.get("forwardPe")
+    if result.get("priceToBook") is None:
+        result["priceToBook"] = info.get("price_to_book")
+    if result.get("returnOnEquity") is None:
+        result["returnOnEquity"] = info.get("return_on_equity")
+    if result.get("grossMargins") is None:
+        result["grossMargins"] = info.get("gross_margins") or info.get("grossProfitMargins")
+    if result.get("operatingMargins") is None:
+        result["operatingMargins"] = info.get("operating_margins")
+    if result.get("profitMargins") is None:
+        result["profitMargins"] = info.get("profit_margins") or info.get("netMargins")
+    if result.get("debtToEquity") is None:
+        result["debtToEquity"] = info.get("debt_to_equity")
+    if result.get("dividendYield") is None:
+        result["dividendYield"] = info.get("yield") or info.get("trailingAnnualDividendYield")
     cache.set(key, result, ttl=EQUITY_TTL)
     return result
 
@@ -140,9 +167,9 @@ def get_returns_stats(ticker: str) -> Any:
         df = yf.download(t, period="5y", interval="1d", progress=False, auto_adjust=True)
         if df.empty:
             raise HTTPException(status_code=404, detail=f"No price data for {t!r}.")
-        close = df["Close"]
-        if isinstance(close, pd.DataFrame):
-            close = close.iloc[:, 0]
+        if isinstance(df.columns, pd.MultiIndex):
+            df.columns = [col[0] for col in df.columns]
+        close = df["Close"].squeeze()
     except HTTPException:
         raise
     except Exception as exc:
@@ -172,4 +199,98 @@ def get_returns_stats(ticker: str) -> Any:
         "cagr": round(cagr, 4),
     }
     cache.set(key, result, ttl=EQUITY_TTL)
+    return result
+
+
+# ---------------------------------------------------------------------------
+# GET /equity/{ticker}/financials
+# ---------------------------------------------------------------------------
+@router.get("/{ticker}/financials")
+def get_financials(ticker: str) -> Any:
+    """Annual + quarterly income statement and cash flow metrics."""
+    t = _assert_valid_ticker(ticker)
+    key = f"equity_fin_{t}"
+    cached = cache.get(key)
+    if cached is not None:
+        return cached
+
+    try:
+        tkr = yf.Ticker(t)
+        inc_ann = tkr.income_stmt
+        inc_q   = tkr.quarterly_income_stmt
+        cf_ann = getattr(tkr, "cashflow", None)
+        if cf_ann is None:
+            cf_ann = getattr(tkr, "cash_flow", None)
+        cf_q = getattr(tkr, "quarterly_cashflow", None)
+        if cf_q is None:
+            cf_q = getattr(tkr, "quarterly_cash_flow", None)
+    except Exception as exc:
+        logger.error("yfinance financials %s: %s", t, exc)
+        raise HTTPException(status_code=503, detail="Financial data unavailable.")
+
+    def _safe_v(v: Any) -> float | None:
+        try:
+            f = float(v)
+            return None if (np.isnan(f) or np.isinf(f)) else round(f, 2)
+        except (TypeError, ValueError):
+            return None
+
+    def _row(df: pd.DataFrame, *names: str) -> "pd.Series | None":
+        for name in names:
+            if name in df.index:
+                return df.loc[name]
+        return None
+
+    def _extract(inc: "pd.DataFrame | None", cf: "pd.DataFrame | None") -> dict:
+        if inc is None or inc.empty:
+            return {}
+
+        inc = inc[sorted(inc.columns)]
+        dates = [d.strftime("%Y-%m-%d") for d in inc.columns]
+        n = len(dates)
+
+        def get_series(*names: str) -> list:
+            s = _row(inc, *names)
+            return [_safe_v(v) for v in s.tolist()] if s is not None else [None] * n
+
+        revenue    = get_series("Total Revenue", "TotalRevenue")
+        net_income = get_series("Net Income", "NetIncome")
+        gp         = get_series("Gross Profit", "GrossProfit")
+        op_income  = get_series("Operating Income", "EBIT", "OperatingIncome")
+        ebitda     = get_series("EBITDA", "Ebitda")
+        eps        = get_series("Diluted EPS", "Basic EPS", "BasicEPS")
+
+        fcf = [None] * n
+        if cf is not None and not cf.empty:
+            cf_sorted = cf[sorted(cf.columns)]
+            fcf_series = _row(cf_sorted, "Free Cash Flow", "FreeCashFlow")
+            if fcf_series is not None:
+                cf_map = {d: _safe_v(v) for d, v in fcf_series.items()}
+                fcf = [cf_map.get(d) for d in inc.columns]
+
+        def margins(num: list, den: list) -> list:
+            return [
+                round(a / b * 100, 2) if (a is not None and b and b != 0) else None
+                for a, b in zip(num, den)
+            ]
+
+        return {
+            "dates":            dates,
+            "revenue":          revenue,
+            "net_income":       net_income,
+            "gross_profit":     gp,
+            "operating_income": op_income,
+            "ebitda":           ebitda,
+            "free_cash_flow":   fcf,
+            "eps_diluted":      eps,
+            "gross_margin":     margins(gp, revenue),
+            "operating_margin": margins(op_income, revenue),
+            "net_margin":       margins(net_income, revenue),
+        }
+
+    result = {
+        "annual":    _extract(inc_ann, cf_ann),
+        "quarterly": _extract(inc_q, cf_q),
+    }
+    cache.set(key, result, ttl=86400)
     return result

@@ -24,6 +24,9 @@ export interface MacroIndicators {
   US: MacroRegionData;
   EU: MacroRegionData;
   JP: MacroRegionData;
+  CN: MacroRegionData;
+  GB: MacroRegionData;
+  CA: MacroRegionData;
 }
 
 export interface MarketData {
@@ -92,6 +95,14 @@ export interface OptimizationResult {
     expected_annual_return: number;
     annual_volatility: number;
     sharpe_ratio: number;
+    sortino_ratio: number;
+    calmar_ratio: number;
+    max_drawdown: number;
+    beta: number;
+  };
+  diversification?: {
+    sectors: Record<string, number>;
+    countries: Record<string, number>;
   };
 }
 
@@ -101,6 +112,24 @@ export interface MonteCarloRequest {
   capital: number;
   n_simulations?: number;
   horizon_days?: number;
+}
+
+export interface PerformanceResult {
+  dates: string[];
+  portfolio_values: number[];
+  benchmark_values: number[];
+  n_days: number;
+  metrics: {
+    total_return: number;
+    current_value: number;
+    max_drawdown: number;
+    ann_return?: number;
+    ann_volatility?: number;
+    beta?: number;
+    sharpe_ratio?: number;
+    sortino_ratio?: number;
+    calmar_ratio?: number;
+  };
 }
 
 export interface MonteCarloResult {
@@ -187,12 +216,77 @@ export interface ReturnsStats {
   cagr: number;
 }
 
+export interface FinancialPeriod {
+  dates: string[];
+  revenue: (number | null)[];
+  net_income: (number | null)[];
+  gross_profit: (number | null)[];
+  operating_income: (number | null)[];
+  ebitda: (number | null)[];
+  free_cash_flow: (number | null)[];
+  eps_diluted: (number | null)[];
+  gross_margin: (number | null)[];
+  operating_margin: (number | null)[];
+  net_margin: (number | null)[];
+}
+
+export interface EquityFinancials {
+  annual: FinancialPeriod;
+  quarterly: FinancialPeriod;
+}
+
 // ---------------------------------------------------------------------------
 // Scorer
 // ---------------------------------------------------------------------------
 export interface ScorerResult {
   count: number;
   assets: Record<string, unknown>[];
+}
+
+// ---------------------------------------------------------------------------
+// Forex
+// ---------------------------------------------------------------------------
+export interface ForexWatchlistEntry {
+  pair: string;
+  price: number;
+  change_abs: number;
+  change_pct: number;
+}
+
+export interface ForexIndices {
+  dates: string[];
+  series: Record<string, (number | null)[]>;
+}
+
+export interface YieldZone {
+  maturities: string[];
+  rates: (number | null)[];
+  history_10y: { dates: string[]; values: (number | null)[] };
+}
+
+export interface ForexYieldCurves {
+  US: YieldZone;
+  EU: YieldZone;
+  JP: YieldZone;
+}
+
+export interface ForexCorrelations {
+  labels: string[];
+  matrix: number[][];
+}
+
+export interface RetailSentimentEntry {
+  symbol: string;
+  long_pct: number | null;
+  short_pct: number | null;
+  long_volume: number | null;
+  short_volume: number | null;
+}
+
+export interface RetailSentiment {
+  configured: boolean;
+  data: RetailSentimentEntry[];
+  error?: string;
 }
 
 // ---------------------------------------------------------------------------

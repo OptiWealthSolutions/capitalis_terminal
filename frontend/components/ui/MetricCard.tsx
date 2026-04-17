@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 interface MetricCardProps {
@@ -6,38 +7,67 @@ interface MetricCardProps {
   subValue?: string;
   accentColor?: "blue" | "orange" | "green" | "red";
   className?: string;
+  icon?: ReactNode;
+  delta?: { value: number; label?: string };
 }
 
-const ACCENT_MAP: Record<string, string> = {
-  blue: "border-l-accent-blue",
-  orange: "border-l-accent-orange",
-  green: "border-l-accent-green",
-  red: "border-l-accent-red",
-};
-
 export default function MetricCard({
-  label,
-  value,
-  subValue,
-  accentColor = "blue",
-  className,
+  label, value, subValue, accentColor, className, icon, delta,
 }: MetricCardProps) {
-  const displayValue = value === null || value === undefined ? "N/A" : String(value);
+  /* Empty state: em dash at 30% opacity per redesign.md */
+  const display = value === null || value === undefined || value === "" ? null : String(value);
+  const hasSub  = delta !== undefined || !!subValue;
+
+  /* Delta color is the ONLY place semantic color is used */
+  const deltaColor = (v: number) => v >= 0 ? "var(--green)" : "var(--red)";
 
   return (
-    <div
-      className={cn(
-        "metric-card border-l-4",
-        ACCENT_MAP[accentColor],
-        className
-      )}
-    >
-      <div className="text-text-secondary text-xs uppercase tracking-wider mb-1">
-        {label}
+    <div className={cn("metric-card", className)}>
+      {/* Header */}
+      <div className="flex items-start justify-between mb-2">
+        <div className="mc-label">{label}</div>
+        {icon && (
+          <div style={{
+            width: 26, height: 26, flexShrink: 0,
+            background: "rgba(255,255,255,0.04)",
+            border: "1px solid var(--border)",
+            borderRadius: "var(--r-sm)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            color: "var(--t2)",
+          }}>
+            {icon}
+          </div>
+        )}
       </div>
-      <div className="text-text-primary text-xl font-semibold">{displayValue}</div>
-      {subValue && (
-        <div className="text-text-muted text-xs mt-1">{subValue}</div>
+
+      {/* Value */}
+      {display !== null ? (
+        <div className="mc-value">{display}</div>
+      ) : (
+        <div className="mc-value" style={{ color: "var(--t3)", fontWeight: 400 }}>—</div>
+      )}
+
+      {/* Sub row */}
+      {hasSub && (
+        <div className="mc-sub">
+          {delta !== undefined ? (
+            <>
+              <span style={{
+                color: deltaColor(delta.value),
+                fontFamily: "'JetBrains Mono', monospace",
+                fontSize: "0.72rem",
+                fontWeight: 500,
+              }}>
+                {delta.value >= 0 ? "▲" : "▼"} {Math.abs(delta.value).toFixed(2)}%
+              </span>
+              {delta.label && (
+                <span style={{ color: "var(--t3)", fontSize: "0.67rem" }}>{delta.label}</span>
+              )}
+            </>
+          ) : (
+            <span>{subValue}</span>
+          )}
+        </div>
       )}
     </div>
   );

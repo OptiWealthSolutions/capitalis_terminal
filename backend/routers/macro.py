@@ -10,6 +10,7 @@ import logging
 from pathlib import Path
 from typing import Any
 
+import concurrent.futures
 import numpy as np
 import pandas as pd
 import yfinance as yf
@@ -50,7 +51,7 @@ _ALLOWED_GARCH_TICKERS = frozenset({"^GSPC", "^NDX", "GC=F", "CL=F", "BTC-USD"})
 # ---------------------------------------------------------------------------
 @router.get("/indicators")
 def get_macro_indicators() -> Any:
-    """FRED global macro indicators: US / EU / JP rates, GDP, unemployment."""
+    """FRED global macro indicators: US / EU / JP / CN / UK / CA rates, GDP, unemployment."""
     key = "macro_indicators"
     cached = cache.get(key)
     if cached is not None:
@@ -58,6 +59,29 @@ def get_macro_indicators() -> Any:
 
     try:
         data = fetch_global_macro_indicators()
+
+        # Fallback pour les rendements souverains (Chine, UK, Canada) en cas de défaillance FRED
+        fallback_mapping = {
+            "CN10YR=X": ["CN_10Y", "China_Rate", "CN_Rate", "China"],
+            "GB10YR=X": ["UK_10Y", "UK_Rate", "GB_Rate", "UK"],
+            "CA10YR=X": ["CA_10Y", "Canada_Rate", "CA_Rate", "Canada"]
+        }
+        for ticker, possible_keys in fallback_mapping.items():
+            target_key = next((k for k in possible_keys if k in data), possible_keys[0])
+            if data.get(target_key) is None or pd.isna(data.get(target_key, np.nan)):
+                try:
+                    hist = yf.download(ticker, period="5d", progress=False)
+                    if not hist.empty:
+                        val = hist["Close"].iloc[-1]
+                        data[target_key] = round(float(val.iloc[0] if isinstance(val, pd.Series) else val), 4)
+                except Exception as e:
+                    logger.warning("Fallback YFinance échoué pour %s: %s", ticker, e)
+
+        # Purge stricte des valeurs non-finies pour la sérialisation JSON
+        for k, v in list(data.items()):
+            if isinstance(v, float) and not np.isfinite(v):
+                data[k] = None
+
     except Exception as exc:
         logger.error("FRED API failure: %s", exc, exc_info=True)
         raise HTTPException(status_code=503, detail="FRED API unavailable.")
@@ -85,17 +109,32 @@ def get_market_data() -> Any:
         "GOLD": "GC=F",
         "OIL": "CL=F",
     }
+
+    def _fetch_one(item: tuple) -> tuple:
+        label, sym = item
+        try:
+            df = yf.Ticker(sym).history(period="5y", interval="1d")
+            s = df["Close"].dropna()
+            s.name = label
+            return label, s
+        except Exception as exc:
+            logger.warning("yfinance fetch failed for %s (%s): %s", label, sym, exc)
+            return label, pd.Series(dtype=float, name=label)
+
     try:
-        raw = yf.download(
-            list(tickers.values()),
-            period="5y",
-            interval="1d",
-            progress=False,
-            auto_adjust=True,
-        )
-        close: pd.DataFrame = raw["Close"].copy()
-        inv_map = {v: k for k, v in tickers.items()}
-        close.columns = [inv_map.get(str(c), str(c)) for c in close.columns]
+        with concurrent.futures.ThreadPoolExecutor(max_workers=6) as ex:
+            fetched = dict(ex.map(_fetch_one, tickers.items()))
+
+        close = pd.DataFrame(fetched).sort_index()
+        # Ensure DatetimeIndex (empty Series fallback produces RangeIndex)
+        if not isinstance(close.index, pd.DatetimeIndex):
+            close.index = pd.to_datetime(close.index, errors="coerce")
+            close = close[close.index.notna()].sort_index()
+
+        # Guard: require SP500 to have data, otherwise data feed is down
+        if close.get("SP500") is None or close["SP500"].notna().sum() < 100:
+            raise ValueError("SP500 data unavailable — possible rate limit")
+
         if {"US10Y", "US3M"}.issubset(close.columns):
             close["YIELD_SPREAD"] = close["US10Y"] - close["US3M"]
         close = close.dropna(how="all")

@@ -1,0 +1,564 @@
+<!--
+  aesthetic_dna: Institutional Rigor x Modern Startup Polish (Bloomberg meets Linear)
+  ui_paradigm: Multi-pane Fixed Viewport Workspace / Data-Dense Dashboard
+  palette: Obsidian Canvas (#0A0A0C, #111115, #18181E), Carbon Borders (#2A2A35), Frost/Ash Typography (#EAEAEA, #8A8A9A), Terminal Accents (#FF6B00, #22C55E, #EF4444)
+-->
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Capitalis Terminal</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Fonts: JetBrains Mono (Strict Requirement) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@100;300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Icons: Phosphor -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+
+    <!-- Tailwind Configuration matching exact strict requirements -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        cap: {
+                            base: '#0A0A0C',     /* Main application background */
+                            surface: '#111115',  /* Generic container background */
+                            elevated: '#18181E', /* Hover states, inputs, focused elements */
+                            border: '#2A2A35',   /* Universal border color */
+                            text: '#EAEAEA',     /* Primary crisp text */
+                            muted: '#8A8A9A',    /* Secondary/tertiary text */
+                            orange: '#FF6B00',   /* Primary Accent / Active States */
+                            orangeMuted: '#F97316', /* Hover accent */
+                            green: '#22C55E',    /* Positive PnL / Up */
+                            red: '#EF4444',      /* Negative PnL / Down */
+                        }
+                    },
+                    fontFamily: {
+                        mono: ['"JetBrains Mono"', 'monospace'],
+                    },
+                    fontSize: {
+                        'xxs': ['0.65rem', { lineHeight: '1rem' }],
+                    },
+                    animation: {
+                        'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* Modern, minimal scrollbars matching the architectural aesthetic */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0A0A0C;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #2A2A35;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #8A8A9A;
+        }
+        
+        /* Table row hover consistency without affecting borders */
+        .data-row:hover td {
+            background-color: #18181E;
+        }
+
+        /* Utility for tabular lining numbers in monospace */
+        .num-align {
+            font-variant-numeric: tabular-nums;
+        }
+        
+        /* Pulse dot for live data */
+        .live-indicator {
+            position: relative;
+            display: inline-block;
+            width: 6px;
+            height: 6px;
+            background-color: #22C55E;
+            border-radius: 50%;
+        }
+        .live-indicator::after {
+            content: '';
+            position: absolute;
+            top: -2px; left: -2px;
+            width: 10px; height: 10px;
+            background-color: rgba(34, 197, 94, 0.4);
+            border-radius: 50%;
+            animation: pulse-ring 2s infinite;
+        }
+        @keyframes pulse-ring {
+            0% { transform: scale(0.5); opacity: 1; }
+            100% { transform: scale(1.5); opacity: 0; }
+        }
+    </style>
+</head>
+<body class="bg-cap-base text-cap-text font-mono text-sm h-screen w-screen overflow-hidden flex antialiased selection:bg-cap-orange selection:text-cap-base">
+
+    <!-- MICRO-ARCHITECTURE: Sidebar (Fixed Narrow Navigation) -->
+    <aside class="w-[220px] flex-shrink-0 border-r border-cap-border bg-cap-base flex flex-col h-full z-20">
+        
+        <!-- Logo Area -->
+        <div class="h-12 flex items-center px-5 border-b border-cap-border select-none">
+            <span class="font-bold text-cap-text tracking-wide flex items-center gap-2">
+                <i class="ph-fill ph-hexagon text-cap-orange text-lg"></i>
+                CAPITALIS
+            </span>
+        </div>
+
+        <!-- System Status -->
+        <div class="px-5 py-4 border-b border-cap-border flex justify-between items-center bg-cap-surface text-xs">
+            <div class="flex items-center gap-2 text-cap-muted">
+                <span class="live-indicator"></span>
+                <span>SYS_OP: LIVE</span>
+            </div>
+            <span class="text-cap-text">14ms</span>
+        </div>
+
+        <!-- Navigation Links -->
+        <nav class="flex-1 overflow-y-auto py-4 px-2 space-y-1">
+            <div class="px-3 mb-2 text-xxs text-cap-muted uppercase tracking-widest font-medium">Core Workspace</div>
+            
+            <a href="#" class="group flex items-center gap-3 px-3 py-2 text-cap-muted hover:text-cap-text hover:bg-cap-surface rounded-sm transition-colors duration-150">
+                <i class="ph ph-globe text-lg"></i>
+                <span>Macro View</span>
+            </a>
+            
+            <!-- Active State Navigation Item -->
+            <a href="#" class="group flex items-center gap-3 px-3 py-2 text-cap-text bg-cap-surface relative rounded-sm transition-colors duration-150">
+                <!-- Exact active orange left-border literal requirement -->
+                <div class="absolute left-0 top-1 bottom-1 w-0.5 bg-cap-orange rounded-r-md"></div>
+                <i class="ph ph-brain text-lg text-cap-orange"></i>
+                <span class="font-medium">ML Alpha</span>
+            </a>
+
+            <a href="#" class="group flex items-center gap-3 px-3 py-2 text-cap-muted hover:text-cap-text hover:bg-cap-surface rounded-sm transition-colors duration-150">
+                <i class="ph ph-funnel text-lg"></i>
+                <span>Screener</span>
+                <span class="ml-auto text-xxs bg-cap-elevated text-cap-muted px-1.5 py-0.5 rounded border border-cap-border">⌘K</span>
+            </a>
+
+            <a href="#" class="group flex items-center gap-3 px-3 py-2 text-cap-muted hover:text-cap-text hover:bg-cap-surface rounded-sm transition-colors duration-150">
+                <i class="ph ph-target text-lg"></i>
+                <span>Scorer</span>
+            </a>
+
+            <a href="#" class="group flex items-center gap-3 px-3 py-2 text-cap-muted hover:text-cap-text hover:bg-cap-surface rounded-sm transition-colors duration-150">
+                <i class="ph ph-briefcase text-lg"></i>
+                <span>Portfolio</span>
+            </a>
+
+            <a href="#" class="group flex items-center gap-3 px-3 py-2 text-cap-muted hover:text-cap-text hover:bg-cap-surface rounded-sm transition-colors duration-150">
+                <i class="ph ph-chart-line-up text-lg"></i>
+                <span>Equity Ov.</span>
+            </a>
+
+            <a href="#" class="group flex items-center gap-3 px-3 py-2 text-cap-muted hover:text-cap-text hover:bg-cap-surface rounded-sm transition-colors duration-150">
+                <i class="ph ph-file-text text-lg"></i>
+                <span>Reporting</span>
+            </a>
+        </nav>
+
+        <!-- Bottom Actions -->
+        <div class="p-2 border-t border-cap-border space-y-1">
+            <a href="#" class="group flex items-center gap-3 px-3 py-2 text-cap-muted hover:text-cap-text hover:bg-cap-surface rounded-sm transition-colors duration-150">
+                <i class="ph ph-gear text-lg"></i>
+                <span>Settings</span>
+            </a>
+            <a href="#" class="group flex items-center gap-3 px-3 py-2 text-cap-muted hover:text-cap-text hover:bg-cap-surface rounded-sm transition-colors duration-150">
+                <i class="ph ph-user text-lg"></i>
+                <span>Account</span>
+            </a>
+        </div>
+    </aside>
+
+    <!-- MACRO-ARCHITECTURE: Main Application Area -->
+    <main class="flex-1 flex flex-col h-full bg-cap-base overflow-hidden min-w-0 z-10">
+        
+        <!-- MICRO-ARCHITECTURE: Sticky Top Ticker Bar -->
+        <header class="h-12 flex-shrink-0 bg-cap-surface border-b border-cap-border flex items-center px-4 overflow-hidden select-none">
+            <div class="flex items-center space-x-6 whitespace-nowrap text-xs text-cap-muted w-full animate-[marquee_60s_linear_infinite] md:animate-none md:overflow-x-auto no-scrollbar">
+                
+                <!-- Ticker Item -->
+                <div class="flex items-center gap-3">
+                    <span class="font-medium text-cap-text">S&P 500</span>
+                    <span class="num-align">5,123.69</span>
+                    <div class="flex items-center gap-1 text-cap-green bg-cap-green/10 px-1.5 py-0.5 rounded border border-cap-green/20">
+                        <i class="ph ph-caret-up"></i>
+                        <span class="num-align">+41.20</span>
+                        <span class="num-align">(+0.81%)</span>
+                    </div>
+                </div>
+
+                <div class="w-px h-4 bg-cap-border"></div>
+
+                <!-- Ticker Item -->
+                <div class="flex items-center gap-3">
+                    <span class="font-medium text-cap-text">VIX</span>
+                    <span class="num-align">13.82</span>
+                    <div class="flex items-center gap-1 text-cap-red bg-cap-red/10 px-1.5 py-0.5 rounded border border-cap-red/20">
+                        <i class="ph ph-caret-down"></i>
+                        <span class="num-align">-0.48</span>
+                        <span class="num-align">(-3.36%)</span>
+                    </div>
+                </div>
+
+                <div class="w-px h-4 bg-cap-border"></div>
+
+                <!-- Ticker Item -->
+                <div class="flex items-center gap-3">
+                    <span class="font-medium text-cap-text">US 10Y</span>
+                    <span class="num-align">4.241%</span>
+                    <div class="flex items-center gap-1 text-cap-red bg-cap-red/10 px-1.5 py-0.5 rounded border border-cap-red/20">
+                        <i class="ph ph-caret-down"></i>
+                        <span class="num-align">-0.012</span>
+                    </div>
+                </div>
+
+                <div class="w-px h-4 bg-cap-border"></div>
+
+                <!-- Ticker Item -->
+                <div class="flex items-center gap-3">
+                    <span class="font-medium text-cap-text">GOLD</span>
+                    <span class="num-align">2,154.30</span>
+                    <div class="flex items-center gap-1 text-cap-green bg-cap-green/10 px-1.5 py-0.5 rounded border border-cap-green/20">
+                        <i class="ph ph-caret-up"></i>
+                        <span class="num-align">+12.40</span>
+                        <span class="num-align">(+0.58%)</span>
+                    </div>
+                </div>
+
+                <div class="w-px h-4 bg-cap-border"></div>
+
+                <!-- Ticker Item -->
+                <div class="flex items-center gap-3">
+                    <span class="font-medium text-cap-text">WTI CRUDE</span>
+                    <span class="num-align">78.54</span>
+                    <div class="flex items-center gap-1 text-cap-green bg-cap-green/10 px-1.5 py-0.5 rounded border border-cap-green/20">
+                        <i class="ph ph-caret-up"></i>
+                        <span class="num-align">+0.39</span>
+                        <span class="num-align">(+0.50%)</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Global Time Dropdown Mock -->
+            <div class="ml-auto pl-4 border-l border-cap-border flex items-center hidden sm:flex">
+                <button class="flex items-center gap-2 text-xs text-cap-text hover:text-cap-orange transition-colors">
+                    <i class="ph ph-calendar-blank"></i>
+                    <span>T-0 Live Session</span>
+                    <i class="ph ph-caret-down text-cap-muted"></i>
+                </button>
+            </div>
+        </header>
+
+        <!-- MESO-ARCHITECTURE: Workspace Scroll Area -->
+        <div class="flex-1 overflow-y-auto p-6 lg:p-8 space-y-6">
+            
+            <!-- Section Header: Generous whitespace, razor-sharp typography scale -->
+            <div class="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-cap-border pb-4 w-full">
+                <div>
+                    <h1 class="text-2xl font-light text-cap-text tracking-tight mb-1">Machine Learning Alpha Pipeline</h1>
+                    <p class="text-cap-muted text-sm">Evaluating predictive momentum factors across large-cap US equities.</p>
+                </div>
+                <div class="flex gap-2">
+                    <button class="px-4 py-2 text-xs border border-cap-border bg-cap-base hover:bg-cap-elevated text-cap-text rounded transition-colors flex items-center gap-2 shadow-[0_1px_2px_rgba(0,0,0,0.5)]">
+                        <i class="ph ph-export"></i> Export Data
+                    </button>
+                    <button class="px-4 py-2 text-xs border border-cap-orange bg-cap-orange/10 hover:bg-cap-orange/20 text-cap-orange rounded transition-colors flex items-center gap-2 shadow-[0_1px_2px_rgba(0,0,0,0.5)]">
+                        <i class="ph ph-play-circle"></i> Retrain Model
+                    </button>
+                </div>
+            </div>
+
+            <!-- METRIC CARDS: Modular grid, clean stat blocks -->
+            <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+                
+                <!-- Card 1 -->
+                <div class="bg-cap-surface border border-cap-border rounded p-4 flex flex-col group hover:border-cap-muted transition-colors duration-200">
+                    <div class="text-xs text-cap-muted mb-3 flex justify-between items-center uppercase tracking-wider">
+                        <span>Alpha Generation (7d)</span>
+                        <i class="ph ph-chart-line text-cap-muted group-hover:text-cap-text transition-colors"></i>
+                    </div>
+                    <div class="flex items-baseline gap-2 mb-1">
+                        <span class="text-3xl font-light text-cap-text num-align">+1.42%</span>
+                    </div>
+                    <div class="flex items-center gap-1.5 text-xs text-cap-green mt-auto pt-2">
+                        <i class="ph ph-trend-up"></i>
+                        <span>Expected value exceeded</span>
+                    </div>
+                </div>
+
+                <!-- Card 2 -->
+                <div class="bg-cap-surface border border-cap-border rounded p-4 flex flex-col group hover:border-cap-muted transition-colors duration-200">
+                    <div class="text-xs text-cap-muted mb-3 flex justify-between items-center uppercase tracking-wider">
+                        <span>Sharpe Ratio (30d block)</span>
+                        <i class="ph ph-scales text-cap-muted group-hover:text-cap-text transition-colors"></i>
+                    </div>
+                    <div class="flex items-baseline gap-2 mb-1">
+                        <span class="text-3xl font-light text-cap-text num-align">2.84</span>
+                    </div>
+                    <div class="flex items-center gap-1.5 text-xs text-cap-muted mt-auto pt-2 border-t border-cap-border/50">
+                        <span>Benchmark: 1.15</span>
+                    </div>
+                </div>
+
+                <!-- Card 3 -->
+                <div class="bg-cap-surface border border-cap-border rounded p-4 flex flex-col group hover:border-cap-muted transition-colors duration-200">
+                    <div class="text-xs text-cap-muted mb-3 flex justify-between items-center uppercase tracking-wider">
+                        <span>Model Conviction Score</span>
+                        <i class="ph ph-brain text-cap-muted group-hover:text-cap-text transition-colors"></i>
+                    </div>
+                    <div class="flex items-baseline gap-2 mb-1">
+                        <span class="text-3xl font-light text-cap-text num-align">87.5/100</span>
+                    </div>
+                    <div class="w-full bg-cap-border h-1.5 rounded-full mt-auto mb-1 overflow-hidden">
+                        <div class="bg-cap-orange h-full rounded-full w-[87.5%]"></div>
+                    </div>
+                </div>
+
+                <!-- Card 4 -->
+                <div class="bg-cap-surface border border-cap-border rounded p-4 flex flex-col group hover:border-cap-muted transition-colors duration-200">
+                    <div class="text-xs text-cap-muted mb-3 flex justify-between items-center uppercase tracking-wider">
+                        <span>Gross Exposure</span>
+                        <i class="ph ph-wallet text-cap-muted group-hover:text-cap-text transition-colors"></i>
+                    </div>
+                    <div class="flex items-baseline gap-2 mb-1">
+                        <span class="text-3xl font-light text-cap-text num-align">$42.8M</span>
+                    </div>
+                    <div class="flex justify-between items-center text-xs text-cap-muted mt-auto pt-2">
+                        <span>L: <span class="text-cap-green num-align">$24.1M</span></span>
+                        <span>S: <span class="text-cap-red num-align">$18.7M</span></span>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- MIDDLE SECTION: Visual layout components (Charts/Feeds) -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                
+                <!-- Factor Importance "Chart" (Built fundamentally to bypass external libs, keeping aesthetic pure) -->
+                <div class="lg:col-span-2 bg-cap-surface border border-cap-border rounded flex flex-col min-h-[300px]">
+                    <div class="px-5 py-4 border-b border-cap-border flex justify-between items-center">
+                        <h2 class="text-sm font-medium text-cap-text">Top Features / Factor Importance Layer</h2>
+                        <div class="flex gap-1">
+                            <button class="px-2 py-1 text-xxs bg-cap-elevated text-cap-text rounded border border-cap-border hover:border-cap-muted transition-colors">SHAP</button>
+                            <button class="px-2 py-1 text-xxs bg-cap-base text-cap-muted rounded border border-cap-border hover:text-cap-text transition-colors">Gain</button>
+                        </div>
+                    </div>
+                    
+                    <div class="p-5 flex-1 flex flex-col justify-center gap-4">
+                        <!-- Chart Row 1 -->
+                        <div class="flex items-center gap-4 group">
+                            <div class="w-32 text-xs text-cap-muted text-right truncate group-hover:text-cap-text transition-colors">Vol_30D_Norm</div>
+                            <div class="flex-1 h-3 bg-cap-base rounded-sm border border-cap-border overflow-hidden">
+                                <div class="h-full bg-cap-orange/80 w-[85%] border-r border-cap-orange"></div>
+                            </div>
+                            <div class="w-12 text-xs text-cap-text num-align">0.850</div>
+                        </div>
+                        <!-- Chart Row 2 -->
+                        <div class="flex items-center gap-4 group">
+                            <div class="w-32 text-xs text-cap-muted text-right truncate group-hover:text-cap-text transition-colors">RSI_14D_Div</div>
+                            <div class="flex-1 h-3 bg-cap-base rounded-sm border border-cap-border overflow-hidden">
+                                <div class="h-full bg-cap-orange/60 w-[62%] border-r border-cap-orange"></div>
+                            </div>
+                            <div class="w-12 text-xs text-cap-text num-align">0.621</div>
+                        </div>
+                        <!-- Chart Row 3 -->
+                        <div class="flex items-center gap-4 group">
+                            <div class="w-32 text-xs text-cap-muted text-right truncate group-hover:text-cap-text transition-colors">MACD_Signal_Delta</div>
+                            <div class="flex-1 h-3 bg-cap-base rounded-sm border border-cap-border overflow-hidden">
+                                <div class="h-full bg-cap-orange/40 w-[45%] border-r border-cap-orange"></div>
+                            </div>
+                            <div class="w-12 text-xs text-cap-text num-align">0.450</div>
+                        </div>
+                        <!-- Chart Row 4 -->
+                        <div class="flex items-center gap-4 group">
+                            <div class="w-32 text-xs text-cap-muted text-right truncate group-hover:text-cap-text transition-colors">Sector_Rel_Strength</div>
+                            <div class="flex-1 h-3 bg-cap-base rounded-sm border border-cap-border overflow-hidden">
+                                <div class="h-full bg-cap-orange/30 w-[30%] border-r border-cap-orange"></div>
+                            </div>
+                            <div class="w-12 text-xs text-cap-text num-align">0.301</div>
+                        </div>
+                        <!-- Chart Row 5 -->
+                        <div class="flex items-center gap-4 group">
+                            <div class="w-32 text-xs text-cap-muted text-right truncate group-hover:text-cap-text transition-colors">VWAP_Dist_1D</div>
+                            <div class="flex-1 h-3 bg-cap-base rounded-sm border border-cap-border overflow-hidden">
+                                <div class="h-full bg-cap-orange/20 w-[15%] border-r border-cap-orange"></div>
+                            </div>
+                            <div class="w-12 text-xs text-cap-text num-align">0.155</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Signal Feed -->
+                <div class="bg-cap-surface border border-cap-border rounded flex flex-col min-h-[300px]">
+                    <div class="px-4 py-4 border-b border-cap-border flex justify-between items-center">
+                        <h2 class="text-sm font-medium text-cap-text flex items-center gap-2">
+                            <i class="ph ph-lightning text-cap-orange"></i> Live Signals
+                        </h2>
+                    </div>
+                    <div class="flex-1 overflow-y-auto w-full p-2 space-y-1">
+                        <!-- Feed Item -->
+                        <div class="px-3 py-2 bg-cap-elevated/50 border border-transparent hover:border-cap-border rounded transition-colors flex flex-col gap-1 cursor-pointer">
+                            <div class="flex justify-between items-center">
+                                <span class="text-xs font-bold text-cap-text">NVDA</span>
+                                <span class="text-xxs text-cap-muted num-align">10:42:01.050</span>
+                            </div>
+                            <div class="flex justify-between items-center text-xs">
+                                <span class="text-cap-green">LONG / STR: 0.92</span>
+                                <span class="num-align text-cap-muted">Exec @ Market</span>
+                            </div>
+                        </div>
+                        <!-- Feed Item -->
+                        <div class="px-3 py-2 bg-cap-elevated/50 border border-transparent hover:border-cap-border rounded transition-colors flex flex-col gap-1 cursor-pointer">
+                            <div class="flex justify-between items-center">
+                                <span class="text-xs font-bold text-cap-text">TSLA</span>
+                                <span class="text-xxs text-cap-muted num-align">10:40:15.221</span>
+                            </div>
+                            <div class="flex justify-between items-center text-xs">
+                                <span class="text-cap-red">SHORT / STR: 0.88</span>
+                                <span class="num-align text-cap-muted">Limit 175.50</span>
+                            </div>
+                        </div>
+                        <!-- Feed Item -->
+                        <div class="px-3 py-2 bg-cap-elevated/50 border border-transparent hover:border-cap-border rounded transition-colors flex flex-col gap-1 cursor-pointer">
+                            <div class="flex justify-between items-center">
+                                <span class="text-xs font-bold text-cap-text">AAPL</span>
+                                <span class="text-xxs text-cap-muted num-align">10:25:33.910</span>
+                            </div>
+                            <div class="flex justify-between items-center text-xs">
+                                <span class="text-cap-green">LONG / STR: 0.75</span>
+                                <span class="num-align text-cap-muted">Exec @ Market</span>
+                            </div>
+                        </div>
+                         <!-- Feed Item -->
+                         <div class="px-3 py-2 bg-cap-elevated/50 border border-transparent hover:border-cap-border rounded transition-colors flex flex-col gap-1 cursor-pointer">
+                            <div class="flex justify-between items-center">
+                                <span class="text-xs font-bold text-cap-text">META</span>
+                                <span class="text-xxs text-cap-muted num-align">10:12:05.105</span>
+                            </div>
+                            <div class="flex justify-between items-center text-xs">
+                                <span class="text-cap-muted">CLOSE POS.</span>
+                                <span class="num-align text-cap-muted">Realized +2.4%</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- BOTTOM SECTION: Deep Data Table (Crisp, subtle separations, zero decoration) -->
+            <div class="bg-cap-surface border border-cap-border rounded overflow-hidden flex flex-col">
+                <div class="px-5 py-4 border-b border-cap-border flex justify-between items-center bg-cap-surface">
+                    <div class="flex items-center gap-4">
+                        <h2 class="text-sm font-medium text-cap-text">Current State Output</h2>
+                        <div class="h-4 w-px bg-cap-border"></div>
+                        <span class="text-xs text-cap-muted">500 instances analyzed</span>
+                    </div>
+                    
+                    <!-- Table tools -->
+                    <div class="relative w-48">
+                        <i class="ph ph-magnifying-glass absolute left-2 top-1/2 -translate-y-1/2 text-cap-muted text-sm"></i>
+                        <input type="text" placeholder="Filter ticker..." class="w-full bg-cap-base border border-cap-border rounded pl-7 pr-3 py-1.5 text-xs text-cap-text focus:outline-none focus:border-cap-orange focus:ring-1 focus:ring-cap-orange/50 transition-all font-mono placeholder:text-cap-muted/50">
+                    </div>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse whitespace-nowrap">
+                        <thead>
+                            <tr class="bg-cap-base/50 text-xxs text-cap-muted uppercase tracking-wider border-b border-cap-border">
+                                <th class="px-5 py-3 font-normal w-12">Tick</th>
+                                <th class="px-5 py-3 font-normal">Dir</th>
+                                <th class="px-5 py-3 font-normal text-right">Sig_Score</th>
+                                <th class="px-5 py-3 font-normal text-right">Last Px</th>
+                                <th class="px-5 py-3 font-normal text-right">Pred_Px_T1</th>
+                                <th class="px-5 py-3 font-normal text-right">Risk_Vol</th>
+                                <th class="px-5 py-3 font-normal text-center">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody class="text-sm text-cap-text divide-y divide-cap-border/50">
+                            <!-- Row 1 -->
+                            <tr class="data-row transition-colors duration-150 group cursor-default">
+                                <td class="px-5 py-2.5 font-bold group-hover:text-cap-orange transition-colors">MSFT</td>
+                                <td class="px-5 py-2.5"><span class="bg-cap-green/10 text-cap-green border border-cap-green/20 px-1.5 py-0.5 rounded text-xs">LONG</span></td>
+                                <td class="px-5 py-2.5 text-right num-align">0.892</td>
+                                <td class="px-5 py-2.5 text-right num-align">402.15</td>
+                                <td class="px-5 py-2.5 text-right num-align text-cap-green">408.50</td>
+                                <td class="px-5 py-2.5 text-right num-align text-cap-muted">1.2%</td>
+                                <td class="px-5 py-2.5 text-center">
+                                    <span class="inline-block w-2 h-2 rounded-full bg-cap-green"></span>
+                                </td>
+                            </tr>
+                            <!-- Row 2 -->
+                            <tr class="data-row transition-colors duration-150 group cursor-default">
+                                <td class="px-5 py-2.5 font-bold group-hover:text-cap-orange transition-colors">AMD</td>
+                                <td class="px-5 py-2.5"><span class="bg-cap-green/10 text-cap-green border border-cap-green/20 px-1.5 py-0.5 rounded text-xs">LONG</span></td>
+                                <td class="px-5 py-2.5 text-right num-align">0.741</td>
+                                <td class="px-5 py-2.5 text-right num-align">165.20</td>
+                                <td class="px-5 py-2.5 text-right num-align text-cap-green">172.00</td>
+                                <td class="px-5 py-2.5 text-right num-align text-cap-muted">3.4%</td>
+                                <td class="px-5 py-2.5 text-center">
+                                    <span class="inline-block w-2 h-2 rounded-full bg-cap-green"></span>
+                                </td>
+                            </tr>
+                            <!-- Row 3 -->
+                            <tr class="data-row transition-colors duration-150 group cursor-default">
+                                <td class="px-5 py-2.5 font-bold group-hover:text-cap-orange transition-colors">SNOW</td>
+                                <td class="px-5 py-2.5"><span class="bg-cap-red/10 text-cap-red border border-cap-red/20 px-1.5 py-0.5 rounded text-xs">SHRT</span></td>
+                                <td class="px-5 py-2.5 text-right num-align">-0.822</td>
+                                <td class="px-5 py-2.5 text-right num-align">155.80</td>
+                                <td class="px-5 py-2.5 text-right num-align text-cap-red">142.30</td>
+                                <td class="px-5 py-2.5 text-right num-align text-cap-muted">5.1%</td>
+                                <td class="px-5 py-2.5 text-center">
+                                    <span class="inline-block w-2 h-2 rounded-full bg-cap-red"></span>
+                                </td>
+                            </tr>
+                            <!-- Row 4 -->
+                            <tr class="data-row transition-colors duration-150 group cursor-default">
+                                <td class="px-5 py-2.5 font-bold group-hover:text-cap-orange transition-colors">SMCI</td>
+                                <td class="px-5 py-2.5"><span class="bg-cap-red/10 text-cap-red border border-cap-red/20 px-1.5 py-0.5 rounded text-xs">SHRT</span></td>
+                                <td class="px-5 py-2.5 text-right num-align">-0.650</td>
+                                <td class="px-5 py-2.5 text-right num-align">890.10</td>
+                                <td class="px-5 py-2.5 text-right num-align text-cap-red">850.00</td>
+                                <td class="px-5 py-2.5 text-right num-align text-cap-muted">7.8%</td>
+                                <td class="px-5 py-2.5 text-center">
+                                    <span class="inline-block w-2 h-2 rounded-full bg-cap-red"></span>
+                                </td>
+                            </tr>
+                            <!-- Row 5 -->
+                            <tr class="data-row transition-colors duration-150 group cursor-default">
+                                <td class="px-5 py-2.5 font-bold group-hover:text-cap-orange transition-colors">JPM</td>
+                                <td class="px-5 py-2.5"><span class="bg-cap-border text-cap-muted border border-cap-border px-1.5 py-0.5 rounded text-xs">FLAT</span></td>
+                                <td class="px-5 py-2.5 text-right num-align text-cap-muted">0.012</td>
+                                <td class="px-5 py-2.5 text-right num-align">190.55</td>
+                                <td class="px-5 py-2.5 text-right num-align text-cap-muted">190.60</td>
+                                <td class="px-5 py-2.5 text-right num-align text-cap-muted">0.8%</td>
+                                <td class="px-5 py-2.5 text-center">
+                                    <span class="inline-block w-2 h-2 rounded-full bg-cap-muted"></span>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Spacer to ensure deep scroll feels realistic -->
+            <div class="h-8"></div>
+        </div>
+    </main>
+
+</body>
+</html>

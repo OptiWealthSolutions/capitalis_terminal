@@ -40,7 +40,11 @@ def get_historical_returns(tickers, period="10y", interval="1d"):
     Utilise les log-returns (et non les rendements discrets pct_change) afin d'être
     cohérent avec les hypothèses log-normales du moteur Monte Carlo et des modèles GARCH.
     """
-    ticker_str = "_".join(sorted(tickers))
+    # Sanitize tickers for filesystem use — replace / and . that break paths
+    def _safe(t: str) -> str:
+        return t.replace("/", "-").replace("\\", "-").replace(":", "-")
+
+    ticker_str = "_".join(sorted(_safe(t) for t in tickers))
     cache_filename = f"logreturns_{ticker_str}_{period}_{interval}.csv"
     cache_path = CACHE_DIR / cache_filename
 

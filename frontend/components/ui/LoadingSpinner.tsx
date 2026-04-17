@@ -16,13 +16,13 @@ export function LoadingSpinner({ label, size = "md", className }: Props) {
   return (
     <div className={cn("flex flex-col items-center justify-center gap-3", className)}>
       <div
-        className={cn(
-          "rounded-full border-bg-border border-t-accent-blue animate-spin",
-          SIZE_MAP[size]
-        )}
+        className={cn("rounded-full animate-spin", SIZE_MAP[size])}
+        style={{ borderColor: "rgba(255,255,255,0.08)", borderTopColor: "var(--orange)" }}
       />
       {label && (
-        <span className="text-text-secondary text-xs uppercase tracking-wider">{label}</span>
+        <span className="text-xs font-medium tracking-wider" style={{ color: "var(--text-muted)" }}>
+          {label}
+        </span>
       )}
     </div>
   );
@@ -34,9 +34,6 @@ export function SkeletonBlock({ className }: { className?: string }) {
 
 export function SkeletonChart({ height = 300 }: { height?: number }) {
   return (
-    <div
-      className="skeleton rounded"
-      style={{ height: `${height}px`, width: "100%" }}
-    />
+    <div className="skeleton rounded-lg w-full" style={{ height }} />
   );
 }

@@ -1,10 +1,8 @@
-import type { NextConfig } from "next";
-
-const nextConfig: NextConfig = {
+/** @type {import('next').NextConfig} */
+const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
 
-  // Security headers applied to all routes
   async headers() {
     return [
       {
@@ -18,7 +16,7 @@ const nextConfig: NextConfig = {
             key: "Content-Security-Policy",
             value: [
               "default-src 'self'",
-              "script-src 'self' 'unsafe-eval' 'unsafe-inline'",  // unsafe-eval required by Plotly
+              "script-src 'self' 'unsafe-eval' 'unsafe-inline'",
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
               "font-src 'self' https://fonts.gstatic.com",
               "img-src 'self' data: https:",
@@ -30,7 +28,6 @@ const nextConfig: NextConfig = {
     ];
   },
 
-  // Proxy /api/* to FastAPI backend in development
   async rewrites() {
     const backendUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
     return [

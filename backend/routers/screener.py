@@ -128,14 +128,20 @@ def run_screener(req: ScreenerRunRequest) -> Any:
         return cached
 
     try:
-        screener = Screener(criteria=criteria_raw)
-        df_result = screener.run()
+        screener = Screener()
+        df_result = screener.run_screener(custom_rules=criteria_raw)
     except Exception as exc:
         logger.error("Screener execution error: %s", exc, exc_info=True)
         raise HTTPException(status_code=500, detail=f"Screener failed: {exc}")
 
     if df_result is None or df_result.empty:
         return {"count": 0, "assets": []}
+
+    # Sauvegarde vitale pour que le Scorer puisse lire l'input de l'univers
+    try:
+        df_result.to_csv(settings.SCREENED_ASSETS_PATH, index=False)
+    except Exception as exc:
+        logger.warning("Failed to save screened assets: %s", exc)
 
     records = df_result.to_dict(orient="records")
     result = {"count": len(records), "assets": records}

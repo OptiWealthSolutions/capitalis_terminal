@@ -98,7 +98,7 @@ if 'screened_df' not in st.session_state or st.session_state['screened_df'] is N
     st.markdown("> **WARNING** - Prérequis manquant : L'univers d'actifs n'est pas défini. Initialisez le SCREENER au préalable.")
     st.stop()
 
-df_screened = st.session_state['screened_df']
+df_screened = st.session_state['screened_df'].copy()
 
 manual_tickers = st.session_state.get('manual_tickers', [])
 manual_tickers_df = st.session_state.get('manual_tickers_df', pd.DataFrame())
@@ -190,6 +190,18 @@ if st.button("RUN SCORER", type="primary", width="stretch"):
     end_time = time.time()
     
     if scored_results is not None:
+        # --- Standardisation des colonnes pour éviter les KeyError ---
+        if not scored_results.empty:
+            col_lower = {str(c).lower(): c for c in scored_results.columns}
+            rename_map = {}
+            if 'ticker' in col_lower and col_lower['ticker'] != 'Ticker':
+                rename_map[col_lower['ticker']] = 'Ticker'
+            elif 'symbol' in col_lower:
+                rename_map[col_lower['symbol']] = 'Ticker'
+            if 'total_score' in col_lower and col_lower['total_score'] != 'Total_Score':
+                rename_map[col_lower['total_score']] = 'Total_Score'
+            scored_results = scored_results.rename(columns=rename_map)
+
         st.session_state['scored_df'] = scored_results
         
         # --- PERSISTANCE SQLITE ---

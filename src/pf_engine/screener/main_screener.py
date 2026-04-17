@@ -1,13 +1,30 @@
 import sys
 from pathlib import Path
-import time
 import logging
 import warnings
 import pandas as pd
 import operator
 from tvscreener import StockScreener, StockField
 
-# Mise à jour du ROOT pour la nouvelle architecture
+# TradingView returns display-name columns (e.g. "Current Ratio (MRQ)").
+# The dynamic col_rename built from StockField.value uses API names that never match.
+# This static map covers all metrics the screener and scorer need.
+_TV_DISPLAY_RENAME: dict[str, str] = {
+    "Price":                          "currentPrice",
+    "Price to Earnings Ratio (TTM)":  "trailingPE",
+    "Forward P/E (Non-GAAP)":         "forwardPE",
+    "Price to Book (MRQ)":            "priceToBook",
+    "Dividend Yield %":               "dividendYield",
+    "Return on Equity (TTM)":         "returnOnEquity",
+    "Debt to Equity Ratio (MRQ)":     "debtToEquity",
+    "Net Margin (TTM)":               "profitMargins",
+    "Operating Margin (TTM)":         "operatingMargins",
+    "Current Ratio (MRQ)":            "currentRatio",
+    "EPS Diluted (Annual YoY Growth)":"earningsGrowth",
+    "Revenue (Annual YoY Growth)":    "revenueGrowth",
+    "Market Capitalization":          "marketCap",
+}
+
 ROOT = Path(__file__).resolve().parent.parent.parent.parent
 if str(ROOT) not in sys.path:
     sys.path.append(str(ROOT))
@@ -16,47 +33,62 @@ from src.core import config as settings
 
 warnings.filterwarnings('ignore')
 
+
 class Screener:
     def __init__(self, **kwargs):
-        # --- MOTEUR DE DECOUVERTE DYNAMIQUE (ANTI-CRASH) ---
-        def get_tv_field(*possible_api_names):
-            """Cherche dynamiquement le champ dans l'Enum peu importe son nom de variable."""
+
+        def get_tv_field(*possible_api_names: str):
+            """Find a StockField by API name (index 1 of the tuple value)."""
             for f in StockField:
-                if getattr(f, 'field_name', None) in possible_api_names:
+                v = getattr(f, 'value', None)
+                api_name = v[1] if isinstance(v, tuple) and len(v) > 1 else str(v)
+                if api_name in possible_api_names:
                     return f
             return None
 
-        # DICTIONNAIRE DE MAPPING DYNAMIQUE (Immunisé contre les versions pip)
+        # Mapping: our standard name → StockField
         raw_map = {
-            'trailingPE': get_tv_field('price_earnings_ttm', 'price_earnings'),
-            'forwardPE': get_tv_field('price_earnings_forward_fy', 'price_earnings_forward'),
-            'priceToBook': get_tv_field('price_book_ratio', 'price_book_fq'),
-            'dividendYield': get_tv_field('dividends_yield', 'dividend_yield_recent'),
-            'returnOnEquity': get_tv_field('return_on_equity_ttm', 'return_on_equity'),
-            'debtToEquity': get_tv_field('debt_to_equity_ratio_mrq', 'debt_to_equity'),
-            'profitMargins': get_tv_field('net_margin_ttm', 'after_tax_margin'),
-            'currentRatio': get_tv_field('current_ratio_mrq', 'current_ratio'),
-            'earningsGrowth': get_tv_field('eps_diluted_ttm_yoy_growth', 'earnings_per_share_diluted_yoy_growth_ttm'),
-            'marketCap': get_tv_field('market_cap_basic', 'market_capitalization')
+            'currentPrice':    get_tv_field('close'),
+            'trailingPE':      get_tv_field('price_earnings_ttm', 'price_earnings'),
+            'forwardPE':       get_tv_field('price_earnings_forward_fy', 'price_earnings_forward', 'price_earnings_current'),
+            'priceToBook':     get_tv_field('price_book_ratio', 'price_book_fq'),
+            'dividendYield':   get_tv_field('dividends_yield', 'dividend_yield_recent', 'dividends_yield_current'),
+            'returnOnEquity':  get_tv_field('return_on_equity', 'return_on_equity_ttm', 'return_on_equity_fq'),
+            'debtToEquity':    get_tv_field('debt_to_equity', 'debt_to_equity_ratio_mrq', 'debt_to_equity_fq'),
+            'profitMargins':   get_tv_field('net_margin', 'net_margin_ttm', 'net_income_bef_disc_oper_margin_fy'),
+            'operatingMargins': get_tv_field('operating_margin', 'oper_income_per_revenue', 'gross_profit_margin'),
+            'currentRatio':    get_tv_field('current_ratio', 'current_ratio_mrq', 'current_ratio_fq'),
+            'earningsGrowth':  get_tv_field('earnings_per_share_diluted_yoy_growth_ttm', 'eps_diluted_ttm_yoy_growth'),
+            'revenueGrowth':   get_tv_field('total_revenue_yoy_growth_ttm', 'revenue_yoy_growth_ttm'),
+            'marketCap':       get_tv_field('market_cap_basic', 'market_capitalization', 'market_cap_calc'),
         }
-        
-        # Filtrage de sécurité : on ne garde que les champs que ta version de tvscreener connait vraiment
-        self.tv_field_map = {k: v for k, v in raw_map.items() if v is not None}
-        
-        # MAPPING DES OPERATEURS LOGIQUES
+
+        # Keep only fields the installed version actually knows
+        self.tv_field_map: dict = {k: v for k, v in raw_map.items() if v is not None}
+
+        # Reverse map: API name → our standard name (used after screener.get())
+        self.col_rename: dict = {}
+        for our_name, tv_field in self.tv_field_map.items():
+            v = getattr(tv_field, 'value', None)
+            api_name = v[1] if isinstance(v, tuple) and len(v) > 1 else str(v)
+            if api_name:
+                self.col_rename[api_name] = our_name
+
         self.tv_op_map = {
             '>': operator.gt,
             '>=': operator.ge,
             '<': operator.lt,
             '<=': operator.le,
-            '==': operator.eq
+            '==': operator.eq,
         }
 
-    def run_screener(self, custom_rules=None, tickers_list=None, markets=['america']):
-        logging.info("SYSTEM : INITIALISATION DU SCREENER COTE SERVEUR (TRADINGVIEW API).")
-        
+    def run_screener(self, custom_rules=None, tickers_list=None, markets=None):
+        if markets is None:
+            markets = ['america']
+
+        logging.info("SCREENER: initializing TradingView StockScreener")
         screener = StockScreener()
-        
+
         try:
             from tvscreener import Market
             market_map = {'america': Market.AMERICA}
@@ -64,102 +96,110 @@ class Screener:
                 if market in market_map:
                     screener.set_markets(market_map[market])
         except ImportError:
-            pass 
-        
-        # Si une liste de tickers est fournie, on filtre uniquement sur ces symboles et on ignore les autres regles.
+            pass
+
         if tickers_list:
-            from tvscreener import FilterOperation
-            screener.filter(StockField.SYMBOL, FilterOperation.IN_RANGE, tickers_list)
-            custom_rules = None  # On desactive les regles fondamentales si une liste de tickers est presente
+            try:
+                from tvscreener import FilterOperation
+                screener.filter(StockField.SYMBOL, FilterOperation.IN_RANGE, tickers_list)
+                custom_rules = None
+            except Exception as e:
+                logging.warning(f"SCREENER: ticker filter failed: {e}")
 
-        # --- SELECTION EXPLICITE DES COLONNES ---
+        # Select fields explicitly
         fields_to_select = list(self.tv_field_map.values())
-        if hasattr(StockField, 'SECTOR'):
-            fields_to_select.append(StockField.SECTOR)
-        if hasattr(StockField, 'INDUSTRY'):
-            fields_to_select.append(StockField.INDUSTRY)
-            
-        if hasattr(screener, 'select'):
-            screener.select(*list(set(fields_to_select)))
+        extra_fields = []
+        for attr in ('SECTOR', 'INDUSTRY'):
+            if hasattr(StockField, attr):
+                extra_fields.append(getattr(StockField, attr))
+        if hasattr(screener, 'select') and fields_to_select:
+            screener.select(*list(dict.fromkeys(fields_to_select + extra_fields)))
 
-        # 1. TRADUCTION ET APPLICATION DES FILTRES FONDAMENTAUX STRICTS
-        if custom_rules: # Seulement si custom_rules est present et tickers_list non fourni
+        # Apply fundamental filters
+        if custom_rules:
             for metric, crit in custom_rules.items():
                 tv_field = self.tv_field_map.get(metric)
                 if not tv_field:
-                    logging.warning(f"SYSTEM WARNING : METRIQUE '{metric}' INCONNUE. IGNOREE POUR EVITER UN CRASH.")
+                    logging.warning(f"SCREENER: unknown metric '{metric}', skipped")
                     continue
-                    
                 op_str = crit.get('op', '>=')
-                val = crit.get('val', 0.0)
-                
+                val = float(crit.get('val', 0.0))
                 op_func = self.tv_op_map.get(op_str)
                 if op_func:
-                    screener.where(op_func(tv_field, float(val)))
-                    logging.info(f"SYSTEM : FILTRE API APPLIQUE -> {metric} {op_str} {val}")
+                    try:
+                        screener.where(op_func(tv_field, val))
+                        logging.info(f"SCREENER: filter applied → {metric} {op_str} {val}")
+                    except Exception as e:
+                        logging.warning(f"SCREENER: filter error for {metric}: {e}")
 
-        # 2. EXECUTION DE LA REQUETE MATRICIELLE
-        logging.info("SYSTEM : FETCHING DATA FROM TRADINGVIEW SERVER...")
+        # Execute query
+        logging.info("SCREENER: executing TradingView API request…")
         try:
             df = screener.get()
         except Exception as e:
-            logging.error(f"SYSTEM ERROR : ECHEC DE LA REQUETE TRADINGVIEW API -> {e}")
+            logging.error(f"SCREENER: TradingView API request failed → {e}")
             return pd.DataFrame()
-            
+
         if df is None or df.empty:
-            logging.warning("SYSTEM WARNING : AUCUN ACTIF NE CORRESPOND AUX CRITERES SERVER-SIDE.")
+            logging.warning("SCREENER: no assets matched the criteria")
             return pd.DataFrame()
 
-        # 3. STANDARDISATION DES METADONNEES SECTORIELLES
-        if df is not None and not df.empty:
-            # Renommage standardisé pour la matrice d'allocation (1ere lettre en majuscule)
-            col_mapping = {}
+        # ---- Rename tvscreener column names → our standard names ----
+        # Apply static display-name map first (covers most cases).
+        # Fall back to dynamic API-name map for any edge cases.
+        df = df.rename(columns=_TV_DISPLAY_RENAME)
+        df = df.rename(columns=self.col_rename)
+        # Drop duplicate columns produced when multiple TV display names map to
+        # the same standard name (e.g. "Dividend Yield %" and "Dividend Yield Forward").
+        df = df.loc[:, ~df.columns.duplicated(keep="first")]
+
+        # ---- Sector / Industry standardisation ----
+        for raw, std in [('sector', 'Sector'), ('industry', 'Industry')]:
             for col in df.columns:
-                if str(col).lower() == 'sector':
-                    col_mapping[col] = 'Sector'
-                if str(col).lower() == 'industry':
-                    col_mapping[col] = 'Industry'
-            df.rename(columns=col_mapping, inplace=True)
-            
-            # Securite anti-crash et formatage institutionnel des valeurs
-            if 'Sector' not in df.columns:
-                df['Sector'] = 'Inconnu'
-            else:
-                df['Sector'] = df['Sector'].astype(str).str.title()
-                
-            if 'Industry' not in df.columns:
-                df['Industry'] = 'Inconnu'
-            else:
-                df['Industry'] = df['Industry'].astype(str).str.title()
-
-        # 4. EXTRACTION ET NETTOYAGE DU TICKER PUR
-        symbol_col = next((c for c in df.columns if str(c).lower() == 'symbol'), None)
-        name_col = next((c for c in df.columns if str(c).lower() == 'name'), None)
-        ticker_col = symbol_col or name_col
-
-        if ticker_col:
-            df['ticker'] = df[ticker_col].astype(str).apply(lambda x: x.split(':')[-1] if ':' in x else x)
+                if col.lower() == raw and col != std:
+                    df = df.rename(columns={col: std})
+        if 'Sector' not in df.columns:
+            df['Sector'] = 'Unknown'
         else:
-            logging.warning("SYSTEM ERROR : COLONNE 'symbol' OU 'name' INTROUVABLE DANS LA REPONSE JSON.")
+            df['Sector'] = df['Sector'].astype(str).str.title().replace('nan', 'Unknown')
+        if 'Industry' not in df.columns:
+            df['Industry'] = 'Unknown'
+        else:
+            df['Industry'] = df['Industry'].astype(str).str.title().replace('nan', 'Unknown')
+
+        # ---- Extract clean ticker ----
+        symbol_col = next((c for c in df.columns if str(c).lower() == 'symbol'), None)
+        name_col   = next((c for c in df.columns if str(c).lower() == 'name'), None)
+        ticker_src = symbol_col or name_col
+
+        if ticker_src is None:
+            logging.error("SCREENER: no 'symbol' or 'name' column found in response")
             return pd.DataFrame()
 
-        logging.info(f"SYSTEM : SCREENING COMPLETE. {len(df)} ACTIFS QUALIFIES.")
-        if not df.empty:
-            
-            # --- PERSISTANCE SQLITE ---
-            try:
-                from src.data_managers.db_manager import DatabaseManager
-                db = DatabaseManager()
-                
-                df_assets = pd.DataFrame({
-                    'ticker': df['ticker'],
-                    'name': df.get('name', df.get('description', 'Unknown')),
-                    'sector': df.get('Sector', 'Unknown'),
-                    'industry': df.get('Industry', 'Unknown'),
-                    'is_active': 1
-                })
-                db.upsert_assets(df_assets)
-            except Exception as e:
-                logging.error(f"SYSTEM ERROR : Impossible de sauvegarder dans la base SQLite -> {e}")
-                
+        df['Ticker'] = df[ticker_src].astype(str).apply(
+            lambda x: x.split(':')[-1] if ':' in x else x
+        )
+
+        # ---- Persist to SQLite ----
+        try:
+            from src.data_managers.db_manager import DatabaseManager
+            db = DatabaseManager()
+            name_src = df.get('name', df.get('description', pd.Series(['Unknown'] * len(df))))
+            df_assets = pd.DataFrame({
+                'ticker':    df['Ticker'],
+                'name':      name_src if isinstance(name_src, pd.Series) else 'Unknown',
+                'sector':    df['Sector'],
+                'industry':  df['Industry'],
+                'is_active': 1,
+            })
+            db.upsert_assets(df_assets)
+        except Exception as e:
+            logging.error(f"SCREENER: SQLite persist failed → {e}")
+
+        logging.info(f"SCREENER: complete — {len(df)} assets qualified")
+        
+        # Purge des valeurs non finies pour garantir une payload JSON valide (évite les NaN front-end)
+        import numpy as np
+        df = df.replace([np.inf, -np.inf], np.nan).where(pd.notna(df), None)
+        
         return df

@@ -7,15 +7,31 @@ Entry point. Run with:
 import os
 import logging
 from contextlib import asynccontextmanager
+from pathlib import Path
+
+_env_path = Path(__file__).resolve().parent.parent / ".env"
+if _env_path.exists():
+    try:
+        from dotenv import load_dotenv
+        load_dotenv(_env_path, override=False)
+    except ImportError:
+        # Parse manually — python-dotenv not installed
+        for _line in _env_path.read_text().splitlines():
+            _line = _line.strip()
+            if _line and not _line.startswith("#") and "=" in _line:
+                _k, _, _v = _line.partition("=")
+                os.environ.setdefault(_k.strip(), _v.strip().strip('"\''))
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
 
-from .routers import macro, portfolio, screener, scorer, equity, ml_predictions, reporting
+from .routers import macro, portfolio, screener, scorer, equity, ml_predictions, reporting, billing, forex, calendar
+from .routers import auth as auth_router
 from .routers.settings_router import router as settings_router
 from .cache.memory_cache import cache
+from .db import init_db
 
 logger = logging.getLogger(__name__)
 
@@ -31,6 +47,7 @@ ALLOWED_ORIGINS = [
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    init_db()
     logger.info("CAPITALIS V2 API starting — ENV=%s", ENV)
     yield
     cache.clear()
@@ -96,6 +113,7 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
 # ---------------------------------------------------------------------------
 # Routers
 # ---------------------------------------------------------------------------
+app.include_router(auth_router.router, prefix="/api/auth", tags=["Auth"])
 app.include_router(macro.router, prefix="/api/macro", tags=["Macro"])
 app.include_router(portfolio.router, prefix="/api/portfolio", tags=["Portfolio"])
 app.include_router(screener.router, prefix="/api/screener", tags=["Screener"])
@@ -104,6 +122,9 @@ app.include_router(equity.router, prefix="/api/equity", tags=["Equity"])
 app.include_router(ml_predictions.router, prefix="/api/predictions", tags=["ML Predictions"])
 app.include_router(reporting.router, prefix="/api/reporting", tags=["Reporting"])
 app.include_router(settings_router, prefix="/api/settings", tags=["Settings"])
+app.include_router(billing.router, prefix="/api/billing", tags=["Billing"])
+app.include_router(forex.router,     prefix="/api/forex",     tags=["Forex"])
+app.include_router(calendar.router,  prefix="/api/calendar",  tags=["Calendar"])
 
 
 # ---------------------------------------------------------------------------

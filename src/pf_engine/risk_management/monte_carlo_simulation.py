@@ -87,3 +87,14 @@ def calculate_var_cvar(
         cvar_95 = np.mean(final_values[final_values <= np.percentile(final_values, 5)]) - mean_expected_value
 
     return float(var_95), float(var_99), float(cvar_95)
+
+def calculate_var_cvar_simple(
+    final_values: np.ndarray,
+    initial_capital: float,
+) -> tuple[float, float]:
+    """
+    Simplified wrapper returning (var_95, cvar_95) as POSITIVE loss amounts.
+    Intended for API consumers that display losses with a leading '-'.
+    """
+    var_95, _var_99, cvar_95 = calculate_var_cvar(final_values, initial_capital)
+    return abs(var_95), abs(cvar_95)

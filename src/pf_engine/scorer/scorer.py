@@ -1,6 +1,7 @@
 import logging
 import pandas as pd
 import numpy as np
+import yfinance as yf
 from scipy.stats import zscore
 import sys
 import concurrent.futures
@@ -60,9 +61,9 @@ class Scorer:
             t = t.replace('.', '-')
             return t.strip()
             
-        # Identification dynamique de la colonne du ticker (symbol ou Ticker)
-        ticker_col = 'symbol' if 'symbol' in df.columns else 'Ticker'
-        if ticker_col in df.columns:
+        # Identification dynamique de la colonne du ticker (symbol, Ticker, ou ticker en cas de fallback)
+        ticker_col = next((c for c in ['symbol', 'Ticker', 'ticker'] if c in df.columns), None)
+        if ticker_col is not None:
             df['yf_symbol'] = df[ticker_col].astype(str).apply(clean_ticker)
         else:
             raise KeyError("SYSTEM FAULT: Aucune colonne de Ticker ('symbol' ou 'Ticker') n'a ete trouvee dans le DataFrame d'entree.")
@@ -176,13 +177,30 @@ class Scorer:
         
         if fund_data:
             df_fund = pd.DataFrame(fund_data)
-            
+
             # Suppression des métadonnées redondantes pour éviter la création de suffixes (_x, _y) lors de la fusion
             overlap_cols = [c for c in ['Name', 'Sector', 'Country'] if c in df.columns and c in df_fund.columns]
             if overlap_cols:
                 df_fund = df_fund.drop(columns=overlap_cols)
-                
+
             df = pd.merge(df, df_fund, on=ticker_col, how='left')
+
+            # Résoudre les suffixes _x/_y pour les colonnes fondamentales :
+            # préférer la valeur _y (données fraîches yfinance) sur la valeur _x (screener)
+            fund_cols = [
+                'trailingPE', 'priceToBook', 'returnOnEquity', 'earningsGrowth',
+                'debtToEquity', 'trailingEps', 'forwardPE', 'returnOnAssets',
+                'operatingMargins', 'currentRatio', 'dividendYield',
+            ]
+            for col in fund_cols:
+                x_col, y_col = f"{col}_x", f"{col}_y"
+                if x_col in df.columns and y_col in df.columns:
+                    df[col] = df[y_col].combine_first(df[x_col])
+                    df.drop(columns=[x_col, y_col], inplace=True)
+                elif x_col in df.columns:
+                    df.rename(columns={x_col: col}, inplace=True)
+                elif y_col in df.columns:
+                    df.rename(columns={y_col: col}, inplace=True)
 
         cols_to_numeric = [
             'trailingPE', 'priceToBook', 'returnOnEquity', 'earningsGrowth', 

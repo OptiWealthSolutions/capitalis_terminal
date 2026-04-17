@@ -33,7 +33,8 @@ logging.basicConfig(
 
 # --- Configuration des Chemins (Paths) ---
 # Centralise les chemins vers les répertoires et fichiers de données.
-BASE_DIR = Path(__file__).resolve().parent
+# BASE_DIR = racine du projet (capitalis_terminal/), pas src/core/
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
 DATA_DIR = BASE_DIR / "data"
 
 # --- Sécurité : Création automatique du dossier des bases de données ---
@@ -151,5 +152,5 @@ SCORING_WEIGHTS = {
     'Sortino': 0.00,          # Rendement ajusté au risque baissier — poids 0 par défaut (ajustable en UI)
     'CAGR': 0.05,             # Croissance annuelle composée du cours
     'earningsGrowth': 0.10,   # Croissance des bénéfices
-    'Vol_Ann': 0.05,          # Volatilité (une volatilité basse est meilleure)
+    'Vol_Ann': 0.05,          # Volatilité annualisée (une volatilité basse est meilleure)
 }

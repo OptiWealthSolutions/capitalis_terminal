@@ -4,9 +4,7 @@ Endpoints: generate PDF institutional report (streamed as binary response).
 """
 
 import sys
-import io
 import logging
-import tempfile
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -23,7 +21,7 @@ if str(ROOT) not in sys.path:
 
 from src.pf_engine.risk_management.monte_carlo_simulation import (
     run_monte_carlo_portfolio,
-    calculate_var_cvar,
+    calculate_var_cvar_simple,
 )
 from ..schemas.portfolio import MonteCarloRequest
 
@@ -81,7 +79,7 @@ def generate_pdf_report(req: ReportRequest) -> Response:
             n_simulations=req.n_simulations,
         )
         final_vals = sim_df.iloc[-1]
-        var_95, cvar_95 = calculate_var_cvar(final_vals, initial_capital=req.capital)
+        var_95, cvar_95 = calculate_var_cvar_simple(final_vals.values, initial_capital=req.capital)
     except Exception as exc:
         logger.error("Monte Carlo error in PDF report: %s", exc)
         raise HTTPException(status_code=500, detail="Monte Carlo simulation failed.")
@@ -146,7 +144,6 @@ def generate_pdf_report(req: ReportRequest) -> Response:
             pdf.cell(60, 8, f"{weight:.2%}", border="B")
             pdf.cell(70, 8, f"{alloc:,.0f} EUR", border="B", ln=True)
 
-        buf = io.BytesIO()
         pdf_bytes = pdf.output()
     except Exception as exc:
         logger.error("PDF generation error: %s", exc, exc_info=True)
@@ -154,7 +151,7 @@ def generate_pdf_report(req: ReportRequest) -> Response:
 
     filename = f"capitalis_report_{req.portfolio_name}_{datetime.now().strftime('%Y%m%d')}.pdf"
     return Response(
-        content=bytes(pdf_bytes),
+        content=pdf_bytes,
         media_type="application/pdf",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )

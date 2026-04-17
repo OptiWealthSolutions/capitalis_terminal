@@ -1,0 +1,39 @@
+{
+  "id": "2026-04-15T07-26-58-646Z-institutional-quantitative-finance-t",
+  "createdAt": "2026-04-15T07:28:52.469Z",
+  "repoRoot": "/Users/leolombardini/capitalis_terminal",
+  "prompt": "Institutional quantitative finance terminal SaaS — ultra-clean modern redesign preserving exact color palette: backgrounds #0A0A0C / #111115 / #18181E, borders #2A2A35, text #EAEAEA / #8A8A9A, primary accent orange #F97316 / #FF6B00, green #22C55E, red #EF4444, font JetBrains Mono monospace throughout. Layout: fixed narrow sidebar (nav links: Macro View, ML Alpha, Screener, Scorer, Portfolio, Equity Ov., Reporting, Settings, Account) + sticky top ticker bar showing live market data (S&P 500, VIX, US 10Y, Gold, Oil) + main content area. Design priorities: generous whitespace, strong visual hierarchy, crisp data-dense tables with subtle row separations, metric cards with clean stat blocks, smooth micro-animations on hover, minimal chrome, razor-sharp typography scale. Sidebar: slim icon+label nav items, subtle active state with orange left-border accent, no heavy backgrounds. Top bar: minimal inline ticker with delta indicators. Content: modular card grid, clean section headers, elegant data tables. Feel: Bloomberg meets Linear — institutional rigor with modern product polish. No gradients except very subtle card depth. No decorative elements.",
+  "targetRouteHint": null,
+  "targetFileHint": null,
+  "detectedFrameworks": [],
+  "componentLibraries": [],
+  "stylingSystems": [],
+  "routeCandidates": [
+    {
+      "route": "/pages",
+      "score": 0
+    }
+  ],
+  "tokenSources": [],
+  "componentDirectories": [],
+  "htmlStructure": {
+    "title": "Capitalis Terminal",
+    "primaryHeading": "Machine Learning Alpha Pipeline",
+    "sectionCount": 0,
+    "buttonCount": 5,
+    "formCount": 0,
+    "cardLikeCount": 0,
+    "hasNavigation": true,
+    "hasFooter": false,
+    "hasPricingSignals": false,
+    "hasDashboardSignals": true
+  },
+  "recommendations": [
+    "Start from the closest existing route instead of inventing a new app surface.",
+    "Use the generated preview as the visual truth source while porting the layout."
+  ],
+  "warnings": [
+    "No frontend framework was detected. Validate the target surface manually before porting.",
+    "The artifact looks dashboard-like, but no dashboard route was detected automatically."
+  ]
+}

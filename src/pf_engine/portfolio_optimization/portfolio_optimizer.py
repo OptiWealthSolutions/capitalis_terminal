@@ -2,32 +2,60 @@ import logging
 import sys
 from pathlib import Path
 import pandas as pd
-import importlib.util
 import plotly.express as px
 import plotly.graph_objects as go
 import yfinance as yf
 from .hrp_engine import run_hrp, apply_weight_constraints
 from .markowitz_engine import run_min_volatility, run_mean_variance
 
-
-
 from src.core import config as settings
-
-try:
-    data_provider_path = settings.DATA_DIR / "pf_engine" / "data_provider.py"
-    spec = importlib.util.spec_from_file_location("data_provider", data_provider_path)
-    data_provider_module = importlib.util.module_from_spec(spec)
-    sys.modules["data_provider"] = data_provider_module
-    spec.loader.exec_module(data_provider_module)
-    get_historical_returns = data_provider_module.get_historical_returns
-except Exception as e:
-    logging.error(f"Impossible de charger dynamiquement le module data_provider: {e}")
-    raise ImportError(f"Impossible de charger dynamiquement le module data_provider: {e}")
+from src.data_managers.data_provider import get_historical_returns
 
 class Portfolio:
-    def __init__(self, tickers, max_weight=1.0, min_weight=None, capital=20000, risk_aversion=0.5):
+    def __init__(self, tickers, max_weight=1.0, min_weight=None, capital=20000, risk_aversion=0.5, max_assets=None):
         logging.info(f"Initialisation du portefeuille avec {len(tickers)} tickers.")
-        self.tickers = tickers
+        
+        final_tickers = []
+        top20_loaded = False
+        for t in tickers:
+            if t in ("TOP20", "TOP_20_SCORED"):
+                if not top20_loaded:
+                    try:
+                        df_scored = pd.read_csv(settings.FINAL_SCORED_PATH)
+                        if not df_scored.empty and 'Ticker' in df_scored.columns:
+                            df_scored = df_scored.sort_values(by='Total_Score', ascending=False)
+                            top_20_count = max(1, int(len(df_scored) * 0.2))
+                            top_tickers = df_scored.head(top_20_count)['Ticker'].tolist()
+                            final_tickers.extend(top_tickers)
+                            logging.info(f"Ajout automatique des {top_20_count} meilleurs actifs scorés.")
+                            top20_loaded = True
+                    except Exception as e:
+                        logging.warning(f"Impossible de charger les actifs scorés (Top 20%) : {e}")
+            else:
+                final_tickers.append(t)
+                
+        # Yfinance ticker normalization map (dot-notation → dash-notation)
+        _YF_MAP = {"BRK.B": "BRK-B", "BRK.A": "BRK-A", "BF.B": "BF-B", "BF.A": "BF-A"}
+
+        def _normalize(t: str) -> str:
+            t = str(t).strip().upper()
+            return _YF_MAP.get(t, t.replace(".", "-"))
+
+        def _valid_ticker(t: str) -> bool:
+            if not t or t in ("TOP20", "TOP_20_SCORED"):
+                return False
+            # Preferred shares like GS/PA, MS/PP — no 10y price history,
+            # slash also corrupts the cache file path.
+            if "/" in t:
+                return False
+            return True
+
+        self.tickers = list(dict.fromkeys([
+            _normalize(x) for x in final_tickers
+            if pd.notna(x) and _valid_ticker(str(x).strip().upper())
+        ]))
+        if max_assets is not None:
+            self.tickers = self.tickers[:max_assets]
         self.max_weight = max_weight
         self.min_weight = min_weight
         self.capital = capital
@@ -38,7 +66,7 @@ class Portfolio:
         if self.returns.empty:
             logging.error("Impossible de récupérer les données de rendements. Arrêt du processus.")
             raise ValueError("Impossible de récupérer les données de rendements. Arrêt du processus.")
-        self.mu = self.returns.ewm(span=252).mean().iloc[-1] * 252
+        self.mu = self.returns.mean() * 252
         self.weights = None
 
     def Optimize(self, method="HRP"):

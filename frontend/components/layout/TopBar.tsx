@@ -3,23 +3,15 @@
 import { useQuery } from "@tanstack/react-query";
 import { get } from "@/lib/api";
 import type { MarketData } from "@/lib/types";
-import { formatNumber, colorForValue } from "@/lib/utils";
-import { cn } from "@/lib/utils";
+import { formatNumber } from "@/lib/utils";
 
-interface TickerItem {
-  label: string;
-  key: string;
-  prefix?: string;
-  suffix?: string;
-}
-
-const TICKER_ITEMS: TickerItem[] = [
-  { label: "S&P 500", key: "SP500", prefix: "" },
-  { label: "VIX", key: "VIX" },
-  { label: "US 10Y", key: "US10Y", suffix: "%" },
-  { label: "YIELD SPREAD", key: "YIELD_SPREAD", suffix: "%" },
-  { label: "GOLD", key: "GOLD", prefix: "$" },
-  { label: "OIL", key: "OIL", prefix: "$" },
+const TICKERS = [
+  { label: "S&P 500",    key: "SP500" },
+  { label: "VIX",        key: "VIX" },
+  { label: "US 10Y",     key: "US10Y",        suffix: "%" },
+  { label: "YLD SPREAD", key: "YIELD_SPREAD", suffix: "%" },
+  { label: "GOLD",       key: "GOLD",         prefix: "$" },
+  { label: "OIL",        key: "OIL",          prefix: "$" },
 ];
 
 export default function TopBar() {
@@ -30,43 +22,63 @@ export default function TopBar() {
     staleTime: 30_000,
   });
 
-  const getLastValue = (key: string): number | null => {
-    if (!data?.data[key]) return null;
-    const arr = data.data[key];
-    return arr[arr.length - 1] ?? null;
+  const getLast = (key: string) => {
+    const arr = data?.data[key];
+    return arr ? arr[arr.length - 1] ?? null : null;
   };
-
-  const getPrevValue = (key: string): number | null => {
-    if (!data?.data[key]) return null;
-    const arr = data.data[key];
-    return arr[arr.length - 2] ?? null;
+  const getPrev = (key: string) => {
+    const arr = data?.data[key];
+    return arr && arr.length >= 2 ? arr[arr.length - 2] ?? null : null;
   };
 
   return (
-    <div className="ticker-tape text-text-secondary sticky top-0 z-30">
-      {TICKER_ITEMS.map((item) => {
-        const current = getLastValue(item.key);
-        const prev = getPrevValue(item.key);
-        const change = current !== null && prev !== null ? current - prev : null;
-        const changeColor = change !== null ? colorForValue(change) : "text-text-secondary";
+    <div className="ticker-tape sticky top-0 z-30">
+      {TICKERS.map((t, i) => {
+        const cur  = getLast(t.key);
+        const prev = getPrev(t.key);
+        const chg  = cur !== null && prev !== null ? cur - prev : null;
+        const up   = chg !== null && chg >= 0;
 
         return (
-          <span key={item.key} className="flex items-center gap-1.5 whitespace-nowrap">
-            <span className="text-text-muted text-xs">{item.label}:</span>
-            <span className="text-text-primary font-medium">
-              {current !== null
-                ? `${item.prefix ?? ""}${formatNumber(current, 2)}${item.suffix ?? ""}`
-                : "--"}
-            </span>
-            {change !== null && (
-              <span className={cn("text-xs", changeColor)}>
-                {change > 0 ? "+" : ""}
-                {formatNumber(change, 3)}
-              </span>
+          <span key={t.key} className="flex items-center">
+            {i > 0 && (
+              <span
+                className="flex-shrink-0 mx-5"
+                style={{ width: 1, height: 10, background: "rgba(255,255,255,0.10)" }}
+              />
             )}
+            <span className="flex items-center gap-2 whitespace-nowrap select-none">
+              <span style={{ color: "var(--t3)", fontSize: 10.5, letterSpacing: "0.07em" }}>
+                {t.label}
+              </span>
+              <span style={{ color: "var(--t1)", fontSize: 11, fontWeight: 500 }}>
+                {cur !== null
+                  ? `${t.prefix ?? ""}${formatNumber(cur, 2)}${t.suffix ?? ""}`
+                  : "--"}
+              </span>
+              {chg !== null && (
+                <span
+                  style={{
+                    color: up ? "var(--green)" : "var(--red)",
+                    fontSize: 10.5,
+                    fontWeight: 500,
+                  }}
+                >
+                  {up ? "▲" : "▼"}{formatNumber(Math.abs(chg), 3)}
+                </span>
+              )}
+            </span>
           </span>
         );
       })}
+
+      <div
+        className="ml-auto pl-5 flex items-center gap-2 flex-shrink-0"
+        style={{ borderLeft: "1px solid rgba(255,255,255,0.08)" }}
+      >
+        <span className="live-dot" />
+        <span style={{ fontSize: 10.5, color: "var(--t3)", letterSpacing: "0.10em" }}>LIVE</span>
+      </div>
     </div>
   );
 }

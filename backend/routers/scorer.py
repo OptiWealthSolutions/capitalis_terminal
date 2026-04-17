@@ -61,8 +61,8 @@ def run_scorer(req: ScorerWeightsRequest) -> Any:
         raise HTTPException(status_code=422, detail="Screened asset list is empty.")
 
     try:
-        scorer = Scorer(weights=req.weights)
-        df_scored = scorer.score(df_screened)
+        scorer = Scorer(df_input=df_screened, custom_weights=req.weights)
+        df_scored = scorer.ComputeScore()
     except Exception as exc:
         logger.error("Scorer execution error: %s", exc, exc_info=True)
         raise HTTPException(status_code=500, detail=f"Scorer failed: {exc}")
@@ -70,8 +70,21 @@ def run_scorer(req: ScorerWeightsRequest) -> Any:
     if df_scored is None or df_scored.empty:
         return {"count": 0, "assets": []}
 
-    df_scored = df_scored.sort_values("TOTAL_SCORE", ascending=False).reset_index(drop=True)
-    records = df_scored.round(4).to_dict(orient="records")
+    # Tri sécurisé insensible à la casse
+    sort_col = "Total_Score" if "Total_Score" in df_scored.columns else "TOTAL_SCORE" if "TOTAL_SCORE" in df_scored.columns else None
+    if sort_col:
+        df_scored = df_scored.sort_values(sort_col, ascending=False).reset_index(drop=True)
+
+    # Sauvegarde sur disque requise pour que le endpoint /latest fonctionne
+    try:
+        df_scored.to_csv(settings.FINAL_SCORED_PATH, index=False)
+    except Exception as exc:
+        logger.warning(f"Could not save scored assets: {exc}")
+
+    # Arrondi sécurisé uniquement sur les colonnes numériques pour éviter les TypeError
+    numeric_cols = df_scored.select_dtypes(include=['number']).columns
+    df_scored[numeric_cols] = df_scored[numeric_cols].round(4)
+    records = df_scored.to_dict(orient="records")
     return {"count": len(records), "assets": records}
 
 

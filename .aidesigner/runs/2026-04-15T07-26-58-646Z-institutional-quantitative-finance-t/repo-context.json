@@ -1,0 +1,19 @@
+{
+  "repoRoot": "/Users/leolombardini/capitalis_terminal",
+  "cwd": "/Users/leolombardini/capitalis_terminal",
+  "stack": {
+    "frameworks": [],
+    "componentLibraries": [],
+    "styling": [],
+    "componentDirectories": [],
+    "packageFiles": []
+  },
+  "routes": [
+    "/pages"
+  ],
+  "tokens": {
+    "sources": [],
+    "tokens": []
+  },
+  "summary": "Repo root: /Users/leolombardini/capitalis_terminal\nWorking directory: /Users/leolombardini/capitalis_terminal\nFrameworks: none detected\nStyling: none detected\nComponent libraries: none detected\nRoute roots: app\nRoute candidates: /pages\nComponent directories: none detected\nToken sources: none detected\nVisible design language hints: no strong hints detected"
+}

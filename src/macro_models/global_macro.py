@@ -9,62 +9,84 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 from src.core import config as settings
 
+
+# FRED series IDs per region
+_SERIES: dict[str, dict[str, str]] = {
+    'US': {
+        'rate':  'FEDFUNDS',           # Federal Funds Effective Rate
+        'gdp':   'A191RL1Q225SBEA',    # US Real GDP QoQ growth
+        'unemp': 'UNRATE',             # US Unemployment Rate
+    },
+    'EU': {
+        'rate':  'IR3TIB01EZM156N',    # Euro Area 3-Month Interbank
+        'gdp':   'CPMNACSCAB1GQEA',    # Euro Area Real GDP
+        'unemp': 'LRHUTTTTEZM156S',    # Euro Area Unemployment
+    },
+    'JP': {
+        'rate':  'IR3TIB01JPM156N',    # Japan 3-Month Interbank
+        'gdp':   'JPNRGDPEXP',         # Japan Real GDP Growth
+        'unemp': 'LRHUTTTTJPM156S',    # Japan Unemployment
+    },
+    'CN': {
+        'rate':  'IRSTCB01CNM156N',    # China 3-Month Interbank
+        'gdp':   'CHNGDPNQDSMEI',      # China GDP (OECD MEI)
+        'unemp': 'LRHUTTTTCNM156S',    # China Unemployment (ILO harmonized)
+    },
+    'GB': {
+        'rate':  'IR3TIB01GBM156N',    # UK 3-Month Interbank Rate
+        'gdp':   'NAEXKP01GBQ657S',    # UK Real GDP QoQ growth (OECD MEI)
+        'unemp': 'LRHUTTTTGBM156S',    # UK Unemployment
+    },
+    'CA': {
+        'rate':  'IRSTCB01CAM156N',    # Canada Overnight Rate
+        'gdp':   'NAEXKP01CAQ657S',    # Canada Real GDP QoQ growth (OECD MEI)
+        'unemp': 'LRHUTTTTCAM156S',    # Canada Unemployment
+    },
+}
+
+
 def fetch_global_macro_indicators() -> dict:
     """
-    Aspire les dernieres donnees macroeconomiques via l'API officielle FRED.
+    Fetches latest macro data via FRED API for US, EU, JP, CN, GB, CA.
+    Returns a dict { region: { Rate, GDP, Unemp } }.
+    Gracefully degrades to 'N/A' if a series is unavailable.
     """
-    # Dictionnaire des Series ID du FRED
-    series_map = {
-        'US_RATE': 'FEDFUNDS',             # US Federal Funds Effective Rate
-        'US_GDP': 'A191RL1Q225SBEA',       # US Real GDP (QoQ Growth)
-        'US_UNEMP': 'UNRATE',              # US Unemployment Rate
-        'EU_RATE': 'IR3TIB01EZM156N',      # Euro Area 3-Month Interbank Rate
-        'EU_GDP': 'CPMNACSCAB1GQEA',       # Euro Area Real GDP Growth
-        'EU_UNEMP': 'LRHUTTTTEZM156S',     # Euro Area Unemployment Rate
-        'JP_RATE': 'IR3TIB01JPM156N',      # Japan 3-Month Interbank Rate
-        'JP_GDP': 'JPNRGDPEXP',            # Japan Real GDP Growth
-        'JP_UNEMP': 'LRHUTTTTJPM156S'      # Japan Unemployment Rate
-    }
-    
-    macro_data = {
-        'US': {'Rate': 'N/A', 'GDP': 'N/A', 'Unemp': 'N/A'},
-        'EU': {'Rate': 'N/A', 'GDP': 'N/A', 'Unemp': 'N/A'},
-        'JP': {'Rate': 'N/A', 'GDP': 'N/A', 'Unemp': 'N/A'}
+    result: dict[str, dict[str, str]] = {
+        r: {'Rate': 'N/A', 'GDP': 'N/A', 'Unemp': 'N/A'} for r in _SERIES
     }
 
-    # Recuperation de la cle API depuis settings.py
     api_key = settings.fred_api_key
-    
     if not api_key:
-        logging.warning("FRED API KEY manquante. Retour des donnees vides.")
-        return macro_data
+        logging.warning("FRED API KEY missing — returning empty macro indicators.")
+        return result
 
     try:
         fred = Fred(api_key=api_key)
     except Exception as e:
-        logging.error(f"SYSTEM FAULT: Echec initialisation client FRED - {e}")
-        return macro_data
-        
-    def safe_fetch(series_id, is_gdp=False):
+        logging.error(f"FRED client init failed: {e}")
+        return result
+
+    def safe_fetch(series_id: str, is_pct_level: bool = False) -> float | None:
+        """Fetch latest value from FRED; optionally convert absolute level to pct change."""
         try:
             s = fred.get_series(series_id).dropna()
-            if s.empty: return None
-            # Conversion automatique en % de croissance si la valeur est absolue (ex: EU/JP PIB)
-            if is_gdp and abs(s.iloc[-1]) > 50:
+            if s.empty:
+                return None
+            if is_pct_level and abs(s.iloc[-1]) > 50:
                 s = s.pct_change() * 100
                 s = s.dropna()
-            return s.iloc[-1] if not s.empty else None
+            return float(s.iloc[-1]) if not s.empty else None
         except Exception as e:
-            logging.warning(f"FRED API: Impossible de recuperer {series_id} - {e}")
+            logging.warning(f"FRED fetch failed for {series_id}: {e}")
             return None
 
-    for region in ['US', 'EU', 'JP']:
-        rate_val = safe_fetch(series_map[f'{region}_RATE'])
-        gdp_val = safe_fetch(series_map[f'{region}_GDP'], is_gdp=True)
-        unemp_val = safe_fetch(series_map[f'{region}_UNEMP'])
-        
-        if rate_val is not None: macro_data[region]['Rate'] = f"{rate_val:.2f}%"
-        if gdp_val is not None: macro_data[region]['GDP'] = f"{gdp_val:.2f}%"
-        if unemp_val is not None: macro_data[region]['Unemp'] = f"{unemp_val:.1f}%"
+    for region, series in _SERIES.items():
+        rate_val  = safe_fetch(series['rate'])
+        gdp_val   = safe_fetch(series['gdp'], is_pct_level=True)
+        unemp_val = safe_fetch(series['unemp'])
 
-    return macro_data
+        if rate_val  is not None: result[region]['Rate']  = f"{rate_val:.2f}%"
+        if gdp_val   is not None: result[region]['GDP']   = f"{gdp_val:.2f}%"
+        if unemp_val is not None: result[region]['Unemp'] = f"{unemp_val:.1f}%"
+
+    return result
