@@ -10,7 +10,8 @@ from pathlib import Path
 from typing import Any
 
 import pandas as pd
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
+from ..auth.jwt_handler import get_current_user
 
 ROOT = Path(__file__).resolve().parent.parent.parent
 if str(ROOT) not in sys.path:
@@ -24,8 +25,14 @@ from ..cache.memory_cache import cache, SCREENER_TTL
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
-PRESETS_DIR = ROOT / "data" / "screener_presets"
-PRESETS_DIR.mkdir(parents=True, exist_ok=True)
+PRESETS_BASE_DIR = ROOT / "data" / "screener_presets"
+PRESETS_BASE_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def _user_presets_dir(user_id: str) -> Path:
+    d = PRESETS_BASE_DIR / user_id
+    d.mkdir(parents=True, exist_ok=True)
+    return d
 
 SYSTEM_PRESETS: dict[str, Any] = {
     "SYSTEM_Deep_Value": {
@@ -52,12 +59,10 @@ SYSTEM_PRESETS: dict[str, Any] = {
 }
 
 
-def _load_presets() -> dict[str, Any]:
-    """Merges system presets with user-saved presets from disk."""
+def _load_presets(user_id: str) -> dict[str, Any]:
+    """Merges system presets with per-user presets from disk."""
     presets = SYSTEM_PRESETS.copy()
-    for path in PRESETS_DIR.glob("*.json"):
-        if path.name.startswith("SYSTEM_"):
-            continue
+    for path in _user_presets_dir(user_id).glob("*.json"):
         try:
             data = json.loads(path.read_text(encoding="utf-8"))
             presets[path.stem] = data
@@ -70,24 +75,23 @@ def _load_presets() -> dict[str, Any]:
 # GET /screener/presets
 # ---------------------------------------------------------------------------
 @router.get("/presets")
-def list_presets() -> Any:
-    """Returns all available screening presets (system + user)."""
-    return _load_presets()
+def list_presets(user: dict = Depends(get_current_user)) -> Any:
+    return _load_presets(user["sub"])
 
 
 # ---------------------------------------------------------------------------
 # POST /screener/presets
 # ---------------------------------------------------------------------------
 @router.post("/presets")
-def save_preset(req: PresetSaveRequest) -> Any:
-    """Saves a user-defined screening preset to disk."""
+def save_preset(req: PresetSaveRequest, user: dict = Depends(get_current_user)) -> Any:
     if req.name.startswith("SYSTEM_"):
         raise HTTPException(status_code=403, detail="Cannot overwrite system presets.")
 
-    path = PRESETS_DIR / f"{req.name}.json"
+    path = _user_presets_dir(user["sub"]) / f"{req.name}.json"
     try:
+        criteria_data = {k: v.model_dump() for k, v in req.criteria.items()}
         path.write_text(
-            json.dumps({"criteria": req.criteria.model_dump()}, indent=2),
+            json.dumps({"criteria": criteria_data}, indent=2),
             encoding="utf-8",
         )
     except OSError as exc:
@@ -100,11 +104,11 @@ def save_preset(req: PresetSaveRequest) -> Any:
 # DELETE /screener/presets/{name}
 # ---------------------------------------------------------------------------
 @router.delete("/presets/{name}")
-def delete_preset(name: str) -> Any:
+def delete_preset(name: str, user: dict = Depends(get_current_user)) -> Any:
     if name.startswith("SYSTEM_"):
         raise HTTPException(status_code=403, detail="Cannot delete system presets.")
 
-    path = PRESETS_DIR / f"{name}.json"
+    path = _user_presets_dir(user["sub"]) / f"{name}.json"
     if not path.exists():
         raise HTTPException(status_code=404, detail=f"Preset '{name}' not found.")
     path.unlink()

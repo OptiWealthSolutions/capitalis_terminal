@@ -3,13 +3,15 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Activity, Eye, EyeOff, UserPlus } from "lucide-react";
+import { BarChart2, Eye, EyeOff, UserPlus } from "lucide-react";
 import { useAuth } from "@/lib/auth";
+import { useI18n } from "@/lib/i18n";
 import toast from "react-hot-toast";
 
 export default function RegisterPage() {
   const router = useRouter();
   const { register } = useAuth();
+  const { t } = useI18n();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -19,20 +21,14 @@ export default function RegisterPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (password !== confirm) {
-      toast.error("Passwords do not match.");
-      return;
-    }
-    if (password.length < 8) {
-      toast.error("Password must be at least 8 characters.");
-      return;
-    }
+    if (password !== confirm) { toast.error("Passwords do not match."); return; }
+    if (password.length < 8)  { toast.error("Password must be at least 8 characters."); return; }
 
     setLoading(true);
     try {
       await register(email, password);
       toast.success("Account created.");
-      router.replace("/macro");
+      router.replace("/dashboard");
     } catch (err: unknown) {
       const msg =
         (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail ??
@@ -43,104 +39,117 @@ export default function RegisterPage() {
     }
   };
 
+  const inputStyle: React.CSSProperties = {
+    width: "100%", background: "var(--bg-base)", border: "1px solid var(--border)",
+    borderRadius: "var(--r-sm)", color: "var(--t1)", fontSize: "0.78rem",
+    padding: "10px 12px", outline: "none", fontFamily: "JetBrains Mono, monospace",
+    boxSizing: "border-box",
+  };
+
   return (
-    <div className="min-h-screen bg-bg-primary flex items-center justify-center px-4">
-      <div className="w-full max-w-sm">
+    <div style={{
+      minHeight: "100vh", background: "var(--bg-base)",
+      display: "flex", alignItems: "center", justifyContent: "center", padding: "0 16px",
+    }}>
+      <div style={{ width: "100%", maxWidth: 380 }}>
+
         {/* Logo */}
-        <div className="flex items-center gap-2.5 mb-10 justify-center">
-          <div className="w-8 h-8 rounded-md bg-accent-blue/10 border border-accent-blue/30 flex items-center justify-center">
-            <Activity size={16} className="text-accent-blue" />
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 40, justifyContent: "center" }}>
+          <div style={{
+            width: 34, height: 34, borderRadius: "var(--r-sm)",
+            background: "var(--orange-dim)", border: "1px solid var(--orange-border)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+          }}>
+            <BarChart2 size={16} style={{ color: "var(--orange)" }} />
           </div>
           <div>
-            <div className="text-text-primary font-semibold text-sm tracking-widest">CAPITALIS</div>
-            <div className="text-text-muted text-xs tracking-widest">V2 TERMINAL</div>
+            <div style={{ color: "var(--t1)", fontWeight: 700, fontSize: "0.85rem", letterSpacing: "0.12em" }}>CAPITALIS</div>
+            <div style={{ color: "var(--t3)", fontSize: "0.65rem", letterSpacing: "0.1em" }}>{t.auth.register.tagline}</div>
           </div>
         </div>
 
         {/* Card */}
-        <div className="bg-bg-secondary border border-bg-border rounded-md p-7 shadow-card">
-          <div className="text-text-secondary text-xs uppercase tracking-widest mb-6">
-            Create Account
+        <div className="card" style={{ padding: "28px 32px" }}>
+          <div style={{ fontSize: "0.6rem", fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--t3)", marginBottom: 24 }}>
+            {t.auth.register.title}
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-1.5">
-              <label className="text-text-muted text-xs uppercase tracking-wider">Email</label>
+          <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+
+            <div>
+              <label style={{ fontSize: "0.65rem", textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--t3)", display: "block", marginBottom: 6 }}>
+                {t.auth.register.email}
+              </label>
               <input
-                type="email"
-                autoComplete="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                type="email" autoComplete="email" required
+                value={email} onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@example.com"
-                className="w-full bg-bg-tertiary border border-bg-border rounded-md text-text-primary text-xs px-3 py-2.5 focus:outline-none focus:border-accent-blue focus:shadow-glow font-mono transition-all placeholder:text-text-muted"
-                required
+                style={inputStyle}
+                onFocus={(e) => (e.currentTarget.style.borderColor = "var(--orange)")}
+                onBlur={(e) => (e.currentTarget.style.borderColor = "var(--border)")}
               />
             </div>
 
-            <div className="space-y-1.5">
-              <label className="text-text-muted text-xs uppercase tracking-wider">Password</label>
-              <div className="relative">
+            <div>
+              <label style={{ fontSize: "0.65rem", textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--t3)", display: "block", marginBottom: 6 }}>
+                {t.auth.register.password}
+              </label>
+              <div style={{ position: "relative" }}>
                 <input
-                  type={showPw ? "text" : "password"}
-                  autoComplete="new-password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  type={showPw ? "text" : "password"} autoComplete="new-password" required
+                  value={password} onChange={(e) => setPassword(e.target.value)}
                   placeholder="Min. 8 characters"
-                  className="w-full bg-bg-tertiary border border-bg-border rounded-md text-text-primary text-xs px-3 py-2.5 pr-9 focus:outline-none focus:border-accent-blue focus:shadow-glow font-mono transition-all placeholder:text-text-muted"
-                  required
+                  style={{ ...inputStyle, paddingRight: 36 }}
+                  onFocus={(e) => (e.currentTarget.style.borderColor = "var(--orange)")}
+                  onBlur={(e) => (e.currentTarget.style.borderColor = "var(--border)")}
                 />
                 <button
-                  type="button"
-                  onClick={() => setShowPw((v) => !v)}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-secondary transition-colors"
-                  tabIndex={-1}
+                  type="button" onClick={() => setShowPw((v) => !v)} tabIndex={-1}
+                  style={{
+                    position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)",
+                    background: "none", border: "none", cursor: "pointer", color: "var(--t3)",
+                    display: "flex", alignItems: "center",
+                  }}
                 >
-                  {showPw ? <EyeOff size={12} /> : <Eye size={12} />}
+                  {showPw ? <EyeOff size={13} /> : <Eye size={13} />}
                 </button>
               </div>
             </div>
 
-            <div className="space-y-1.5">
-              <label className="text-text-muted text-xs uppercase tracking-wider">Confirm Password</label>
+            <div>
+              <label style={{ fontSize: "0.65rem", textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--t3)", display: "block", marginBottom: 6 }}>
+                {t.auth.register.confirmPassword}
+              </label>
               <input
-                type={showPw ? "text" : "password"}
-                autoComplete="new-password"
-                value={confirm}
-                onChange={(e) => setConfirm(e.target.value)}
+                type={showPw ? "text" : "password"} autoComplete="new-password" required
+                value={confirm} onChange={(e) => setConfirm(e.target.value)}
                 placeholder="Repeat password"
-                className="w-full bg-bg-tertiary border border-bg-border rounded-md text-text-primary text-xs px-3 py-2.5 focus:outline-none focus:border-accent-blue focus:shadow-glow font-mono transition-all placeholder:text-text-muted"
-                required
+                style={inputStyle}
+                onFocus={(e) => (e.currentTarget.style.borderColor = "var(--orange)")}
+                onBlur={(e) => (e.currentTarget.style.borderColor = "var(--border)")}
               />
             </div>
 
             <button
-              type="submit"
-              disabled={loading}
-              className="w-full flex items-center justify-center gap-2 py-2.5 bg-accent-blue hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed text-black text-xs font-semibold rounded-md transition-all hover:shadow-glow mt-2"
+              type="submit" disabled={loading}
+              className="btn-primary"
+              style={{ width: "100%", marginTop: 4, justifyContent: "center", opacity: loading ? 0.7 : 1 }}
             >
               {loading ? (
-                <div className="w-3.5 h-3.5 border-2 border-black border-t-transparent rounded-full animate-spin" />
+                <div style={{ width: 14, height: 14, border: "2px solid currentColor", borderTopColor: "transparent", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
               ) : (
-                <>
-                  <UserPlus size={13} />
-                  CREATE ACCOUNT
-                </>
+                <><UserPlus size={13} /> CREATE ACCOUNT</>
               )}
             </button>
           </form>
 
-          <div className="mt-5 pt-5 border-t border-bg-border text-center">
-            <span className="text-text-muted text-xs">Already have an account? </span>
-            <Link
-              href="/login"
-              className="text-xs text-accent-blue hover:text-orange-500 transition-colors"
-            >
-              Sign in
-            </Link>
+          <div style={{ marginTop: 20, paddingTop: 20, borderTop: "1px solid var(--border)", textAlign: "center" }}>
+            <span style={{ color: "var(--t3)", fontSize: "0.72rem" }}>{t.auth.register.hasAccount} </span>
+            <Link href="/login" style={{ color: "var(--orange)", fontSize: "0.72rem" }}>{t.auth.register.signIn}</Link>
           </div>
         </div>
 
-        <div className="mt-4 text-center text-text-muted text-xs opacity-50">
+        <div style={{ marginTop: 16, textAlign: "center", color: "var(--t3)", fontSize: "0.65rem", opacity: 0.5 }}>
           CAPITALIS V2 — build 2.0.0
         </div>
       </div>

@@ -14,7 +14,9 @@ from typing import Any
 import numpy as np
 import pandas as pd
 import yfinance as yf
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
+from ..auth.jwt_handler import get_current_user
+from pydantic import BaseModel, Field
 
 ROOT = Path(__file__).resolve().parent.parent.parent
 if str(ROOT) not in sys.path:
@@ -40,13 +42,21 @@ def _init_pf_db() -> None:
     with sqlite3.connect(_PF_DB_PATH) as conn:
         conn.execute("""
             CREATE TABLE IF NOT EXISTS portfolios (
-                name      TEXT PRIMARY KEY,
-                tickers   TEXT NOT NULL,
-                weights   TEXT NOT NULL,
-                capital   REAL NOT NULL,
-                created_at TEXT DEFAULT (datetime('now'))
+                id         TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
+                user_id    TEXT NOT NULL DEFAULT '',
+                name       TEXT NOT NULL,
+                tickers    TEXT NOT NULL,
+                weights    TEXT NOT NULL,
+                capital    REAL NOT NULL,
+                created_at TEXT DEFAULT (datetime('now')),
+                UNIQUE(user_id, name)
             )
         """)
+        # Migrate existing rows: add user_id column if absent (idempotent)
+        try:
+            conn.execute("ALTER TABLE portfolios ADD COLUMN user_id TEXT NOT NULL DEFAULT ''")
+        except Exception:
+            pass
         conn.commit()
 
 
@@ -187,42 +197,63 @@ def optimize_portfolio(req: OptimizationRequest) -> Any:
     except Exception:
         pass
 
-    # Sector / country diversification — read from scored/screened assets file, no yfinance call
+    # Sector / country diversification
+    # Step 1: load from CSV cache (final_scored_assets > screened_assets)
     sectors: dict[str, float] = {}
     countries: dict[str, float] = {}
     _meta: dict[str, dict] = {}
-    for _meta_path in [ROOT / "data" / "final_scored_assets.csv", ROOT / "data" / "screened_assets.csv"]:
+    for _meta_path in [ROOT / "data" / "equity_scored.csv",
+                       ROOT / "data" / "final_scored_assets.csv",
+                       ROOT / "data" / "screened_assets.csv"]:
         if _meta_path.exists():
             try:
                 _raw_meta = pd.read_csv(_meta_path)
                 _wanted = ["Ticker", "Sector", "Country"]
                 _cols = [c for c in _wanted if c in _raw_meta.columns]
                 _df_meta = _raw_meta[_cols].dropna(subset=["Ticker"])
-                _meta = {row["Ticker"]: row.to_dict() for _, row in _df_meta.iterrows()}
-                break
+                for _, row in _df_meta.iterrows():
+                    t = str(row["Ticker"]).strip()
+                    if t and t not in _meta:
+                        _meta[t] = row.to_dict()
             except Exception:
                 pass
+
+    # Step 2: identify tickers with missing sector/country — fetch via yfinance
+    import concurrent.futures as _cf
+
+    _unknown_syms = [
+        sym for sym in processed
+        if not (_meta.get(sym, {}).get("Sector") or "").strip()
+        or not (_meta.get(sym, {}).get("Country") or "").strip()
+        or (_meta.get(sym, {}).get("Sector") or "").strip() in ("Unknown", "nan")
+        or (_meta.get(sym, {}).get("Country") or "").strip() in ("Unknown", "nan")
+    ]
+
+    if _unknown_syms:
+        def _lookup_yf(sym: str) -> tuple[str, str, str]:
+            try:
+                info = yf.Ticker(sym).info or {}
+                return sym, (info.get("sector") or "Unknown"), (info.get("country") or "Unknown")
+            except Exception:
+                return sym, "Unknown", "Unknown"
+        with _cf.ThreadPoolExecutor(max_workers=10) as _pool:
+            for sym, sec, cty in _pool.map(_lookup_yf, _unknown_syms):
+                if sym not in _meta:
+                    _meta[sym] = {}
+                if not (_meta[sym].get("Sector") or "").strip() or (_meta[sym].get("Sector") or "Unknown") in ("Unknown", "nan"):
+                    _meta[sym]["Sector"] = sec
+                if not (_meta[sym].get("Country") or "").strip() or (_meta[sym].get("Country") or "Unknown") in ("Unknown", "nan"):
+                    _meta[sym]["Country"] = cty
+
+    # Step 3: aggregate weighted sector/country
     for sym, weight in processed.items():
         info = _meta.get(sym, {})
-        sector  = (str(info.get("Sector", "Unknown")) or "Unknown").strip() or "Unknown"
-        country = (str(info.get("Country", "Unknown")) or "Unknown").strip() or "Unknown"
+        sector  = (str(info.get("Sector",  "") or "")).strip() or "Unknown"
+        country = (str(info.get("Country", "") or "")).strip() or "Unknown"
+        if sector  == "nan": sector  = "Unknown"
+        if country == "nan": country = "Unknown"
         sectors[sector]    = sectors.get(sector, 0.0)   + weight
         countries[country] = countries.get(country, 0.0) + weight
-
-    # Fallback: if no country data from CSV, fetch from yfinance in parallel
-    if all(k == "Unknown" for k in countries):
-        import concurrent.futures as _cf
-        countries = {}
-        def _lookup_country(item: tuple) -> tuple:
-            sym, w = item
-            try:
-                c = yf.Ticker(sym).info.get("country") or "Unknown"
-            except Exception:
-                c = "Unknown"
-            return c, w
-        with _cf.ThreadPoolExecutor(max_workers=10) as _pool:
-            for _c, _w in _pool.map(_lookup_country, weights_dict.items()):
-                countries[_c] = countries.get(_c, 0.0) + _w
 
     result = {
         "method": req.method,
@@ -325,13 +356,13 @@ def run_monte_carlo(req: MonteCarloRequest) -> Any:
 # DELETE /portfolio/saved/{name}
 # ---------------------------------------------------------------------------
 @router.get("/saved")
-def list_saved_portfolios() -> Any:
-    """Returns list of all saved portfolios from SQLite."""
+def list_saved_portfolios(user: dict = Depends(get_current_user)) -> Any:
+    """Returns saved portfolios for the authenticated user."""
     try:
         with _pf_db() as conn:
             df = pd.read_sql(
-                "SELECT name, tickers, weights, capital, created_at FROM portfolios ORDER BY created_at DESC",
-                conn,
+                "SELECT name, tickers, weights, capital, created_at FROM portfolios WHERE user_id = ? ORDER BY created_at DESC",
+                conn, params=(user["sub"],),
             )
         return df.to_dict(orient="records")
     except Exception as exc:
@@ -340,14 +371,20 @@ def list_saved_portfolios() -> Any:
 
 
 @router.post("/save")
-def save_portfolio(name: str, tickers: list[str], weights: list[float], capital: float) -> Any:
-    """Persists a portfolio to SQLite."""
+def save_portfolio(
+    name: str, tickers: list[str], weights: list[float], capital: float,
+    user: dict = Depends(get_current_user),
+) -> Any:
+    """Persists a portfolio to SQLite, scoped to the authenticated user."""
     try:
         with _pf_db() as conn:
             conn.execute(
-                """INSERT OR REPLACE INTO portfolios (name, tickers, weights, capital, created_at)
-                   VALUES (?, ?, ?, ?, datetime('now'))""",
-                (name, json.dumps(tickers), json.dumps(weights), capital),
+                """INSERT INTO portfolios (user_id, name, tickers, weights, capital, created_at)
+                   VALUES (?, ?, ?, ?, ?, datetime('now'))
+                   ON CONFLICT(user_id, name) DO UPDATE SET
+                       tickers=excluded.tickers, weights=excluded.weights,
+                       capital=excluded.capital, created_at=excluded.created_at""",
+                (user["sub"], name, json.dumps(tickers), json.dumps(weights), capital),
             )
             conn.commit()
     except Exception as exc:
@@ -357,11 +394,11 @@ def save_portfolio(name: str, tickers: list[str], weights: list[float], capital:
 
 
 @router.delete("/saved/{name}")
-def delete_portfolio(name: str) -> Any:
-    """Deletes a saved portfolio."""
+def delete_portfolio(name: str, user: dict = Depends(get_current_user)) -> Any:
+    """Deletes a saved portfolio owned by the authenticated user."""
     try:
         with _pf_db() as conn:
-            conn.execute("DELETE FROM portfolios WHERE name = ?", (name,))
+            conn.execute("DELETE FROM portfolios WHERE name = ? AND user_id = ?", (name, user["sub"]))
             conn.commit()
     except Exception as exc:
         logger.error("DB write error (portfolios): %s", exc)
@@ -517,3 +554,148 @@ def portfolio_performance(req: PerformanceRequest) -> Any:
     except Exception as exc:
         logger.error("Performance tracking error: %s", exc, exc_info=True)
         raise HTTPException(status_code=503, detail=f"Performance tracking failed: {exc}")
+
+
+# ---------------------------------------------------------------------------
+# POST /portfolio/tracker-performance
+# ---------------------------------------------------------------------------
+class TrackerPosition(BaseModel):
+    ticker:      str   = Field(..., min_length=1, max_length=12)
+    shares:      float = Field(..., gt=0)
+    entry_price: float = Field(..., gt=0)
+    entry_date:  str   # YYYY-MM-DD
+
+
+class TrackerPerfRequest(BaseModel):
+    positions: list[TrackerPosition] = Field(..., min_length=1, max_length=100)
+
+
+@router.post("/tracker-performance")
+def tracker_portfolio_performance(req: TrackerPerfRequest) -> Any:
+    """
+    Computes daily portfolio value from raw tracker positions.
+    Returns: dates, portfolio_values (absolute €), cost_basis, per-position metrics.
+    Handles positions entering at different dates — each position contributes
+    to daily value only from its entry_date onwards.
+    """
+    import concurrent.futures
+
+    raw_tickers = list({p.ticker.upper().strip() for p in req.positions})
+    start_date  = min(p.entry_date for p in req.positions)
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as ex:
+        fut = ex.submit(
+            yf.download,
+            tickers=raw_tickers,
+            start=start_date,
+            progress=False,
+            auto_adjust=True,
+        )
+        try:
+            raw = fut.result(timeout=45)
+        except concurrent.futures.TimeoutError:
+            raise HTTPException(status_code=504, detail="Market data timeout.")
+
+    if raw is None or raw.empty:
+        raise HTTPException(status_code=503, detail="No market data returned.")
+
+    # Extract Close prices
+    if isinstance(raw.columns, pd.MultiIndex):
+        closes = raw["Close"].copy()
+    else:
+        closes = raw[["Close"]].copy()
+        closes.columns = raw_tickers[:1]
+
+    if isinstance(closes, pd.Series):
+        closes = closes.to_frame(name=raw_tickers[0])
+
+    closes = closes.sort_index().ffill()
+
+    # Normalise ticker case for positions
+    positions = [TrackerPosition(
+        ticker=p.ticker.upper().strip(),
+        shares=p.shares,
+        entry_price=p.entry_price,
+        entry_date=p.entry_date,
+    ) for p in req.positions]
+
+    # Build daily portfolio value + cost basis
+    portfolio_vals: list[float] = []
+    cost_basis_vals: list[float] = []
+
+    for date in closes.index:
+        date_str = date.strftime("%Y-%m-%d")
+        day_val  = 0.0
+        day_cost = 0.0
+        for p in positions:
+            if p.entry_date > date_str:
+                continue
+            col = p.ticker if p.ticker in closes.columns else None
+            if col is None:
+                continue
+            price = closes.at[date, col]
+            if pd.isna(price):
+                continue
+            day_val  += p.shares * float(price)
+            day_cost += p.shares * p.entry_price
+        portfolio_vals.append(day_val)
+        cost_basis_vals.append(day_cost)
+
+    vals_arr  = np.array(portfolio_vals,  dtype=float)
+    costs_arr = np.array(cost_basis_vals, dtype=float)
+
+    # Trim leading zeros (before any position entered)
+    nonzero = np.where(vals_arr > 0)[0]
+    if len(nonzero) == 0:
+        raise HTTPException(status_code=422, detail="No valid position data for requested tickers.")
+
+    s = int(nonzero[0])
+    dates_out  = [d.strftime("%Y-%m-%d") for d in closes.index[s:]]
+    vals_out   = vals_arr[s:].tolist()
+    costs_out  = costs_arr[s:].tolist()
+
+    # Aggregate metrics
+    current_value  = vals_out[-1]  if vals_out  else 0.0
+    current_cost   = costs_out[-1] if costs_out else 0.0
+    unrealized_pnl = current_value - current_cost
+    total_return   = unrealized_pnl / current_cost if current_cost > 0 else 0.0
+
+    peak  = np.maximum.accumulate(np.array(vals_out))
+    dd    = (np.array(vals_out) - peak) / peak
+    max_dd = float(dd.min()) if len(dd) > 0 else 0.0
+
+    # Per-position current snapshot
+    pos_metrics = []
+    for p in positions:
+        col   = p.ticker if p.ticker in closes.columns else None
+        cur_p = float(closes[col].dropna().iloc[-1]) if col and not closes[col].dropna().empty else None
+        pos_val  = p.shares * cur_p if cur_p is not None else None
+        pos_cost = p.shares * p.entry_price
+        pos_pnl  = (pos_val - pos_cost) if pos_val is not None else None
+        pos_ret  = (pos_pnl / pos_cost)  if pos_pnl is not None and pos_cost > 0 else None
+        pos_metrics.append({
+            "ticker":         p.ticker,
+            "shares":         p.shares,
+            "entry_price":    p.entry_price,
+            "entry_date":     p.entry_date,
+            "current_price":  cur_p,
+            "current_value":  pos_val,
+            "cost_basis":     pos_cost,
+            "unrealized_pnl": pos_pnl,
+            "return_pct":     round(pos_ret, 4) if pos_ret is not None else None,
+        })
+
+    return {
+        "dates":            dates_out,
+        "portfolio_values": vals_out,
+        "cost_basis":       costs_out,
+        "n_days":           len(dates_out),
+        "metrics": {
+            "current_value":   round(current_value,  2),
+            "cost_basis":      round(current_cost,   2),
+            "unrealized_pnl":  round(unrealized_pnl, 2),
+            "total_return":    round(total_return,   4),
+            "max_drawdown":    round(max_dd,          4),
+        },
+        "positions": pos_metrics,
+    }

@@ -294,3 +294,129 @@ def get_financials(ticker: str) -> Any:
     }
     cache.set(key, result, ttl=86400)
     return result
+
+
+# ---------------------------------------------------------------------------
+# GET /equity/{ticker}/holders — institutional + insiders
+# ---------------------------------------------------------------------------
+@router.get("/{ticker}/holders")
+def get_holders(ticker: str) -> Any:
+    t = _assert_valid_ticker(ticker)
+    key = f"holders_{t}"
+    cached = cache.get(key)
+    if cached is not None:
+        return cached
+
+    try:
+        tkr = yf.Ticker(t)
+        inst = getattr(tkr, "institutional_holders", None)
+        mf   = getattr(tkr, "mutualfund_holders", None)
+        major = getattr(tkr, "major_holders", None)
+        insider_tx = getattr(tkr, "insider_transactions", None)
+        insider_pct = getattr(tkr, "insider_roster_holders", None)
+    except Exception as exc:
+        logger.error("Holders fetch %s: %s", t, exc)
+        raise HTTPException(status_code=503, detail="Holder data unavailable.")
+
+    def _df_to_rows(df: Any, cols: list[str]) -> list[dict]:
+        if df is None or not isinstance(df, pd.DataFrame) or df.empty:
+            return []
+        out = []
+        for _, row in df.iterrows():
+            r = {}
+            for c in cols:
+                if c in row.index:
+                    v = row[c]
+                    if isinstance(v, (pd.Timestamp,)):
+                        r[c] = v.strftime("%Y-%m-%d")
+                    elif hasattr(v, "item"):
+                        try:
+                            r[c] = v.item()
+                        except Exception:
+                            r[c] = str(v)
+                    else:
+                        r[c] = None if pd.isna(v) else (float(v) if isinstance(v, (int, float, np.floating)) else str(v))
+            out.append(r)
+        return out
+
+    major_summary = None
+    if isinstance(major, pd.DataFrame) and not major.empty:
+        try:
+            if major.shape[1] >= 1:
+                values = major.iloc[:, 0].tolist()
+                labels = major.iloc[:, 1].tolist() if major.shape[1] >= 2 else major.index.tolist()
+                major_summary = [{"label": str(l), "value": str(v)} for v, l in zip(values, labels)]
+        except Exception:
+            major_summary = None
+
+    result = {
+        "ticker": t,
+        "major_summary": major_summary,
+        "institutional": _df_to_rows(inst, ["Date Reported", "Holder", "pctHeld", "Shares", "Value"])[:20],
+        "mutualfunds":   _df_to_rows(mf,   ["Date Reported", "Holder", "pctHeld", "Shares", "Value"])[:20],
+        "insider_transactions": _df_to_rows(insider_tx, ["Start Date", "Insider", "Position", "Transaction", "Shares", "Value"])[:30],
+        "insider_roster":       _df_to_rows(insider_pct, ["Name", "Position", "Most Recent Transaction", "Latest Transaction Date", "Shares Owned Directly"])[:20],
+    }
+    cache.set(key, result, ttl=6 * 3600)
+    return result
+
+
+# ---------------------------------------------------------------------------
+# GET /equity/events?tickers=AAPL,MSFT
+# Next earnings + next dividend date per ticker. Used by Dashboard page.
+# ---------------------------------------------------------------------------
+@router.get("/events")
+def get_corporate_events(tickers: str = Query(..., min_length=1, max_length=512)) -> Any:
+    syms = [_assert_valid_ticker(s) for s in tickers.split(",") if s.strip()]
+    if not syms:
+        raise HTTPException(status_code=400, detail="No valid tickers provided.")
+
+    key = f"events_{','.join(syms)}"
+    cached = cache.get(key)
+    if cached is not None:
+        return cached
+
+    today = pd.Timestamp.utcnow().normalize().tz_localize(None)
+    out: list[dict] = []
+
+    for sym in syms:
+        rec: dict = {"ticker": sym, "next_earnings": None, "next_dividend": None, "dividend_rate": None}
+        try:
+            tkr = yf.Ticker(sym)
+
+            cal = getattr(tkr, "calendar", None)
+            earn_date = None
+            if isinstance(cal, dict):
+                ev = cal.get("Earnings Date")
+                if isinstance(ev, list) and ev:
+                    earn_date = pd.Timestamp(ev[0])
+                elif ev is not None:
+                    earn_date = pd.Timestamp(ev)
+            elif isinstance(cal, pd.DataFrame) and "Earnings Date" in cal.index:
+                raw = cal.loc["Earnings Date"].iloc[0]
+                earn_date = pd.Timestamp(raw) if raw is not None else None
+            if earn_date is not None and not pd.isna(earn_date):
+                earn_date = earn_date.tz_localize(None) if earn_date.tz is not None else earn_date
+                if earn_date >= today:
+                    rec["next_earnings"] = earn_date.strftime("%Y-%m-%d")
+
+            divs = tkr.dividends
+            if divs is not None and not divs.empty:
+                last = divs.index[-1]
+                last = last.tz_localize(None) if last.tz is not None else last
+                info = getattr(tkr, "info", {}) or {}
+                ex_div = info.get("exDividendDate")
+                if ex_div:
+                    ex = pd.to_datetime(ex_div, unit="s", errors="coerce")
+                    if pd.notna(ex) and ex >= today:
+                        rec["next_dividend"] = ex.strftime("%Y-%m-%d")
+                if rec["next_dividend"] is None:
+                    rec["next_dividend"] = last.strftime("%Y-%m-%d")
+                rec["dividend_rate"] = float(divs.iloc[-1])
+        except Exception as exc:
+            logger.warning("Events fetch failed for %s: %s", sym, exc)
+        out.append(rec)
+
+    result = {"events": out}
+    cache.set(key, result, ttl=3600)
+    return result

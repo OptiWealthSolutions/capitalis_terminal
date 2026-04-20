@@ -5,7 +5,9 @@ Entry point. Run with:
 """
 
 import os
+import time
 import logging
+from collections import defaultdict
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -27,7 +29,35 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
 
-from .routers import macro, portfolio, screener, scorer, equity, ml_predictions, reporting, billing, forex, calendar
+# ---------------------------------------------------------------------------
+# Simple sliding-window rate limiter (no external deps)
+# ---------------------------------------------------------------------------
+_rate_store: dict[str, list[float]] = defaultdict(list)
+
+_RATE_RULES: dict[str, tuple[int, int]] = {
+    # path_prefix: (max_requests, window_seconds)
+    "/api/auth/login":    (10, 60),
+    "/api/auth/register": (5,  300),
+    "/api/":              (120, 60),
+}
+
+
+def _check_rate_limit(ip: str, path: str) -> bool:
+    """Returns True if request is allowed, False if rate-limited."""
+    now = time.monotonic()
+    for prefix, (limit, window) in _RATE_RULES.items():
+        if path.startswith(prefix):
+            key = f"{ip}:{prefix}"
+            hits = _rate_store[key]
+            cutoff = now - window
+            hits[:] = [t for t in hits if t > cutoff]
+            if len(hits) >= limit:
+                return False
+            hits.append(now)
+            return True
+    return True
+
+from .routers import portfolio, screener, scorer, equity, ml_predictions, reporting, billing, market
 from .routers import auth as auth_router
 from .routers.settings_router import router as settings_router
 from .cache.memory_cache import cache
@@ -87,6 +117,19 @@ app.add_middleware(
 # Security headers middleware
 # ---------------------------------------------------------------------------
 @app.middleware("http")
+async def rate_limit_middleware(request: Request, call_next):
+    ip = request.client.host if request.client else "unknown"
+    if not _check_rate_limit(ip, request.url.path):
+        logger.warning("Rate limit exceeded: ip=%s path=%s", ip, request.url.path)
+        return JSONResponse(
+            status_code=429,
+            content={"status": "error", "detail": "Too many requests. Please slow down."},
+            headers={"Retry-After": "60"},
+        )
+    return await call_next(request)
+
+
+@app.middleware("http")
 async def security_headers(request: Request, call_next):
     response = await call_next(request)
     response.headers["X-Content-Type-Options"] = "nosniff"
@@ -114,7 +157,6 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
 # Routers
 # ---------------------------------------------------------------------------
 app.include_router(auth_router.router, prefix="/api/auth", tags=["Auth"])
-app.include_router(macro.router, prefix="/api/macro", tags=["Macro"])
 app.include_router(portfolio.router, prefix="/api/portfolio", tags=["Portfolio"])
 app.include_router(screener.router, prefix="/api/screener", tags=["Screener"])
 app.include_router(scorer.router, prefix="/api/scorer", tags=["Scorer"])
@@ -123,8 +165,7 @@ app.include_router(ml_predictions.router, prefix="/api/predictions", tags=["ML P
 app.include_router(reporting.router, prefix="/api/reporting", tags=["Reporting"])
 app.include_router(settings_router, prefix="/api/settings", tags=["Settings"])
 app.include_router(billing.router, prefix="/api/billing", tags=["Billing"])
-app.include_router(forex.router,     prefix="/api/forex",     tags=["Forex"])
-app.include_router(calendar.router,  prefix="/api/calendar",  tags=["Calendar"])
+app.include_router(market.router,  prefix="/api/market",  tags=["Market"])
 
 
 # ---------------------------------------------------------------------------

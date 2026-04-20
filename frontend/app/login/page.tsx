@@ -5,11 +5,13 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Eye, EyeOff, Activity } from "lucide-react";
 import { useAuth } from "@/lib/auth";
+import { useI18n } from "@/lib/i18n";
 import toast from "react-hot-toast";
 
 export default function LoginPage() {
   const router = useRouter();
   const { login } = useAuth();
+  const { t } = useI18n();
 
   const [email, setEmail]       = useState("");
   const [password, setPassword] = useState("");
@@ -22,7 +24,7 @@ export default function LoginPage() {
     setLoading(true);
     try {
       await login(email, password);
-      router.replace("/macro");
+      router.replace("/dashboard");
     } catch (err: unknown) {
       const msg =
         (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail
@@ -55,7 +57,7 @@ export default function LoginPage() {
             CAPITALIS
           </h1>
           <p className="text-sm mt-1" style={{ color: "var(--ink-2)" }}>
-            Institutional Quantitative Terminal
+            {t.auth.login.subtitle}
           </p>
         </div>
 
@@ -65,20 +67,20 @@ export default function LoginPage() {
           style={{
             background: "var(--surface)",
             border: "1px solid var(--border)",
-            boxShadow: "0 8px 40px rgba(0,0,0,0.6)",
+            boxShadow: "var(--card-shadow), 0 4px 24px rgba(0,0,0,0.08)",
           }}
         >
           <h2 className="text-base font-semibold mb-1" style={{ color: "var(--ink)" }}>
-            Sign in
+            {t.auth.login.title}
           </h2>
           <p className="text-sm mb-7" style={{ color: "var(--ink-2)" }}>
-            Enter your credentials to continue.
+            {t.auth.login.subtitle}
           </p>
 
           <form onSubmit={handleSubmit} className="space-y-5">
             <div className="space-y-1.5">
               <label className="text-xs font-semibold" style={{ color: "var(--ink-2)" }}>
-                Email
+                {t.auth.login.email}
               </label>
               <input
                 type="email"
@@ -93,7 +95,7 @@ export default function LoginPage() {
 
             <div className="space-y-1.5">
               <label className="text-xs font-semibold" style={{ color: "var(--ink-2)" }}>
-                Password
+                {t.auth.login.password}
               </label>
               <div className="relative">
                 <input
@@ -110,6 +112,7 @@ export default function LoginPage() {
                   type="button"
                   onClick={() => setShowPw(v => !v)}
                   tabIndex={-1}
+                  title={t.auth.login.showPassword}
                   className="absolute right-3 top-1/2 -translate-y-1/2 transition-colors"
                   style={{ color: "var(--ink-3)" }}
                 >
@@ -129,7 +132,7 @@ export default function LoginPage() {
                   style={{ borderColor: "rgba(255,255,255,0.3)", borderTopColor: "#fff" }}
                 />
               ) : (
-                "Sign in"
+                t.auth.login.submit
               )}
             </button>
           </form>
@@ -138,13 +141,13 @@ export default function LoginPage() {
             className="mt-6 pt-5 text-center text-sm"
             style={{ borderTop: "1px solid var(--border)" }}
           >
-            <span style={{ color: "var(--ink-2)" }}>No account? </span>
+            <span style={{ color: "var(--ink-2)" }}>{t.auth.login.noAccount} </span>
             <Link
               href="/register"
               className="font-semibold transition-colors"
               style={{ color: "var(--orange)" }}
             >
-              Create one
+              {t.auth.login.createOne}
             </Link>
           </div>
         </div>

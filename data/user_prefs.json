@@ -1,8 +1,0 @@
-{
-  "accent_color": "#3B82F6",
-  "default_capital": 20000.0,
-  "currency": "EUR",
-  "chart_template": "plotly_dark",
-  "decimals": 2,
-  "ui_density": "Normal"
-}
