@@ -6,9 +6,9 @@ import { get, post } from "@/lib/api";
 import { LoadingSpinner, SkeletonBlock } from "@/components/ui/LoadingSpinner";
 import { QueryError } from "@/components/ui/ErrorBoundary";
 import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
-import { cn } from "@/lib/utils";
-import { Play, RefreshCw, AlertTriangle } from "lucide-react";
+import { Play, RefreshCw, AlertTriangle, CheckCircle, XCircle } from "lucide-react";
 import toast from "react-hot-toast";
+import { useI18n } from "@/lib/i18n";
 
 interface ModelStatus {
   primary_model: { path: string; exists: boolean };
@@ -24,7 +24,14 @@ interface InferenceEntry {
   error?: string;
 }
 
+const SIGNAL_COLOR: Record<string, string> = {
+  BUY:  "var(--green)",
+  HOLD: "var(--yellow)",
+  SELL: "var(--red)",
+};
+
 export default function PredictionsPage() {
+  const { t } = useI18n();
   const [tickerInput, setTickerInput] = useState("NVDA,MSFT,GOOG");
   const [inferenceResults, setInferenceResults] = useState<InferenceEntry[]>([]);
 
@@ -36,7 +43,7 @@ export default function PredictionsPage() {
 
   const reload = useMutation({
     mutationFn: () => post("/predictions/reload"),
-    onSuccess: () => toast.success("Models reloaded from disk."),
+    onSuccess: () => { toast.success("Models reloaded."); status.refetch(); },
     onError: () => toast.error("Model reload failed."),
   });
 
@@ -52,152 +59,149 @@ export default function PredictionsPage() {
     onError: () => toast.error("Inference failed."),
   });
 
-  const LABEL_COLORS: Record<string, string> = {
-    BUY: "text-accent-green",
-    HOLD: "text-accent-orange",
-    SELL: "text-accent-red",
-  };
+  const modelsLoaded = (status.data?.loaded.length ?? 0) > 0;
 
   return (
     <ErrorBoundary>
-      <div className="space-y-5 fade-in">
-        <h1 className="text-text-primary text-sm font-semibold tracking-widest uppercase">
-          Predictive Alpha — ML Inference
-        </h1>
+      <div className="p-4 sm:p-6 max-w-[1400px] mx-auto fade-in">
 
-        {/* Model status */}
-        <div className="bg-bg-secondary border border-bg-border p-4">
-          <div className="flex items-center justify-between mb-3">
-            <SectionLabel>MLOPS CONTROL PANEL</SectionLabel>
-            <button
-              onClick={() => reload.mutate()}
-              disabled={reload.isPending}
-              className="flex items-center gap-1.5 text-xs text-text-secondary hover:text-text-primary transition-colors disabled:opacity-50"
-            >
-              {reload.isPending ? <LoadingSpinner size="sm" /> : <RefreshCw size={11} />}
-              RELOAD ARTIFACTS
-            </button>
-          </div>
-
-          {status.isLoading ? (
-            <div className="grid grid-cols-2 gap-3">
-              <SkeletonBlock className="h-16" />
-              <SkeletonBlock className="h-16" />
-            </div>
-          ) : status.error ? (
-            <QueryError error={status.error as Error} onRetry={() => status.refetch()} />
-          ) : status.data ? (
-            <div className="grid grid-cols-2 gap-3">
-              <ModelCard
-                label="PRIMARY MODEL"
-                path={status.data.primary_model.path}
-                exists={status.data.primary_model.exists}
-                loaded={status.data.loaded.includes("primary")}
-              />
-              <ModelCard
-                label="META MODEL (STACKING)"
-                path={status.data.meta_model.path}
-                exists={status.data.meta_model.exists}
-                loaded={status.data.loaded.includes("meta")}
-              />
-            </div>
-          ) : null}
+        {/* Header */}
+        <div className="mb-6">
+          <p style={{ fontSize: "0.68rem", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--t3)", marginBottom: 4 }}>
+            {t.predictions.breadcrumb}
+          </p>
+          <h1 style={{ fontSize: "1.5rem", fontWeight: 600, color: "var(--t1)" }}>{t.predictions.pageTitle}</h1>
+          <p style={{ color: "var(--t2)", fontSize: "0.82rem", marginTop: 4 }}>
+            {t.predictions.subtitle}
+          </p>
         </div>
 
-        {/* Inference */}
-        <div className="bg-bg-secondary border border-bg-border p-4 space-y-3">
-          <SectionLabel>INFERENCE ENGINE</SectionLabel>
-          <div className="flex gap-2">
-            <input
-              value={tickerInput}
-              onChange={(e) => setTickerInput(e.target.value)}
-              placeholder="NVDA,MSFT,GOOG (comma separated)"
-              className="flex-1 bg-bg-tertiary border border-bg-border text-text-primary text-xs px-3 py-2 focus:outline-none focus:border-accent-blue uppercase placeholder:normal-case placeholder:text-text-muted"
-            />
-            <button
-              onClick={() => infer.mutate()}
-              disabled={infer.isPending || !status.data?.loaded.length}
-              className="flex items-center gap-2 px-4 py-2 bg-accent-blue hover:bg-orange-600 text-white text-xs font-medium disabled:opacity-50 transition-colors"
-            >
-              {infer.isPending ? <LoadingSpinner size="sm" /> : <Play size={12} />}
-              {infer.isPending ? "RUNNING..." : "RUN INFERENCE"}
-            </button>
-          </div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+          {/* Left panel */}
+          <div className="col-span-1 space-y-4">
 
-          {!status.data?.loaded.length && (
-            <div className="flex items-center gap-2 text-accent-orange text-xs">
-              <AlertTriangle size={12} />
-              No models loaded. Train and export models to the configured path, then reload.
-            </div>
-          )}
-        </div>
-
-        {/* Results */}
-        {infer.isPending && (
-          <div className="flex items-center justify-center h-48">
-            <LoadingSpinner label="RUNNING INFERENCE..." size="lg" />
-          </div>
-        )}
-
-        {inferenceResults.length > 0 && !infer.isPending && (
-          <div>
-            <SectionLabel>PREDICTIONS</SectionLabel>
-            <div className="grid grid-cols-3 gap-3">
-              {inferenceResults.map((entry) => (
-                <div
-                  key={entry.ticker}
-                  className={cn(
-                    "bg-bg-secondary border p-4 space-y-3",
-                    entry.error ? "border-accent-red" : "border-bg-border"
-                  )}
+            {/* MLOps panel */}
+            <div className="card" style={{ padding: "16px 20px" }}>
+              <div className="flex items-center justify-between mb-4">
+                <span style={{ fontSize: "0.6rem", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--t3)" }}>
+                  MLOps Control
+                </span>
+                <button
+                  onClick={() => reload.mutate()}
+                  disabled={reload.isPending}
+                  style={{
+                    display: "flex", alignItems: "center", gap: 5,
+                    background: "none", border: "none", cursor: "pointer",
+                    color: "var(--t2)", fontSize: "0.68rem",
+                    opacity: reload.isPending ? 0.5 : 1,
+                  }}
+                  onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.color = "var(--t1)")}
+                  onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.color = "var(--t2)")}
                 >
-                  <div className="flex items-center justify-between">
-                    <span className="text-accent-blue font-semibold text-sm">{entry.ticker}</span>
-                    {entry.prediction && (
-                      <span className={cn("text-sm font-bold tracking-widest", LABEL_COLORS[entry.prediction] ?? "text-text-primary")}>
-                        {entry.prediction}
-                      </span>
-                    )}
-                  </div>
+                  {reload.isPending ? <LoadingSpinner size="sm" /> : <RefreshCw size={11} />}
+                  RELOAD
+                </button>
+              </div>
 
-                  {entry.error ? (
-                    <div className="text-accent-red text-xs">{entry.error}</div>
-                  ) : (
-                    <>
-                      {entry.confidence !== undefined && (
-                        <div className="space-y-1">
-                          <div className="flex justify-between text-xs">
-                            <span className="text-text-muted">CONFIDENCE</span>
-                            <span className="text-text-primary font-medium">
-                              {(entry.confidence * 100).toFixed(1)}%
-                            </span>
-                          </div>
-                          <div className="w-full h-1 bg-bg-tertiary rounded">
-                            <div
-                              className={cn("h-1 rounded transition-all", LABEL_COLORS[entry.prediction ?? ""] ?? "bg-accent-blue")}
-                              style={{ width: `${entry.confidence * 100}%`, background: "currentColor" }}
-                            />
-                          </div>
-                        </div>
-                      )}
-
-                      {entry.probabilities && (
-                        <div className="space-y-1 pt-1 border-t border-bg-border">
-                          {Object.entries(entry.probabilities).map(([label, prob]) => (
-                            <div key={label} className="flex justify-between text-xs">
-                              <span className={cn("text-xs", LABEL_COLORS[label] ?? "text-text-secondary")}>{label}</span>
-                              <span className="text-text-secondary">{(prob * 100).toFixed(1)}%</span>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </>
-                  )}
+              {status.isLoading ? (
+                <div className="space-y-2">
+                  <SkeletonBlock className="h-16" />
+                  <SkeletonBlock className="h-16" />
                 </div>
-              ))}
+              ) : status.error ? (
+                <QueryError error={status.error as Error} onRetry={() => status.refetch()} />
+              ) : status.data ? (
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  <ModelCard
+                    label="Primary Model"
+                    path={status.data.primary_model.path}
+                    exists={status.data.primary_model.exists}
+                    loaded={status.data.loaded.includes("primary")}
+                  />
+                  <ModelCard
+                    label="Meta Model (Stacking)"
+                    path={status.data.meta_model.path}
+                    exists={status.data.meta_model.exists}
+                    loaded={status.data.loaded.includes("meta")}
+                  />
+                </div>
+              ) : null}
+            </div>
+
+            {/* Inference panel */}
+            <div className="card" style={{ padding: "16px 20px" }}>
+              <span style={{ fontSize: "0.6rem", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--t3)", display: "block", marginBottom: 12 }}>
+                Inference Engine
+              </span>
+
+              <input
+                value={tickerInput}
+                onChange={(e) => setTickerInput(e.target.value)}
+                placeholder="NVDA,MSFT,GOOG"
+                className="input-field"
+                style={{ width: "100%", marginBottom: 10, fontFamily: "JetBrains Mono, monospace", textTransform: "uppercase" }}
+              />
+
+              {!modelsLoaded && (
+                <div style={{ display: "flex", alignItems: "center", gap: 6, color: "var(--yellow)", fontSize: "0.72rem", marginBottom: 10 }}>
+                  <AlertTriangle size={12} />
+                  No models loaded. Train models first.
+                </div>
+              )}
+
+              <button
+                onClick={() => infer.mutate()}
+                disabled={infer.isPending || !modelsLoaded}
+                className="btn-primary"
+                style={{ width: "100%" }}
+              >
+                {infer.isPending ? <LoadingSpinner size="sm" /> : <Play size={13} />}
+                {infer.isPending ? "RUNNING…" : "RUN INFERENCE"}
+              </button>
             </div>
           </div>
-        )}
+
+          {/* Right: Results */}
+          <div className="col-span-1 lg:col-span-2">
+            {infer.isPending && (
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 280 }}>
+                <LoadingSpinner label="RUNNING INFERENCE…" size="lg" />
+              </div>
+            )}
+
+            {inferenceResults.length > 0 && !infer.isPending && (
+              <div>
+                <span style={{ fontSize: "0.6rem", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--t3)", display: "block", marginBottom: 12 }}>
+                  {inferenceResults.length} predictions
+                </span>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 12 }}>
+                  {inferenceResults.map((entry) => (
+                    <SignalCard key={entry.ticker} entry={entry} />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {inferenceResults.length === 0 && !infer.isPending && (
+              <div style={{
+                display: "flex", flexDirection: "column", alignItems: "center",
+                justifyContent: "center", height: 320, gap: 14,
+                color: "var(--t3)", fontSize: "0.82rem", textAlign: "center",
+              }}>
+                <div style={{
+                  width: 44, height: 44,
+                  background: "var(--bg-card)", border: "1px solid var(--border)",
+                  borderRadius: "var(--r)", display: "flex", alignItems: "center", justifyContent: "center",
+                }}>
+                  <Play size={16} style={{ color: "var(--t3)" }} />
+                </div>
+                {modelsLoaded
+                  ? "Enter tickers and run inference."
+                  : "Train and load ML models to use this feature."}
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     </ErrorBoundary>
   );
@@ -205,25 +209,82 @@ export default function PredictionsPage() {
 
 function ModelCard({ label, path, exists, loaded }: { label: string; path: string; exists: boolean; loaded: boolean }) {
   return (
-    <div className="bg-bg-tertiary border border-bg-border p-3">
-      <div className="text-text-secondary text-xs uppercase tracking-widest mb-2">{label}</div>
-      <div className="text-text-muted text-xs font-mono truncate mb-2" title={path}>{path.split("/").slice(-2).join("/")}</div>
-      <div className="flex gap-3">
-        <StatusBadge ok={exists} label="ON DISK" />
-        <StatusBadge ok={loaded} label="LOADED" />
+    <div style={{
+      background: "var(--bg-base)", border: "1px solid var(--border)",
+      borderRadius: "var(--r-sm)", padding: "10px 12px",
+    }}>
+      <div style={{ fontSize: "0.68rem", fontWeight: 600, color: "var(--t2)", marginBottom: 4 }}>{label}</div>
+      <div style={{ fontSize: "0.65rem", color: "var(--t3)", fontFamily: "JetBrains Mono, monospace", marginBottom: 8, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+           title={path}>
+        {path.split("/").slice(-2).join("/")}
+      </div>
+      <div style={{ display: "flex", gap: 8 }}>
+        <StatusPill ok={exists} label="ON DISK" />
+        <StatusPill ok={loaded} label="LOADED" />
       </div>
     </div>
   );
 }
 
-function StatusBadge({ ok, label }: { ok: boolean; label: string }) {
+function StatusPill({ ok, label }: { ok: boolean; label: string }) {
   return (
-    <span className={cn("text-xs px-2 py-0.5 border", ok ? "text-accent-green border-accent-green" : "text-accent-red border-accent-red")}>
+    <span style={{
+      display: "flex", alignItems: "center", gap: 4,
+      fontSize: "0.6rem", fontWeight: 600, letterSpacing: "0.05em",
+      color: ok ? "var(--green)" : "var(--red)",
+    }}>
+      {ok ? <CheckCircle size={9} /> : <XCircle size={9} />}
       {ok ? label : `NO ${label}`}
     </span>
   );
 }
 
-function SectionLabel({ children }: { children: React.ReactNode }) {
-  return <div className="text-text-secondary text-xs uppercase tracking-widest mb-2">{children}</div>;
+function SignalCard({ entry }: { entry: InferenceEntry }) {
+  const signalColor = SIGNAL_COLOR[entry.prediction ?? ""] ?? "var(--t1)";
+  return (
+    <div style={{
+      background: "var(--bg-card)", border: `1px solid ${entry.error ? "var(--red)" : "var(--border)"}`,
+      borderRadius: "var(--r)", padding: "16px 18px",
+    }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+        <span style={{ color: "var(--orange)", fontWeight: 700, fontFamily: "JetBrains Mono, monospace", fontSize: "0.9rem" }}>
+          {entry.ticker}
+        </span>
+        {entry.prediction && (
+          <span style={{ color: signalColor, fontWeight: 700, fontSize: "0.85rem", letterSpacing: "0.08em" }}>
+            {entry.prediction}
+          </span>
+        )}
+      </div>
+
+      {entry.error ? (
+        <div style={{ color: "var(--red)", fontSize: "0.72rem" }}>{entry.error}</div>
+      ) : (
+        <>
+          {entry.confidence !== undefined && (
+            <div style={{ marginBottom: 10 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.68rem", color: "var(--t3)", marginBottom: 4 }}>
+                <span>CONFIDENCE</span>
+                <span style={{ color: "var(--t1)", fontWeight: 600 }}>{(entry.confidence * 100).toFixed(1)}%</span>
+              </div>
+              <div style={{ width: "100%", height: 3, background: "var(--bg-base)", borderRadius: 2, overflow: "hidden" }}>
+                <div style={{ width: `${entry.confidence * 100}%`, height: "100%", background: signalColor, borderRadius: 2, transition: "width 0.4s" }} />
+              </div>
+            </div>
+          )}
+
+          {entry.probabilities && (
+            <div style={{ borderTop: "1px solid var(--border)", paddingTop: 8 }}>
+              {Object.entries(entry.probabilities).map(([label, prob]) => (
+                <div key={label} style={{ display: "flex", justifyContent: "space-between", fontSize: "0.68rem", marginBottom: 3 }}>
+                  <span style={{ color: SIGNAL_COLOR[label] ?? "var(--t2)", fontWeight: 600 }}>{label}</span>
+                  <span style={{ color: "var(--t2)", fontFamily: "JetBrains Mono, monospace" }}>{(prob * 100).toFixed(1)}%</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
 }

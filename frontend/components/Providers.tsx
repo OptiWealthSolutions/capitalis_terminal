@@ -4,27 +4,33 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "react-hot-toast";
 import { queryClient } from "@/lib/queryClient";
 import { AuthProvider } from "@/lib/auth";
+import { ThemeProvider } from "@/lib/theme";
+import { LanguageProvider } from "@/lib/i18n";
 
 export default function Providers({ children }: { children: React.ReactNode }) {
   return (
     <QueryClientProvider client={queryClient}>
+      <LanguageProvider>
+      <ThemeProvider>
       <AuthProvider>
         {children}
         <Toaster
           position="bottom-right"
           toastOptions={{
             style: {
-              background: "#1E232F",
-              color: "#E6EDF3",
-              border: "1px solid #2D3347",
+              background: "var(--surface)",
+              color: "var(--ink)",
+              border: "1px solid var(--border)",
               fontFamily: "JetBrains Mono, monospace",
               fontSize: "12px",
             },
-            error: { iconTheme: { primary: "#FF4136", secondary: "#1E232F" } },
-            success: { iconTheme: { primary: "#2ECC40", secondary: "#1E232F" } },
+            error: { iconTheme: { primary: "var(--red)", secondary: "var(--surface)" } },
+            success: { iconTheme: { primary: "var(--green)", secondary: "var(--surface)" } },
           }}
         />
       </AuthProvider>
+      </ThemeProvider>
+      </LanguageProvider>
     </QueryClientProvider>
   );
 }

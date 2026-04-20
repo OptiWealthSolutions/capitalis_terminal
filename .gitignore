@@ -1,4 +1,4 @@
-# Indispensable pour ton cas précis :
+# Runtime / dependencies
 .venv/
 node_modules/
 frontend/node_modules/
@@ -6,3 +6,40 @@ frontend/node_modules/
 frontend/.next/
 *.dylib
 *.node
+
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Python bytecode
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+*.egg-info/
+dist/
+build/
+
+# Data / DB (large binaries / generated)
+data/data_base_*.db
+data/equity_scored.csv
+data/screened_assets.csv
+data/ml_models/
+data/cache/
+data/*.db
+data/*.csv
+data/screener_presets/
+
+# TypeScript build artifacts
+*.tsbuildinfo
+frontend/tsconfig.tsbuildinfo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import Sidebar from "./Sidebar";
@@ -12,13 +12,17 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router   = useRouter();
   const { user, loading } = useAuth();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const isPublic = PUBLIC_ROUTES.includes(pathname);
 
   useEffect(() => {
     if (!loading && !user && !isPublic) router.replace("/login");
-    if (!loading && user && isPublic)   router.replace("/macro");
+    if (!loading && user && isPublic)   router.replace("/dashboard");
   }, [user, loading, isPublic, router]);
+
+  // Close sidebar on route change (mobile nav)
+  useEffect(() => { setSidebarOpen(false); }, [pathname]);
 
   if (isPublic) return <>{children}</>;
 
@@ -40,10 +44,17 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex h-screen overflow-hidden" style={{ background: "var(--bg-base)" }}>
-      <Sidebar />
-      <div className="flex flex-col flex-1 overflow-hidden min-w-0" style={{ marginLeft: 224 }}>
-        <TopBar />
-        <main className="flex-1 overflow-y-auto p-8">{children}</main>
+      {/* Mobile backdrop */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 z-30 bg-black/50 md:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+      <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      <div className="flex flex-col flex-1 overflow-hidden min-w-0 md:ml-[224px]">
+        <TopBar onMenuToggle={() => setSidebarOpen(o => !o)} />
+        <main className="flex-1 overflow-y-auto">{children}</main>
       </div>
     </div>
   );

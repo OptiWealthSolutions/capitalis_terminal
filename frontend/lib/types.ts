@@ -132,6 +132,31 @@ export interface PerformanceResult {
   };
 }
 
+export interface TrackerPerfResult {
+  dates: string[];
+  portfolio_values: number[];
+  cost_basis: number[];
+  n_days: number;
+  metrics: {
+    current_value: number;
+    cost_basis: number;
+    unrealized_pnl: number;
+    total_return: number;
+    max_drawdown: number;
+  };
+  positions: {
+    ticker: string;
+    shares: number;
+    entry_price: number;
+    entry_date: string;
+    current_price: number | null;
+    current_value: number | null;
+    cost_basis: number;
+    unrealized_pnl: number | null;
+    return_pct: number | null;
+  }[];
+}
+
 export interface MonteCarloResult {
   horizon_days: number;
   n_simulations: number;
@@ -299,4 +324,10 @@ export interface UserPreferences {
   chart_template: string;
   decimals: number;
   ui_density: string;
+  risk_free_rate: number;
+  default_benchmark: string;
+  default_method: string;
+  mc_simulations: number;
+  data_horizon: string;
+  display_name: string;
 }

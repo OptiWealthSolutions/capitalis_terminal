@@ -10,44 +10,42 @@
    Cards are lighter than page bg.
    Borders: rgba(255,255,255,0.05) only.
 ═══════════════════════════════════════════════════ */
-:root {
-  /* ── Backgrounds ── */
-  --bg-base:    #060608;   /* page — darkest */
-  --bg-surface: #0C0C0E;   /* sidebar, topbar */
-  --bg-card:    #101013;   /* cards — lighter than base = elevated */
-  --bg-hover:   #151518;   /* card hover state */
-  --bg-pop:     #1A1A1E;   /* dropdowns */
+:root, :root[data-theme="dark"] {
+  /* ── Backgrounds — neutral black/grey ── */
+  --bg-base:    #0A0A0A;
+  --bg-surface: #111111;
+  --bg-card:    #161616;
+  --bg-hover:   #1C1C1C;
+  --bg-pop:     #222222;
 
-  /* ── Borders — ultra-thin translucent only ── */
-  --border:     rgba(255,255,255,0.05);
-  --border-hi:  rgba(255,255,255,0.09);   /* top edge highlight */
+  --border:     rgba(255,255,255,0.07);
+  --border-hi:  rgba(255,255,255,0.12);
 
-  /* ── Text ── */
-  --t1: #FFFFFF;                    /* values, primary data */
-  --t2: rgba(255,255,255,0.55);     /* labels, captions */
-  --t3: rgba(255,255,255,0.28);     /* muted, empty states */
+  --t1: #F5F5F5;
+  --t2: rgba(245,245,245,0.60);
+  --t3: rgba(245,245,245,0.32);
 
-  /* ── Accents — interaction elements only ── */
-  --orange:        #F97316;
-  --orange-dim:    rgba(249,115,22,0.08);
-  --orange-border: rgba(249,115,22,0.22);
-  --green:         #22C55E;
-  --green-dim:     rgba(34,197,94,0.08);
-  --red:           #EF4444;
-  --red-dim:       rgba(239,68,68,0.08);
-  --yellow:        #EAB308;
-  --yellow-dim:    rgba(234,179,8,0.08);
+  /* Primary accent — soft blue nuance */
+  --orange:        #7AA7E8;
+  --orange-dim:    rgba(122,167,232,0.10);
+  --orange-border: rgba(122,167,232,0.28);
+  --green:         #86B38A;
+  --green-dim:     rgba(134,179,138,0.10);
+  --red:           #D48585;
+  --red-dim:       rgba(212,133,133,0.10);
+  --yellow:        #C9B178;
+  --yellow-dim:    rgba(201,177,120,0.10);
 
   /* ── Radius system (redesign.md) ──
      Major containers (charts, sidebar zones): 24px
      Data cards (metrics, watchlist):          16px
      Buttons, inputs, small elements:           8px
      Badges, tags:                              4px     */
-  --r-2xl: 24px;
-  --r-xl:  20px;
-  --r:     16px;
-  --r-sm:   8px;
-  --r-xs:   4px;
+  --r-2xl: 8px;
+  --r-xl:  6px;
+  --r:     6px;
+  --r-sm:   4px;
+  --r-xs:   2px;
 
   /* ── Elevation — inner glow ONLY, no drop shadows ── */
   --card-shadow:
@@ -88,11 +86,46 @@
   --accent-yellow:      var(--yellow);
   --accent-orange-dim:  var(--orange-dim);
   --accent-orange-border: var(--orange-border);
-  --accent-orange-strong: rgba(249,115,22,0.12);
-  --orange-hover:       #FB923C;
+  --accent-orange-strong: rgba(59,130,246,0.14);
+  --orange-hover:       #9DBFEF;
   --r-md:               var(--r-sm);
   --r-lg:               var(--r);
-  --glow-orange:        0 0 12px rgba(249,115,22,0.14);
+  --glow-orange:        0 0 12px rgba(122,167,232,0.18);
+}
+
+:root[data-theme="light"] {
+  --bg-base:    #F7F7F8;
+  --bg-surface: #FFFFFF;
+  --bg-card:    #FFFFFF;
+  --bg-hover:   #F1F2F4;
+  --bg-pop:     #FFFFFF;
+
+  --border:     rgba(15,15,15,0.08);
+  --border-hi:  rgba(15,15,15,0.12);
+
+  --t1: #111111;
+  --t2: rgba(17,17,17,0.62);
+  --t3: rgba(17,17,17,0.38);
+
+  --orange:        #3E6FB7;
+  --orange-dim:    rgba(62,111,183,0.08);
+  --orange-border: rgba(62,111,183,0.22);
+  --green:         #3E8E4C;
+  --green-dim:     rgba(62,142,76,0.08);
+  --red:           #B84646;
+  --red-dim:       rgba(184,70,70,0.08);
+  --yellow:        #A8892C;
+  --yellow-dim:    rgba(168,137,44,0.08);
+
+  --card-shadow:
+    inset 0 1px 0 rgba(255,255,255,1),
+    0 1px 2px rgba(15,15,15,0.04);
+  --card-shadow-hover:
+    inset 0 1px 0 rgba(255,255,255,1),
+    0 2px 6px rgba(15,15,15,0.06);
+
+  --orange-hover: #1E4A8C;
+  --glow-orange:  0 0 10px rgba(62,111,183,0.14);
 }
 
 /* ═══════════════════════════════════════════════════
@@ -105,8 +138,8 @@ html, body {
   background-color: var(--bg-base);
   /* Subtle ambient gradients so backdrop-filter has something to blur */
   background-image:
-    radial-gradient(ellipse 60% 50% at 10% 90%, rgba(80,60,160,0.05) 0%, transparent 65%),
-    radial-gradient(ellipse 40% 35% at 90% 10%, rgba(249,115,22,0.04) 0%, transparent 60%);
+    radial-gradient(ellipse 60% 50% at 10% 90%, rgba(122,167,232,0.04) 0%, transparent 65%),
+    radial-gradient(ellipse 40% 35% at 90% 10%, rgba(122,167,232,0.03) 0%, transparent 60%);
   background-attachment: fixed;
   color: var(--t1);
   font-family: "Inter", system-ui, sans-serif;
@@ -134,7 +167,7 @@ body::before {
 ::-webkit-scrollbar-thumb     { background: rgba(255,255,255,0.10); border-radius: 4px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--orange); }
 
-::selection { background: rgba(249,115,22,0.15); color: var(--t1); }
+::selection { background: rgba(59,130,246,0.22); color: var(--t1); }
 
 *:focus-visible {
   outline: 1.5px solid var(--orange);
@@ -540,11 +573,9 @@ select.input-field option { background: var(--bg-surface); color: var(--t1); }
    SIDEBAR NAV ITEMS
 ═══════════════════════════════════════════════════ */
 .nav-item-active {
-  background: rgba(249,115,22,0.08);
-  border: 1px solid rgba(249,115,22,0.16);
-  border-top-color: rgba(249,115,22,0.20);
+  background: var(--orange-dim);
+  border: 1px solid var(--orange-border);
   border-radius: var(--r-sm);
-  box-shadow: inset 0 1px 0 rgba(249,115,22,0.10);
   color: var(--orange) !important;
 }
 
@@ -555,22 +586,86 @@ select.input-field option { background: var(--bg-surface); color: var(--t1); }
   transition: background 0.12s, border-color 0.12s, color 0.12s;
 }
 .nav-item-inactive:hover {
-  background: rgba(255,255,255,0.04);
+  background: var(--bg-hover);
   border-color: var(--border);
   color: var(--t1);
 }
 
 /* ═══════════════════════════════════════════════════
-   TAILWIND COMPAT OVERRIDES
+   TAILWIND COMPAT OVERRIDES — all map to CSS vars so
+   dark/light theme works for every Tailwind class.
 ═══════════════════════════════════════════════════ */
-.border-bg-border   { border-color: var(--border) !important; }
-.bg-bg-secondary    { background-color: var(--bg-card) !important; }
-.bg-bg-tertiary     { background-color: var(--bg-card) !important; }
-.shadow-card        { box-shadow: var(--card-shadow) !important; }
-.shadow-card:hover  { box-shadow: var(--card-shadow-hover) !important; }
-.text-text-primary   { color: var(--t1) !important; }
-.text-text-secondary { color: var(--t2) !important; }
-.text-text-muted     { color: var(--t3) !important; }
+.border-bg-border         { border-color: var(--border) !important; }
+.bg-bg-primary            { background-color: var(--bg-base) !important; }
+.bg-bg-secondary          { background-color: var(--bg-card) !important; }
+.bg-bg-tertiary           { background-color: var(--bg-card) !important; }
+.bg-bg-hover              { background-color: var(--bg-hover) !important; }
+.shadow-card              { box-shadow: var(--card-shadow) !important; }
+.shadow-card:hover        { box-shadow: var(--card-shadow-hover) !important; }
+.text-text-primary        { color: var(--t1) !important; }
+.text-text-secondary      { color: var(--t2) !important; }
+.text-text-muted          { color: var(--t3) !important; }
+
+/* accent-blue → CSS var so light theme applies darker blue (#3E6FB7) */
+.bg-accent-blue           { background-color: var(--orange) !important; }
+.text-accent-blue         { color: var(--orange) !important; }
+.border-accent-blue       { border-color: var(--orange) !important; }
+.border-l-accent-blue     { border-left-color: var(--orange) !important; }
+.ring-accent-blue         { --tw-ring-color: var(--orange) !important; }
+.focus\:border-accent-blue:focus { border-color: var(--orange) !important; }
+.hover\:border-accent-blue:hover { border-color: var(--orange) !important; }
+.hover\:text-accent-blue:hover   { color: var(--orange) !important; }
+
+/* accent-orange → yellow/amber semantic tone */
+.text-accent-orange       { color: var(--yellow) !important; }
+.bg-accent-orange         { background-color: var(--yellow) !important; }
+
+/* accent-green / accent-red */
+.text-accent-green        { color: var(--green) !important; }
+.bg-accent-green          { background-color: var(--green) !important; }
+.text-accent-red          { color: var(--red) !important; }
+.bg-accent-red            { background-color: var(--red) !important; }
+
+/* light theme: body bg override */
+:root[data-theme="light"] body {
+  background-image:
+    radial-gradient(ellipse 60% 50% at 10% 90%, rgba(62,111,183,0.04) 0%, transparent 65%),
+    radial-gradient(ellipse 40% 35% at 90% 10%, rgba(62,111,183,0.03) 0%, transparent 60%);
+}
+:root[data-theme="light"] ::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.12); }
+:root[data-theme="light"] ::-webkit-scrollbar-thumb:hover { background: var(--orange); }
+:root[data-theme="light"] .terminal-table td { border-bottom-color: rgba(0,0,0,0.04); }
+:root[data-theme="light"] .terminal-table tr:hover td { background: rgba(0,0,0,0.015); }
+:root[data-theme="light"] .skeleton {
+  background: linear-gradient(90deg, rgba(0,0,0,0.04) 25%, rgba(0,0,0,0.07) 50%, rgba(0,0,0,0.04) 75%);
+  background-size: 800px 100%;
+}
+
+/* Select arrow — visible on light background */
+:root[data-theme="light"] select.input-field {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='rgba(17,17,17,0.40)'/%3E%3C/svg%3E");
+}
+
+/* Neutral badges on light background */
+:root[data-theme="light"] .badge-gray {
+  background: rgba(0,0,0,0.04);
+  border-color: rgba(0,0,0,0.08);
+}
+:root[data-theme="light"] .badge-violet {
+  background: rgba(0,0,0,0.04);
+  border-color: rgba(0,0,0,0.08);
+}
+
+/* Input border-top fix for light */
+:root[data-theme="light"] .input-field {
+  border-top-color: rgba(0,0,0,0.08);
+}
+
+/* Sidebar kbd shortcut chip in light */
+:root[data-theme="light"] .sidebar-kbd {
+  background: rgba(0,0,0,0.05);
+  border-color: rgba(0,0,0,0.10);
+}
 
 /* ═══════════════════════════════════════════════════
    MISC

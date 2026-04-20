@@ -40,8 +40,8 @@ const config: Config = {
         "text-primary":  "#FFFFFF",
         "text-secondary":"rgba(255,255,255,0.55)",
         "text-muted":    "rgba(255,255,255,0.28)",
-        "accent-blue":   "#F97316",
-        "accent-orange": "#F97316",
+        "accent-blue":   "#7AA7E8",
+        "accent-orange": "#C9B178",
         "accent-green":  "#22C55E",
         "accent-red":    "#EF4444",
         "accent-yellow": "#EAB308",
@@ -63,10 +63,10 @@ const config: Config = {
         /* inner glow only — no drop shadows per spec */
         card:  "inset 0 1px 0 rgba(255,255,255,0.09), inset 0 0 0 1px rgba(255,255,255,0.015)",
         hover: "inset 0 1px 0 rgba(255,255,255,0.12), inset 0 0 0 1px rgba(255,255,255,0.025)",
-        glow:  "0 0 12px rgba(249,115,22,0.14)",
+        glow:  "0 0 12px rgba(122,167,232,0.18)",
         /* legacy */
         panel: "inset 0 1px 0 rgba(255,255,255,0.09)",
-        "glow-sm": "0 0 0 2px rgba(249,115,22,0.18)",
+        "glow-sm": "0 0 0 2px rgba(122,167,232,0.22)",
       },
     },
   },
