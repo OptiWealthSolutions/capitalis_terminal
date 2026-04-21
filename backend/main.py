@@ -5,6 +5,7 @@ Entry point. Run with:
 """
 
 import os
+import re
 import time
 import logging
 from collections import defaultdict
@@ -74,6 +75,13 @@ ALLOWED_ORIGINS = [
     if o.strip()
 ]
 
+# Regex to allow all Cloudflare Pages preview deployments (hash.project.pages.dev)
+_PAGES_DOMAIN = os.environ.get("CLOUDFLARE_PAGES_DOMAIN", "")
+ALLOWED_ORIGIN_REGEX: str | None = (
+    rf"https://[a-z0-9-]+\.{re.escape(_PAGES_DOMAIN)}"
+    if _PAGES_DOMAIN else None
+)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -103,14 +111,17 @@ app = FastAPI(
 app.add_middleware(GZipMiddleware, minimum_size=1024)
 
 # CORS — only allow the configured frontend origin(s)
-app.add_middleware(
-    CORSMiddleware,
+_cors_kwargs: dict = dict(
     allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type", "Accept"],
     max_age=600,
 )
+if ALLOWED_ORIGIN_REGEX:
+    _cors_kwargs["allow_origin_regex"] = ALLOWED_ORIGIN_REGEX
+
+app.add_middleware(CORSMiddleware, **_cors_kwargs)
 
 
 # ---------------------------------------------------------------------------
