@@ -24,32 +24,32 @@ PLAN_ORDER = ["free", "pro", "institutional"]
 PLAN_LIMITS: dict[str, dict[str, Any]] = {
     "free": {
         "max_portfolios":       1,
-        "optimization_methods": ["EqualWeights"],
+        "optimization_methods": ["EqualWeights", "MinVol"],
         "screener_runs_per_day": 3,
         "pdf_export":           False,
         "monte_carlo":          False,
         "ml_alpha":             False,
-        "api_access":           False,
+        "ml_alpha_conviction":  False,
         "tracker_portfolios":   1,
     },
     "pro": {
         "max_portfolios":       3,
-        "optimization_methods": ["EqualWeights", "MeanVar", "MinVol"],
+        "optimization_methods": ["EqualWeights", "MinVol", "MeanVar"],
         "screener_runs_per_day": None,   # unlimited
         "pdf_export":           True,
         "monte_carlo":          True,
         "ml_alpha":             True,
-        "api_access":           False,
+        "ml_alpha_conviction":  False,
         "tracker_portfolios":   3,
     },
     "institutional": {
         "max_portfolios":       None,    # unlimited
-        "optimization_methods": ["EqualWeights", "MeanVar", "MinVol", "HRP", "Max_Sharpe"],
+        "optimization_methods": ["EqualWeights", "MinVol", "MeanVar", "HRP", "Max_Sharpe"],
         "screener_runs_per_day": None,
         "pdf_export":           True,
         "monte_carlo":          True,
         "ml_alpha":             True,
-        "api_access":           True,
+        "ml_alpha_conviction":  True,   # coming soon
         "tracker_portfolios":   None,
     },
 }

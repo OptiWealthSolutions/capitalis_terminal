@@ -36,69 +36,90 @@ STRIPE_SECRET_KEY: str | None = os.environ.get("STRIPE_SECRET_KEY")
 STRIPE_WEBHOOK_SECRET: str | None = os.environ.get("STRIPE_WEBHOOK_SECRET")
 FRONTEND_URL: str = os.environ.get("FRONTEND_URL", "http://localhost:3000")
 
-STRIPE_PRICE_PRO = os.environ.get("STRIPE_PRICE_PRO", "price_1TOY7jDTTquLlx6jY7Co5scP")
-STRIPE_PRICE_INSTITUTIONAL = os.environ.get("STRIPE_PRICE_INSTITUTIONAL", "price_1TOY7jDTTquLlx6jbrXY6dBh")
-STRIPE_PAYMENT_LINK_PRO = os.environ.get("STRIPE_PAYMENT_LINK_PRO", "https://buy.stripe.com/test_3cIbJ1aO84W73ZG8qa9MY00")
-STRIPE_PAYMENT_LINK_INSTITUTIONAL = os.environ.get("STRIPE_PAYMENT_LINK_INSTITUTIONAL", "https://buy.stripe.com/test_eVq5kDg8s4W77bS49U9MY01")
+STRIPE_PRICE_PRO                      = os.environ.get("STRIPE_PRICE_PRO",                      "price_1TOY7jDTTquLlx6jY7Co5scP")
+STRIPE_PRICE_INSTITUTIONAL            = os.environ.get("STRIPE_PRICE_INSTITUTIONAL",            "price_1TOY7jDTTquLlx6jbrXY6dBh")
+STRIPE_PRICE_PRO_ANNUAL               = os.environ.get("STRIPE_PRICE_PRO_ANNUAL",               "price_1TOdDDDTTquLlx6jTg3NWvWP")
+STRIPE_PRICE_INSTITUTIONAL_ANNUAL     = os.environ.get("STRIPE_PRICE_INSTITUTIONAL_ANNUAL",     "price_1TOdDEDTTquLlx6jbuPtbt1t")
+STRIPE_PAYMENT_LINK_PRO               = os.environ.get("STRIPE_PAYMENT_LINK_PRO",               "https://buy.stripe.com/test_3cIbJ1aO84W73ZG8qa9MY00")
+STRIPE_PAYMENT_LINK_INSTITUTIONAL     = os.environ.get("STRIPE_PAYMENT_LINK_INSTITUTIONAL",     "https://buy.stripe.com/test_eVq5kDg8s4W77bS49U9MY01")
+STRIPE_PAYMENT_LINK_PRO_ANNUAL        = os.environ.get("STRIPE_PAYMENT_LINK_PRO_ANNUAL",        "https://buy.stripe.com/test_9B614n2hC74f3ZG6i29MY02")
+STRIPE_PAYMENT_LINK_INSTITUTIONAL_ANNUAL = os.environ.get("STRIPE_PAYMENT_LINK_INSTITUTIONAL_ANNUAL", "https://buy.stripe.com/test_14AcN56xSgEPao46i29MY03")
 
-# price_id → plan name mapping (used in webhook)
+# price_id → plan name mapping (webhook: any price → plan tier)
 _PRICE_TO_PLAN: dict[str, str] = {
-    STRIPE_PRICE_PRO: "pro",
-    STRIPE_PRICE_INSTITUTIONAL: "institutional",
+    STRIPE_PRICE_PRO:                  "pro",
+    STRIPE_PRICE_PRO_ANNUAL:           "pro",
+    STRIPE_PRICE_INSTITUTIONAL:        "institutional",
+    STRIPE_PRICE_INSTITUTIONAL_ANNUAL: "institutional",
 }
+
+_FREE_FEATURES = [
+    "Macro dashboard (read-only)",
+    "1 portfolio max",
+    "Equal Weight & Min Variance",
+    "1 tracker portfolio",
+    "3 screener runs / day",
+]
+_PRO_FEATURES = [
+    "Up to 3 portfolios",
+    "Equal Weight, Min Variance & Markowitz",
+    "Unlimited screener + scorer",
+    "Monte Carlo & VaR/CVaR",
+    "ML Alpha signals",
+    "PDF export",
+]
+_INSTITUTIONAL_FEATURES = [
+    "Unlimited portfolios",
+    "All 5 methods: HRP, Max Sharpe, Markowitz, Min Variance, Equal Weight",
+    "Unlimited screener + scorer",
+    "White-label PDF reports",
+    "ML Conviction (coming soon)",
+    "Priority support",
+]
 
 PLANS = [
     {
         "id": "free",
         "name": "FREE",
         "price_eur": 0,
+        "price_eur_annual": None,
         "billing_interval": None,
         "stripe_price_id": None,
+        "stripe_price_id_annual": None,
         "payment_link": None,
-        "features": [
-            "Macro dashboard (read-only)",
-            "1 portfolio max",
-            "Equal Weight optimization only",
-            "3 screener runs / day",
-        ],
+        "payment_link_annual": None,
+        "features": _FREE_FEATURES,
     },
     {
         "id": "pro",
         "name": "PRO",
         "price_eur": 7,
+        "price_eur_annual": 75.60,   # €6.30/mo billed annually (10% off)
         "billing_interval": "month",
         "stripe_price_id": STRIPE_PRICE_PRO,
+        "stripe_price_id_annual": STRIPE_PRICE_PRO_ANNUAL,
         "payment_link": STRIPE_PAYMENT_LINK_PRO,
-        "features": [
-            "Up to 3 portfolios",
-            "Markowitz, Equal Weight & Min Variance",
-            "Unlimited screener + scorer",
-            "Monte Carlo & VaR/CVaR",
-            "ML Alpha signals",
-            "PDF export",
-        ],
+        "payment_link_annual": STRIPE_PAYMENT_LINK_PRO_ANNUAL,
+        "features": _PRO_FEATURES,
     },
     {
         "id": "institutional",
         "name": "INSTITUTIONAL",
         "price_eur": 20,
+        "price_eur_annual": 199.20,  # €16.60/mo billed annually (17% off)
         "billing_interval": "month",
         "stripe_price_id": STRIPE_PRICE_INSTITUTIONAL,
+        "stripe_price_id_annual": STRIPE_PRICE_INSTITUTIONAL_ANNUAL,
         "payment_link": STRIPE_PAYMENT_LINK_INSTITUTIONAL,
-        "features": [
-            "Unlimited portfolios",
-            "All methods: Markowitz, HRP, Min Variance, Max Sharpe, Equal Weight",
-            "Unlimited screener + scorer",
-            "White-label PDF reports",
-            "Priority support",
-            "API access",
-        ],
+        "payment_link_annual": STRIPE_PAYMENT_LINK_INSTITUTIONAL_ANNUAL,
+        "features": _INSTITUTIONAL_FEATURES,
     },
 ]
 
 
 class CheckoutRequest(BaseModel):
     plan_id: str
+    billing_interval: str = "month"   # "month" | "year"
     success_url: str | None = None
     cancel_url: str | None = None
 
@@ -167,7 +188,9 @@ def create_checkout_session(
     plan = next((p for p in PLANS if p["id"] == req.plan_id), None)
     if plan is None:
         raise HTTPException(status_code=422, detail=f"Unknown plan: {req.plan_id!r}")
-    if plan["stripe_price_id"] is None:
+    annual = req.billing_interval == "year"
+    price_id = plan["stripe_price_id_annual"] if annual else plan["stripe_price_id"]
+    if price_id is None:
         raise HTTPException(status_code=422, detail="Free plan requires no checkout.")
 
     user = get_user_by_id(current_user["sub"])
@@ -185,7 +208,7 @@ def create_checkout_session(
         session = stripe.checkout.Session.create(
             customer=customer_id,
             payment_method_types=["card"],
-            line_items=[{"price": plan["stripe_price_id"], "quantity": 1}],
+            line_items=[{"price": price_id, "quantity": 1}],
             mode="subscription",
             success_url=req.success_url or f"{FRONTEND_URL}/account?checkout=success",
             cancel_url=req.cancel_url or f"{FRONTEND_URL}/account",

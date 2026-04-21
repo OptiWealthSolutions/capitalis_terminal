@@ -20,76 +20,98 @@ import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
 type PlanId = "free" | "pro" | "institutional";
 type Tab    = "overview" | "billing" | "security";
 
+// ---------------------------------------------------------------------------
+// Plan definitions
+// ---------------------------------------------------------------------------
+type BillingInterval = "month" | "year";
+
 interface Plan {
-  id:        PlanId;
-  name:      string;
-  price:     string;
-  billing:   string;
-  badge?:    string;
-  icon:      React.ReactNode;
-  color:     string;
-  features:  string[];
-  limits:    { label: string; value: string }[];
+  id:          PlanId;
+  name:        string;
+  monthlyPrice: string;   // e.g. "€7"
+  annualPrice:  string;   // total/yr, e.g. "€75.60"
+  annualMonthly: string;  // per month when billed annually, e.g. "€6.30"
+  discount?:   string;    // e.g. "–10%"
+  billing:     string;
+  badge?:      string;
+  icon:        React.ReactNode;
+  color:       string;
+  features:    string[];
+  limits:      { label: string; value: string }[];
+  paymentLinkMonthly: string | null;
+  paymentLinkAnnual:  string | null;
 }
 
-// ---------------------------------------------------------------------------
-// Plan definitions (UI metadata — prices/features from API, fallback here)
-// ---------------------------------------------------------------------------
 const PLANS: Plan[] = [
   {
-    id: "free", name: "Free", price: "€0", billing: "forever",
+    id: "free", name: "Free",
+    monthlyPrice: "€0", annualPrice: "€0", annualMonthly: "€0",
+    billing: "forever",
     icon: <Star size={16} />, color: "var(--t2)",
     features: [
       "Macro dashboard (read-only)",
       "1 portfolio max",
-      "Equal Weight optimization only",
+      "Equal Weight & Min Variance",
+      "1 tracker portfolio",
       "3 screener runs / day",
     ],
     limits: [
-      { label: "Portfolios", value: "1" },
-      { label: "Optimizer methods", value: "Equal Weight" },
-      { label: "Screener runs", value: "3 / day" },
-      { label: "PDF export", value: "—" },
-      { label: "API access", value: "—" },
+      { label: "Portfolios",        value: "1" },
+      { label: "Methods",           value: "2" },
+      { label: "Screener runs",     value: "3 / day" },
+      { label: "PDF export",        value: "—" },
+      { label: "ML Conviction",     value: "—" },
     ],
+    paymentLinkMonthly: null,
+    paymentLinkAnnual:  null,
   },
   {
-    id: "pro", name: "Pro", price: "€7", billing: "/ month",
+    id: "pro", name: "Pro",
+    monthlyPrice: "€7", annualPrice: "€75.60", annualMonthly: "€6.30",
+    discount: "–10%",
+    billing: "/ month",
     badge: "MOST POPULAR", icon: <Zap size={16} />, color: "var(--orange)",
     features: [
       "Up to 3 portfolios",
-      "Markowitz, Equal Weight & Min Variance",
+      "Equal Weight, Min Variance & Markowitz",
       "Unlimited screener + scorer",
       "Monte Carlo & VaR/CVaR",
       "ML Alpha signals",
       "PDF export",
     ],
     limits: [
-      { label: "Portfolios", value: "3" },
-      { label: "Optimizer methods", value: "3" },
+      { label: "Portfolios",    value: "3" },
+      { label: "Methods",       value: "3" },
       { label: "Screener runs", value: "Unlimited" },
-      { label: "PDF export", value: "Yes" },
-      { label: "API access", value: "—" },
+      { label: "PDF export",    value: "Yes" },
+      { label: "ML Conviction", value: "—" },
     ],
+    paymentLinkMonthly: "https://buy.stripe.com/test_3cIbJ1aO84W73ZG8qa9MY00",
+    paymentLinkAnnual:  "https://buy.stripe.com/test_9B614n2hC74f3ZG6i29MY02",
   },
   {
-    id: "institutional", name: "Institutional", price: "€20", billing: "/ month",
+    id: "institutional", name: "Institutional",
+    monthlyPrice: "€20", annualPrice: "€199.20", annualMonthly: "€16.60",
+    discount: "–17%",
+    billing: "/ month",
     icon: <Building2 size={16} />, color: "#A97CC0",
     features: [
       "Unlimited portfolios",
-      "All methods: Markowitz, HRP, Min Variance, Max Sharpe, Equal Weight",
+      "All 5 methods: HRP, Max Sharpe, Markowitz, Min Variance, Equal Weight",
       "Unlimited screener + scorer",
       "White-label PDF reports",
+      "ML Conviction (coming soon)",
       "Priority support",
-      "API access",
     ],
     limits: [
-      { label: "Portfolios", value: "Unlimited" },
-      { label: "Optimizer methods", value: "All 5" },
+      { label: "Portfolios",    value: "Unlimited" },
+      { label: "Methods",       value: "All 5" },
       { label: "Screener runs", value: "Unlimited" },
-      { label: "PDF export", value: "White-label" },
-      { label: "API access", value: "Yes" },
+      { label: "PDF export",    value: "White-label" },
+      { label: "ML Conviction", value: "Soon" },
     ],
+    paymentLinkMonthly: "https://buy.stripe.com/test_eVq5kDg8s4W77bS49U9MY01",
+    paymentLinkAnnual:  "https://buy.stripe.com/test_14AcN56xSgEPao46i29MY03",
   },
 ];
 
@@ -228,22 +250,21 @@ function ProfileCard({ user, onSaved }: { user: any; onSaved: () => Promise<void
 }
 
 function UsageCard() {
-  const PF_KEY      = "capitalis_portfolios_v2";
-  const TRACKER_KEY = "capitalis_tracker_v2";
-
-  const [pfCount,  setPfCount]  = useState(0);
-  const [trkCount, setTrkCount] = useState(0);
+  const [pfCount,  setPfCount]  = useState<number | null>(null);
+  const [trkCount, setTrkCount] = useState<number | null>(null);
 
   useEffect(() => {
-    try {
-      setPfCount(JSON.parse(localStorage.getItem(PF_KEY)      ?? "[]").length);
-      setTrkCount(JSON.parse(localStorage.getItem(TRACKER_KEY) ?? "[]").length);
-    } catch {}
+    get<{ name: string }[]>("/portfolio/saved")
+      .then(rows => setPfCount(rows.length))
+      .catch(() => setPfCount(0));
+    get<{ id: string }[]>("/portfolio/tracker")
+      .then(rows => setTrkCount(rows.length))
+      .catch(() => setTrkCount(0));
   }, []);
 
   const stats = [
-    { label: "Optimizer portfolios", value: pfCount,  max: null  },
-    { label: "Tracker portfolios",   value: trkCount, max: null  },
+    { label: "Optimizer portfolios", value: pfCount },
+    { label: "Tracker portfolios",   value: trkCount },
   ];
 
   return (
@@ -254,7 +275,7 @@ function UsageCard() {
           <div key={s.label} className="flex items-center justify-between">
             <span className="text-xs" style={{ color: "var(--t2)" }}>{s.label}</span>
             <span className="text-xs font-mono font-semibold" style={{ color: "var(--orange)" }}>
-              {s.value}{s.max ? ` / ${s.max}` : ""}
+              {s.value === null ? "—" : s.value}
             </span>
           </div>
         ))}
@@ -264,16 +285,22 @@ function UsageCard() {
 }
 
 function PlanCard({
-  plan, isCurrent, onSelect,
-}: { plan: Plan; isCurrent: boolean; onSelect: (id: PlanId) => void }) {
-  const isPopular = plan.badge === "MOST POPULAR";
+  plan, isCurrent, billingInterval, onSelect,
+}: { plan: Plan; isCurrent: boolean; billingInterval: BillingInterval; onSelect: (id: PlanId, interval: BillingInterval) => void }) {
+  const isPopular  = plan.badge === "MOST POPULAR";
+  const isAnnual   = billingInterval === "year";
+  const displayPrice  = isAnnual ? plan.annualMonthly  : plan.monthlyPrice;
+  const billingLabel  = plan.id === "free"
+    ? "forever"
+    : isAnnual
+    ? `/ mo · €${plan.annualPrice.replace("€", "")} billed annually`
+    : "/ month";
+
   return (
     <div
       className="relative flex flex-col rounded-2xl overflow-hidden transition-all"
       style={{
-        background: isCurrent
-          ? `${plan.color}0D`
-          : "var(--bg-card)",
+        background: isCurrent ? `${plan.color}0D` : "var(--bg-card)",
         border: `1px solid ${isCurrent ? plan.color + "66" : "var(--border)"}`,
         borderTopColor: isPopular ? plan.color : undefined,
         borderTopWidth: isPopular ? 2 : undefined,
@@ -291,7 +318,7 @@ function PlanCard({
       <div className={`p-5 flex flex-col gap-4 flex-1 ${plan.badge ? "pt-8" : ""}`}>
         {/* Header */}
         <div>
-          <div className="flex items-center gap-2 mb-2">
+          <div className="flex items-center gap-2 mb-2 flex-wrap">
             <span style={{ color: plan.color }}>{plan.icon}</span>
             <span className="text-xs font-semibold tracking-widest uppercase" style={{ color: "var(--t2)" }}>
               {plan.name}
@@ -301,10 +328,16 @@ function PlanCard({
                 Current
               </span>
             )}
+            {isAnnual && plan.discount && (
+              <span className="text-xs px-1.5 py-0.5 rounded font-semibold"
+                style={{ background: "rgba(86,160,92,0.15)", color: "var(--green)" }}>
+                {plan.discount}
+              </span>
+            )}
           </div>
-          <div className="flex items-baseline gap-1">
-            <span className="text-2xl font-semibold" style={{ color: "var(--t1)" }}>{plan.price}</span>
-            <span className="text-xs" style={{ color: "var(--t3)" }}>{plan.billing}</span>
+          <div className="flex items-baseline gap-1 flex-wrap">
+            <span className="text-2xl font-semibold" style={{ color: "var(--t1)" }}>{displayPrice}</span>
+            <span className="text-xs" style={{ color: "var(--t3)" }}>{billingLabel}</span>
           </div>
         </div>
 
@@ -318,7 +351,7 @@ function PlanCard({
           ))}
         </ul>
 
-        {/* Limits */}
+        {/* Limits table */}
         <div className="rounded-lg overflow-hidden border" style={{ borderColor: "var(--border)" }}>
           {plan.limits.map((lim, i) => (
             <div
@@ -330,7 +363,8 @@ function PlanCard({
               }}
             >
               <span style={{ color: "var(--t3)" }}>{lim.label}</span>
-              <span className="font-mono font-semibold" style={{ color: lim.value === "—" ? "var(--t3)" : plan.color }}>
+              <span className="font-mono font-semibold"
+                style={{ color: lim.value === "—" ? "var(--t3)" : lim.value === "Soon" ? "var(--yellow)" : plan.color }}>
                 {lim.value}
               </span>
             </div>
@@ -339,7 +373,7 @@ function PlanCard({
 
         {/* CTA */}
         <button
-          onClick={() => onSelect(plan.id)}
+          onClick={() => onSelect(plan.id, billingInterval)}
           disabled={isCurrent}
           className="w-full py-2.5 rounded-lg text-xs font-semibold transition-all disabled:cursor-not-allowed"
           style={isCurrent ? {
@@ -723,6 +757,7 @@ export default function AccountPage() {
   const { user, logout, refreshUser } = useAuth();
   const { t } = useI18n();
   const [tab, setTab]    = useState<Tab>("overview");
+  const [billingInterval, setBillingInterval] = useState<BillingInterval>("month");
   const [paymentLinks, setPaymentLinks] = useState<Record<string, string>>({});
 
   const currentPlan = (user?.subscription?.plan ?? "free") as PlanId;
@@ -739,17 +774,21 @@ export default function AccountPage() {
 
   const handleLogout = () => { logout(); router.replace("/login"); };
 
-  const handlePlanSelect = async (planId: PlanId) => {
+  const handlePlanSelect = async (planId: PlanId, interval: BillingInterval) => {
     if (planId === currentPlan) return;
     if (planId === "free") { toast("Contact support to downgrade."); return; }
-    // Use direct payment link if available (no backend checkout session required)
-    if (paymentLinks[planId]) {
-      window.open(paymentLinks[planId], "_blank");
+    // Use hardcoded payment links from plan definitions
+    const plan = PLANS.find(p => p.id === planId);
+    const link = interval === "year" ? plan?.paymentLinkAnnual : plan?.paymentLinkMonthly;
+    if (link) {
+      window.open(link, "_blank");
       return;
     }
     // Fallback: Stripe checkout session via backend
     try {
-      const { url } = await post<{ url: string }>("/billing/checkout-session", { plan_id: planId });
+      const { url } = await post<{ url: string }>("/billing/checkout-session", {
+        plan_id: planId, billing_interval: interval,
+      });
       window.location.href = url;
     } catch {
       toast.error("Stripe not configured — contact support.");
@@ -822,15 +861,37 @@ export default function AccountPage() {
                 <UsageCard />
               </div>
               <div className="col-span-1 lg:col-span-8">
-                <p className="text-xs font-semibold tracking-widest uppercase mb-3" style={{ color: "var(--t3)" }}>
-                  Subscription plans
-                </p>
+                {/* Header + billing toggle */}
+                <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+                  <p className="text-xs font-semibold tracking-widest uppercase" style={{ color: "var(--t3)" }}>
+                    Subscription plans
+                  </p>
+                  {/* Monthly / Annual toggle */}
+                  <div className="flex items-center gap-1 p-0.5 rounded-lg" style={{ background: "var(--bg-hover)", border: "1px solid var(--border)" }}>
+                    {(["month", "year"] as BillingInterval[]).map(iv => (
+                      <button
+                        key={iv}
+                        onClick={() => setBillingInterval(iv)}
+                        className="flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-medium transition-all"
+                        style={billingInterval === iv ? {
+                          background: "var(--bg-card)", color: "var(--orange)",
+                          boxShadow: "0 1px 3px rgba(0,0,0,0.15)",
+                        } : { color: "var(--t2)" }}
+                      >
+                        {iv === "month" ? "Monthly" : (
+                          <>Annual <span style={{ color: "var(--green)", fontSize: 9, fontWeight: 700 }}>SAVE</span></>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   {PLANS.map(plan => (
                     <PlanCard
                       key={plan.id}
                       plan={plan}
                       isCurrent={plan.id === currentPlan}
+                      billingInterval={billingInterval}
                       onSelect={handlePlanSelect}
                     />
                   ))}
