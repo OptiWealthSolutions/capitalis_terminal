@@ -19,8 +19,10 @@ from typing import Any
 import numpy as np
 import pandas as pd
 import yfinance as yf
-from fastapi import APIRouter, HTTPException, Response
+from fastapi import APIRouter, Depends, HTTPException, Response
 from pydantic import BaseModel, Field
+from ..auth.jwt_handler import get_current_user
+from ..plan_gate import get_limits, get_plan_for_user
 
 ROOT = Path(__file__).resolve().parent.parent.parent
 if str(ROOT) not in sys.path:
@@ -425,7 +427,10 @@ def _build_pdf(
 # Endpoint
 # ---------------------------------------------------------------------------
 @router.post("/generate-pdf")
-def generate_pdf_report(req: ReportRequest) -> Response:
+def generate_pdf_report(req: ReportRequest, current_user: dict = Depends(get_current_user)) -> Response:
+    plan = get_plan_for_user(current_user["sub"])
+    if not get_limits(plan).get("pdf_export", False):
+        raise HTTPException(status_code=402, detail=f"PDF export requires Pro or higher (current plan: {plan}).")
     if len(req.tickers) != len(req.weights):
         raise HTTPException(status_code=422, detail="tickers and weights must have equal length.")
 

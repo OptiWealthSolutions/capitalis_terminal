@@ -6,12 +6,17 @@ Endpoints: run screen, list/save/delete presets, get screened assets.
 import sys
 import json
 import logging
+import time
 from pathlib import Path
 from typing import Any
 
 import pandas as pd
 from fastapi import APIRouter, HTTPException, Depends
 from ..auth.jwt_handler import get_current_user
+from ..plan_gate import get_limits, get_plan_for_user
+
+# Daily screener run counter: {user_id: (count, day_str)}
+_screener_daily: dict[str, tuple[int, str]] = {}
 
 ROOT = Path(__file__).resolve().parent.parent.parent
 if str(ROOT) not in sys.path:
@@ -119,12 +124,27 @@ def delete_preset(name: str, user: dict = Depends(get_current_user)) -> Any:
 # POST /screener/run
 # ---------------------------------------------------------------------------
 @router.post("/run")
-def run_screener(req: ScreenerRunRequest) -> Any:
+def run_screener(req: ScreenerRunRequest, current_user: dict = Depends(get_current_user)) -> Any:
     """
     Executes the multi-factor equity screener.
     Returns a list of assets passing all criteria with their fundamental metrics.
     Screener results are cached for SCREENER_TTL seconds.
     """
+    from datetime import date
+    plan = get_plan_for_user(current_user["sub"])
+    daily_limit = get_limits(plan)["screener_runs_per_day"]
+    if daily_limit is not None:
+        today = str(date.today())
+        count, day = _screener_daily.get(current_user["sub"], (0, today))
+        if day != today:
+            count, day = 0, today
+        if count >= daily_limit:
+            raise HTTPException(
+                status_code=429,
+                detail=f"Daily screener limit reached ({daily_limit}/day on plan '{plan}'). Upgrade for unlimited runs.",
+            )
+        _screener_daily[current_user["sub"]] = (count + 1, day)
+
     criteria_raw = {k: {"op": v.op, "val": v.val} for k, v in req.criteria.items()}
     cache_key = f"screener_{hash(json.dumps(criteria_raw, sort_keys=True))}"
     cached = cache.get(cache_key)

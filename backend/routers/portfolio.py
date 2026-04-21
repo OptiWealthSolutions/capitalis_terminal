@@ -286,11 +286,15 @@ def optimize_portfolio(req: OptimizationRequest, current_user: dict = Depends(ge
 # POST /portfolio/monte-carlo
 # ---------------------------------------------------------------------------
 @router.post("/monte-carlo")
-def run_monte_carlo(req: MonteCarloRequest) -> Any:
+def run_monte_carlo(req: MonteCarloRequest, current_user: dict = Depends(get_current_user)) -> Any:
     """
     Monte Carlo simulation with Cholesky decomposition on correlated GBM paths.
     Returns percentile paths (P5, P25, P50, P75, P95) and VaR/CVaR metrics.
     """
+    from ..plan_gate import get_limits, get_plan_for_user
+    plan = get_plan_for_user(current_user["sub"])
+    if not get_limits(plan).get("monte_carlo", False):
+        raise HTTPException(status_code=402, detail=f"Monte Carlo requires Pro or higher (current plan: {plan}).")
     tickers = _sanitize_tickers(req.tickers)
     if len(tickers) != len(req.weights):
         raise HTTPException(status_code=422, detail="tickers and weights must have equal length.")

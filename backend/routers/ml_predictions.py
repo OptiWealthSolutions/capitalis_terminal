@@ -10,8 +10,10 @@ from typing import Any
 
 import pandas as pd
 import yfinance as yf
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
+from ..auth.jwt_handler import get_current_user
+from ..plan_gate import get_limits, get_plan_for_user
 
 ROOT = Path(__file__).resolve().parent.parent.parent
 if str(ROOT) not in sys.path:
@@ -86,13 +88,19 @@ def reload_models() -> Any:
 # POST /predictions/infer
 # ---------------------------------------------------------------------------
 @router.post("/infer")
-def run_inference(req: InferenceRequest) -> Any:
+def run_inference(req: InferenceRequest, current_user: dict = Depends(get_current_user)) -> Any:
     """
     Runs the stacked ML model for each ticker and returns:
     - prediction label (BUY / HOLD / SELL)
     - confidence score
     NOTE: FeatureEngineer must be importable from machine_learning_models package.
     """
+    plan = get_plan_for_user(current_user["sub"])
+    if not get_limits(plan).get("ml_alpha", False):
+        raise HTTPException(
+            status_code=402,
+            detail=f"ML predictions require Pro or higher (current plan: {plan}).",
+        )
     models = _load_models()
     if "primary" not in models:
         raise HTTPException(

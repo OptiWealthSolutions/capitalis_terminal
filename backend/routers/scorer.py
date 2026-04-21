@@ -9,8 +9,10 @@ from pathlib import Path
 from typing import Any
 
 import pandas as pd
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
+from ..auth.jwt_handler import get_current_user
+from ..plan_gate import get_limits, get_plan_for_user
 
 ROOT = Path(__file__).resolve().parent.parent.parent
 if str(ROOT) not in sys.path:
@@ -40,11 +42,20 @@ class ScorerWeightsRequest(BaseModel):
 # POST /scorer/run
 # ---------------------------------------------------------------------------
 @router.post("/run")
-def run_scorer(req: ScorerWeightsRequest) -> Any:
+def run_scorer(req: ScorerWeightsRequest, current_user: dict = Depends(get_current_user)) -> Any:
     """
     Runs the Z-score-based multi-factor scorer on the screened asset universe.
     Reads screened_assets.csv as input. Requires the screener to have run first.
+    Pro+ only (requires screener access which free users are limited on).
     """
+    plan = get_plan_for_user(current_user["sub"])
+    if not get_limits(plan).get("ml_alpha", False) and plan == "free":
+        # scorer available from pro — free users can only run 3 screens/day, scorer is pro+
+        from fastapi import status
+        raise HTTPException(
+            status_code=status.HTTP_402_PAYMENT_REQUIRED,
+            detail=f"Scorer requires Pro or higher (current plan: {plan}).",
+        )
     screened_path = settings.SCREENED_ASSETS_PATH
     if not screened_path.exists():
         raise HTTPException(
