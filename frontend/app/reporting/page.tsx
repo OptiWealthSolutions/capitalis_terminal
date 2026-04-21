@@ -90,17 +90,7 @@ export default function ReportingPage() {
         weights: wValues,
         capital: selected.capital,
         n_simulations: nSims,
-        precomputed_metrics: metrics
-          ? {
-              expected_annual_return: metrics.expected_annual_return,
-              annual_volatility:      metrics.annual_volatility,
-              sharpe_ratio:           metrics.sharpe_ratio,
-              sortino_ratio:          metrics.sortino_ratio,
-              calmar_ratio:           metrics.calmar_ratio,
-              max_drawdown:           metrics.max_drawdown,
-              beta:                   metrics.beta,
-            }
-          : null,
+        precomputed_metrics: null,
       });
     },
     onSuccess: (blob) => {
