@@ -292,8 +292,8 @@ def redeem_beta(req: RedeemBetaRequest, current_user: dict = Depends(get_current
     if code not in _BETA_CODES:
         raise HTTPException(status_code=400, detail="Invalid beta code.")
 
-    if has_redeemed_beta(current_user["id"]):
+    if has_redeemed_beta(current_user["sub"]):
         raise HTTPException(status_code=409, detail="Beta code already redeemed on this account.")
 
-    redeem_beta_code(current_user["id"], code)
+    redeem_beta_code(current_user["sub"], code)
     return {"message": "Beta access activated. Institutional plan active for 30 days."}
