@@ -21,9 +21,9 @@ interface SavedPortfolio {
   id: string;
   name: string;
   tickers: string[];
+  weights: number[];
   method: string;
   capital: number;
-  result: OptimizationResult | null;
   savedAt: string;
 }
 
@@ -58,9 +58,9 @@ export default function ReportingPage() {
           id: r.name,
           name: r.name,
           tickers: r.tickers,
+          weights: r.weights,
           method: r.method,
           capital: r.capital,
-          result: null,
           savedAt: r.created_at,
         }));
         setPortfolios(pfs);
@@ -70,16 +70,18 @@ export default function ReportingPage() {
   }, []);
 
   const selected = portfolios.find(p => p.id === selectedId) ?? null;
-  const metrics  = selected?.result?.metrics ?? null;
-  const weights  = selected?.result?.weights ?? {};
+  const metrics  = null; // fetched live by backend during PDF generation
+  const weights: Record<string, number> = selected
+    ? Object.fromEntries(selected.tickers.map((t, i) => [t, selected.weights[i] ?? 0]))
+    : {};
 
   const generatePdf = useMutation({
     mutationFn: () => {
       if (!selected) throw new Error("No portfolio selected.");
-      if (!selected.result) throw new Error("Portfolio has no optimization result.");
+      if (!selected.tickers.length) throw new Error("Portfolio has no tickers.");
 
-      const tickers = Object.keys(weights);
-      const wValues = Object.values(weights);
+      const tickers = selected.tickers;
+      const wValues = selected.weights;
 
       return downloadPdf("/reporting/generate-pdf", {
         portfolio_name: selected.name,
@@ -110,7 +112,7 @@ export default function ReportingPage() {
     onError: (e: Error) => toast.error(e.message || "PDF generation failed."),
   });
 
-  const canGenerate = !!selected?.result && Object.keys(weights).length > 0;
+  const canGenerate = !!selected && selected.tickers.length > 0;
 
   // ---------------------------------------------------------------------------
   return (
@@ -164,7 +166,7 @@ export default function ReportingPage() {
               </p>
               {portfolios.map(pf => {
                 const active = pf.id === selectedId;
-                const m = pf.result?.metrics;
+                const m = null; // metrics shown in PDF, not in sidebar
                 return (
                   <button
                     key={pf.id}
@@ -194,11 +196,10 @@ export default function ReportingPage() {
                         </span>
                       </div>
                     )}
-                    {!pf.result && (
-                      <div className="flex items-center gap-1 mt-1.5">
-                        <AlertTriangle size={11} style={{ color: "var(--yellow)" }} />
-                        <span className="text-xs" style={{ color: "var(--yellow)" }}>No optimization result</span>
-                      </div>
+                    {pf.tickers.length > 0 && (
+                      <span className="text-xs mt-1" style={{ color: "var(--t3)" }}>
+                        {pf.tickers.length} assets · {pf.method}
+                      </span>
                     )}
                   </button>
                 );
@@ -347,12 +348,6 @@ export default function ReportingPage() {
                           : <><FileText size={14} /> Generate Institutional Report — {selected.name}</>
                         }
                       </button>
-                      {!selected.result && (
-                        <p className="text-xs text-center mt-2 flex items-center justify-center gap-1.5" style={{ color: "var(--yellow)" }}>
-                          <AlertTriangle size={12} />
-                          This portfolio has no saved optimization result. Run optimization first.
-                        </p>
-                      )}
                     </div>
                   </div>
                 </>
