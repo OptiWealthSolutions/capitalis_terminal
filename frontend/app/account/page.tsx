@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 import { useAuth } from "@/lib/auth";
-import { post, get } from "@/lib/api";
+import { post, get, patch, del } from "@/lib/api";
 import {
   UserCircle, CreditCard, Shield, CheckCircle, AlertCircle,
   ExternalLink, LogOut, Key, Eye, EyeOff, Save, Zap, Building2,
@@ -33,67 +33,62 @@ interface Plan {
 }
 
 // ---------------------------------------------------------------------------
-// Plan definitions
+// Plan definitions (UI metadata — prices/features from API, fallback here)
 // ---------------------------------------------------------------------------
 const PLANS: Plan[] = [
   {
     id: "free", name: "Free", price: "€0", billing: "forever",
     icon: <Star size={16} />, color: "var(--t2)",
     features: [
-      "Market overview dashboard",
+      "Macro dashboard (read-only)",
+      "1 portfolio max",
+      "Equal Weight optimization only",
       "3 screener runs / day",
-      "Portfolio optimizer (HRP only)",
-      "Portfolio tracker (1 portfolio)",
-      "Basic equity analysis",
     ],
     limits: [
+      { label: "Portfolios", value: "1" },
+      { label: "Optimizer methods", value: "Equal Weight" },
       { label: "Screener runs", value: "3 / day" },
-      { label: "Optimizer methods", value: "1 (HRP)" },
-      { label: "Tracker portfolios", value: "1" },
       { label: "PDF export", value: "—" },
       { label: "API access", value: "—" },
     ],
   },
   {
-    id: "pro", name: "Pro", price: "€29", billing: "/ month",
+    id: "pro", name: "Pro", price: "€7", billing: "/ month",
     badge: "MOST POPULAR", icon: <Zap size={16} />, color: "var(--orange)",
     features: [
-      "Everything in Free",
+      "Up to 3 portfolios",
+      "Markowitz, Equal Weight & Min Variance",
       "Unlimited screener + scorer",
-      "All 5 optimization methods",
-      "Monte Carlo & VaR/CVaR analysis",
-      "ML alpha signals",
-      "Institutional PDF reports",
-      "API access (1 000 req/day)",
-      "Tracker: unlimited portfolios",
+      "Monte Carlo & VaR/CVaR",
+      "ML Alpha signals",
+      "PDF export",
     ],
     limits: [
+      { label: "Portfolios", value: "3" },
+      { label: "Optimizer methods", value: "3" },
       { label: "Screener runs", value: "Unlimited" },
-      { label: "Optimizer methods", value: "All 5" },
-      { label: "Tracker portfolios", value: "Unlimited" },
       { label: "PDF export", value: "Yes" },
-      { label: "API access", value: "1 000 / day" },
+      { label: "API access", value: "—" },
     ],
   },
   {
-    id: "institutional", name: "Institutional", price: "€149", billing: "/ month",
+    id: "institutional", name: "Institutional", price: "€20", billing: "/ month",
     icon: <Building2 size={16} />, color: "#A97CC0",
     features: [
-      "Everything in Pro",
-      "Unlimited API access",
-      "Custom screener universe",
+      "Unlimited portfolios",
+      "All methods: Markowitz, HRP, Min Variance, Max Sharpe, Equal Weight",
+      "Unlimited screener + scorer",
       "White-label PDF reports",
-      "Priority support (SLA 4h)",
-      "Team seats (up to 10)",
-      "On-premise deployment",
-      "Dedicated Slack channel",
+      "Priority support",
+      "API access",
     ],
     limits: [
+      { label: "Portfolios", value: "Unlimited" },
+      { label: "Optimizer methods", value: "All 5" },
       { label: "Screener runs", value: "Unlimited" },
-      { label: "Optimizer methods", value: "All 5 + custom" },
-      { label: "Tracker portfolios", value: "Unlimited" },
       { label: "PDF export", value: "White-label" },
-      { label: "API access", value: "Unlimited" },
+      { label: "API access", value: "Yes" },
     ],
   },
 ];
@@ -136,15 +131,17 @@ function FieldRow({ label, children }: { label: string; children: React.ReactNod
 // ---------------------------------------------------------------------------
 // Sub-sections
 // ---------------------------------------------------------------------------
-function ProfileCard({ user }: { user: any }) {
+function ProfileCard({ user, onSaved }: { user: any; onSaved: () => Promise<void> }) {
   const [name, setName]     = useState(user?.display_name ?? "");
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => { setName(user?.display_name ?? ""); }, [user?.display_name]);
 
   const save = async () => {
     setSaving(true);
     try {
-      // Save display_name through settings endpoint
-      await post("/settings/preferences", { display_name: name });
+      await patch("/auth/profile", { display_name: name.trim() });
+      await onSaved();
       toast.success("Profile updated.");
     } catch {
       toast.error("Failed to save profile.");
@@ -465,12 +462,28 @@ function BillingTab({ currentPlan, onPortal }: { currentPlan: PlanId; onPortal: 
   );
 }
 
-function SecurityTab() {
+function SecurityTab({ onDeleted, authProvider }: { onDeleted: () => void; authProvider: "password" | "google" | undefined }) {
   const [current, setCurrent] = useState("");
   const [next,    setNext]    = useState("");
   const [confirm, setConfirm] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPwd, setShowPwd] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deletePwd, setDeletePwd]   = useState("");
+  const [deleteLoading, setDeleteLoading] = useState(false);
+
+  const confirmDelete = async () => {
+    setDeleteLoading(true);
+    try {
+      await del("/auth/account", { password: authProvider === "google" ? null : deletePwd });
+      toast.success("Account deleted.");
+      onDeleted();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.detail ?? "Failed to delete account.");
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
 
   const submitPwd = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -503,7 +516,8 @@ function SecurityTab() {
 
   return (
     <div className="space-y-4">
-      {/* Password */}
+      {/* Password — hidden for Google-only accounts */}
+      {authProvider !== "google" && (
       <Card>
         <CardTitle>Change password</CardTitle>
         <form onSubmit={submitPwd} className="space-y-3 max-w-sm">
@@ -542,6 +556,17 @@ function SecurityTab() {
           </button>
         </form>
       </Card>
+      )}
+
+      {/* Google account info */}
+      {authProvider === "google" && (
+        <Card>
+          <CardTitle>Sign-in method</CardTitle>
+          <p className="text-xs" style={{ color: "var(--t2)" }}>
+            Signed in with Google. Manage your password from your Google account — this account has no local password.
+          </p>
+        </Card>
+      )}
 
       {/* 2FA */}
       <Card>
@@ -621,13 +646,71 @@ function SecurityTab() {
           All saved portfolios, tracker data, and preferences will be lost.
         </p>
         <button
-          onClick={() => toast.error("Account deletion requires email confirmation. Contact support@capitalis.io.")}
+          onClick={() => setDeleteOpen(true)}
           className="flex items-center gap-2 px-4 py-2 rounded text-xs font-semibold transition-all"
           style={{ background: "rgba(180,40,40,0.12)", color: "var(--red)", border: "1px solid rgba(180,40,40,0.30)" }}
         >
           <Trash2 size={12} /> Delete account
         </button>
       </div>
+
+      {/* Delete confirmation modal */}
+      {deleteOpen && (
+        <div
+          style={{
+            position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", zIndex: 60,
+            display: "flex", alignItems: "center", justifyContent: "center", padding: 16,
+          }}
+          onClick={() => !deleteLoading && setDeleteOpen(false)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: "var(--bg-card)", border: "1px solid var(--border)",
+              borderRadius: 12, padding: 20, width: "100%", maxWidth: 420,
+            }}
+          >
+            <div className="flex items-center gap-2 mb-3">
+              <AlertCircle size={14} style={{ color: "var(--red)" }} />
+              <p className="text-xs font-semibold tracking-widest uppercase" style={{ color: "var(--red)" }}>
+                Permanently delete account
+              </p>
+            </div>
+            <p className="text-xs mb-4" style={{ color: "var(--t2)" }}>
+              This action cannot be undone. All your saved portfolios, tracker data, and preferences will be deleted.
+              Any active Stripe subscription must be cancelled separately from the billing portal.
+            </p>
+            {authProvider !== "google" && (
+              <input
+                type="password"
+                value={deletePwd}
+                onChange={(e) => setDeletePwd(e.target.value)}
+                placeholder="Enter your password to confirm"
+                className="input-field text-xs w-full mb-3"
+              />
+            )}
+            <div className="flex items-center gap-2 justify-end">
+              <button
+                disabled={deleteLoading}
+                onClick={() => setDeleteOpen(false)}
+                className="text-xs px-3 py-2 rounded"
+                style={{ background: "var(--bg-hover)", color: "var(--t2)", border: "1px solid var(--border)" }}
+              >
+                Cancel
+              </button>
+              <button
+                disabled={deleteLoading || (authProvider !== "google" && !deletePwd)}
+                onClick={confirmDelete}
+                className="text-xs px-3 py-2 rounded font-semibold flex items-center gap-1.5"
+                style={{ background: "var(--red)", color: "white", opacity: deleteLoading ? 0.6 : 1 }}
+              >
+                {deleteLoading ? <LoadingSpinner size="sm" /> : <Trash2 size={11} />}
+                {deleteLoading ? "Deleting…" : "Delete forever"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -637,22 +720,39 @@ function SecurityTab() {
 // ---------------------------------------------------------------------------
 export default function AccountPage() {
   const router     = useRouter();
-  const { user, logout } = useAuth();
+  const { user, logout, refreshUser } = useAuth();
   const { t } = useI18n();
   const [tab, setTab]    = useState<Tab>("overview");
+  const [paymentLinks, setPaymentLinks] = useState<Record<string, string>>({});
 
   const currentPlan = (user?.subscription?.plan ?? "free") as PlanId;
+
+  useEffect(() => {
+    get<{ plans: { id: string; payment_link: string | null }[] }>("/billing/plans")
+      .then(d => {
+        const links: Record<string, string> = {};
+        d.plans.forEach(p => { if (p.payment_link) links[p.id] = p.payment_link; });
+        setPaymentLinks(links);
+      })
+      .catch(() => {});
+  }, []);
 
   const handleLogout = () => { logout(); router.replace("/login"); };
 
   const handlePlanSelect = async (planId: PlanId) => {
     if (planId === currentPlan) return;
     if (planId === "free") { toast("Contact support to downgrade."); return; }
+    // Use direct payment link if available (no backend checkout session required)
+    if (paymentLinks[planId]) {
+      window.open(paymentLinks[planId], "_blank");
+      return;
+    }
+    // Fallback: Stripe checkout session via backend
     try {
       const { url } = await post<{ url: string }>("/billing/checkout-session", { plan_id: planId });
       window.location.href = url;
     } catch {
-      toast.error("Stripe not configured — set STRIPE_SECRET_KEY in backend .env");
+      toast.error("Stripe not configured — contact support.");
     }
   };
 
@@ -718,7 +818,7 @@ export default function AccountPage() {
           <div className="space-y-5">
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
               <div className="col-span-1 lg:col-span-4 space-y-4">
-                <ProfileCard user={user} />
+                <ProfileCard user={user} onSaved={refreshUser} />
                 <UsageCard />
               </div>
               <div className="col-span-1 lg:col-span-8">
@@ -746,7 +846,12 @@ export default function AccountPage() {
         )}
 
         {/* ── Security tab ── */}
-        {tab === "security" && <SecurityTab />}
+        {tab === "security" && (
+          <SecurityTab
+            onDeleted={() => { logout(); router.replace("/login"); }}
+            authProvider={(user as any)?.auth_provider}
+          />
+        )}
       </div>
     </ErrorBoundary>
   );

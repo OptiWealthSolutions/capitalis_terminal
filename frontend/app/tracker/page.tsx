@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { useI18n } from "@/lib/i18n";
-import { get } from "@/lib/api";
+import { get, post, del } from "@/lib/api";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -32,20 +32,6 @@ interface PriceHistory {
   ticker: string;
   dates: string[];
   close: number[];
-}
-
-// ---------------------------------------------------------------------------
-// Storage
-// ---------------------------------------------------------------------------
-const STORAGE_KEY = "capitalis_tracker_v2";
-
-function loadTrackerPortfolios(): TrackerPortfolio[] {
-  if (typeof window === "undefined") return [];
-  try { return JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "[]"); } catch { return []; }
-}
-
-function saveTrackerPortfolios(portfolios: TrackerPortfolio[]) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(portfolios));
 }
 
 // ---------------------------------------------------------------------------
@@ -78,9 +64,12 @@ export default function TrackerPage() {
   const [form, setForm]                   = useState<Omit<Position, "id">>(BLANK_FORM());
 
   useEffect(() => {
-    const pfs = loadTrackerPortfolios();
-    setPortfolios(pfs);
-    if (pfs.length > 0) setActiveId(pfs[0].id);
+    get<TrackerPortfolio[]>("/portfolio/tracker")
+      .then((pfs) => {
+        setPortfolios(pfs);
+        if (pfs.length > 0) setActiveId(pfs[0].id);
+      })
+      .catch(() => {});
   }, []);
 
   const activePf = portfolios.find(p => p.id === activeId) ?? null;
@@ -125,34 +114,48 @@ export default function TrackerPage() {
     return { cost, mv: hasAll ? mv : null, pnl, pct };
   }, [rows]);
 
-  // ── Portfolio management ──
-  const createPortfolio = () => {
+  // ── Portfolio management — server-side, user-scoped ──
+  const createPortfolio = async () => {
     const name = newPfName.trim();
     if (!name) { toast.error("Name required."); return; }
     const pf: TrackerPortfolio = {
       id: crypto.randomUUID(), name, createdAt: new Date().toISOString(), positions: [],
     };
-    const next = [...portfolios, pf];
-    setPortfolios(next);
-    saveTrackerPortfolios(next);
-    setActiveId(pf.id);
-    setNewPfModal(false);
-    setNewPfName("");
-    toast.success(`Portfolio "${name}" created.`);
+    try {
+      await post("/portfolio/tracker", { id: pf.id, name: pf.name, positions: [], created_at: pf.createdAt });
+      setPortfolios((prev) => [...prev, pf]);
+      setActiveId(pf.id);
+      setNewPfModal(false);
+      setNewPfName("");
+      toast.success(`Portfolio "${name}" created.`);
+    } catch (err: any) {
+      toast.error(err?.response?.data?.detail ?? "Failed to create portfolio.");
+    }
   };
 
-  const deletePortfolio = (id: string) => {
-    const next = portfolios.filter(p => p.id !== id);
-    setPortfolios(next);
-    saveTrackerPortfolios(next);
-    setActiveId(next[0]?.id ?? null);
-    toast.success("Portfolio deleted.");
+  const deletePortfolio = async (id: string) => {
+    try {
+      await del(`/portfolio/tracker/${id}`);
+      setPortfolios((prev) => {
+        const next = prev.filter(p => p.id !== id);
+        setActiveId(next[0]?.id ?? null);
+        return next;
+      });
+      toast.success("Portfolio deleted.");
+    } catch {
+      toast.error("Failed to delete portfolio.");
+    }
   };
 
-  const updatePositions = (pfId: string, newPositions: Position[]) => {
-    const next = portfolios.map(p => p.id === pfId ? { ...p, positions: newPositions } : p);
-    setPortfolios(next);
-    saveTrackerPortfolios(next);
+  const updatePositions = async (pfId: string, newPositions: Position[]) => {
+    const pf = portfolios.find(p => p.id === pfId);
+    if (!pf) return;
+    setPortfolios((prev) => prev.map(p => p.id === pfId ? { ...p, positions: newPositions } : p));
+    try {
+      await post("/portfolio/tracker", { id: pfId, name: pf.name, positions: newPositions, created_at: pf.createdAt });
+    } catch {
+      toast.error("Failed to sync positions.");
+    }
   };
 
   // ── Position management ──

@@ -20,6 +20,11 @@ def _conn() -> sqlite3.Connection:
     return conn
 
 
+def _column_exists(conn: sqlite3.Connection, table: str, column: str) -> bool:
+    rows = conn.execute(f"PRAGMA table_info({table})").fetchall()
+    return any(r["name"] == column for r in rows)
+
+
 def init_db() -> None:
     with _conn() as conn:
         conn.executescript("""
@@ -28,7 +33,10 @@ def init_db() -> None:
                 email               TEXT UNIQUE NOT NULL,
                 hashed_password     TEXT NOT NULL,
                 created_at          TEXT NOT NULL,
-                stripe_customer_id  TEXT
+                stripe_customer_id  TEXT,
+                display_name        TEXT,
+                google_sub          TEXT UNIQUE,
+                avatar_url          TEXT
             );
             CREATE TABLE IF NOT EXISTS subscriptions (
                 user_id                 TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
@@ -39,19 +47,35 @@ def init_db() -> None:
                 stripe_subscription_id  TEXT
             );
         """)
+        # Safe idempotent migrations for pre-existing DBs
+        for col, ddl in (
+            ("display_name", "ALTER TABLE users ADD COLUMN display_name TEXT"),
+            ("google_sub",   "ALTER TABLE users ADD COLUMN google_sub TEXT"),
+            ("avatar_url",   "ALTER TABLE users ADD COLUMN avatar_url TEXT"),
+        ):
+            if not _column_exists(conn, "users", col):
+                conn.execute(ddl)
 
 
 # ---------------------------------------------------------------------------
 # Users
 # ---------------------------------------------------------------------------
 
-def create_user(email: str, hashed_password: str) -> dict:
+def create_user(
+    email: str,
+    hashed_password: str,
+    display_name: str | None = None,
+    google_sub: str | None = None,
+    avatar_url: str | None = None,
+) -> dict:
     user_id = str(uuid.uuid4())
     now = datetime.now(timezone.utc).isoformat()
     with _conn() as conn:
         conn.execute(
-            "INSERT INTO users (id, email, hashed_password, created_at) VALUES (?, ?, ?, ?)",
-            (user_id, email, hashed_password, now),
+            """INSERT INTO users
+                   (id, email, hashed_password, created_at, display_name, google_sub, avatar_url)
+               VALUES (?, ?, ?, ?, ?, ?, ?)""",
+            (user_id, email, hashed_password, now, display_name, google_sub, avatar_url),
         )
         conn.execute(
             "INSERT INTO subscriptions (user_id, plan, status) VALUES (?, 'free', 'active')",
@@ -81,11 +105,34 @@ def get_user_by_stripe_customer(customer_id: str) -> Optional[sqlite3.Row]:
         ).fetchone()
 
 
+def get_user_by_google_sub(google_sub: str) -> Optional[sqlite3.Row]:
+    with _conn() as conn:
+        return conn.execute(
+            "SELECT * FROM users WHERE google_sub = ?", (google_sub,)
+        ).fetchone()
+
+
 def update_password(user_id: str, hashed_password: str) -> None:
     with _conn() as conn:
         conn.execute(
             "UPDATE users SET hashed_password = ? WHERE id = ?",
             (hashed_password, user_id),
+        )
+
+
+def update_display_name(user_id: str, display_name: str) -> None:
+    with _conn() as conn:
+        conn.execute(
+            "UPDATE users SET display_name = ? WHERE id = ?",
+            (display_name, user_id),
+        )
+
+
+def update_google_sub(user_id: str, google_sub: str, avatar_url: str | None = None) -> None:
+    with _conn() as conn:
+        conn.execute(
+            "UPDATE users SET google_sub = ?, avatar_url = COALESCE(?, avatar_url) WHERE id = ?",
+            (google_sub, avatar_url, user_id),
         )
 
 
@@ -95,6 +142,12 @@ def set_stripe_customer(user_id: str, customer_id: str) -> None:
             "UPDATE users SET stripe_customer_id = ? WHERE id = ?",
             (customer_id, user_id),
         )
+
+
+def delete_user(user_id: str) -> None:
+    with _conn() as conn:
+        conn.execute("DELETE FROM subscriptions WHERE user_id = ?", (user_id,))
+        conn.execute("DELETE FROM users WHERE id = ?", (user_id,))
 
 
 # ---------------------------------------------------------------------------
@@ -147,4 +200,12 @@ def downgrade_to_free(user_id: str) -> None:
             WHERE user_id = ?
             """,
             (user_id,),
+        )
+
+
+def set_cancel_at_period_end(user_id: str, flag: bool) -> None:
+    with _conn() as conn:
+        conn.execute(
+            "UPDATE subscriptions SET cancel_at_period_end = ? WHERE user_id = ?",
+            (int(flag), user_id),
         )

@@ -5,7 +5,7 @@ import { useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { post } from "@/lib/api";
+import { get, post, del } from "@/lib/api";
 import type { OptimizationResult, MonteCarloResult, PerformanceResult } from "@/lib/types";
 import PlotlyChart from "@/components/charts/PlotlyChart";
 import { LoadingSpinner, SkeletonChart } from "@/components/ui/LoadingSpinner";
@@ -13,11 +13,13 @@ import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 import { formatPercent, formatCurrency, formatNumber } from "@/lib/utils";
 import {
   Plus, Trash2, Play, BarChart2, Save, FolderOpen, X,
-  ChevronDown, ChevronUp, TrendingUp, Activity, Target,
+  ChevronDown, ChevronUp, TrendingUp, Activity, Target, Lock,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { useTheme } from "@/lib/theme";
 import { useI18n } from "@/lib/i18n";
+import { usePlan } from "@/lib/plan";
+import Link from "next/link";
 
 // ---------------------------------------------------------------------------
 // Types & constants
@@ -45,8 +47,6 @@ interface SavedPortfolio {
   savedAt: string;
 }
 
-const STORAGE_KEY = "capitalis_portfolios_v2";
-
 const METHODS = [
   { value: "HRP",          label: "HRP",          desc: "Hierarchical Risk Parity" },
   { value: "MeanVar",      label: "Mean-Variance", desc: "Markowitz Efficient Frontier" },
@@ -60,23 +60,12 @@ const CHART_COLORS = [
 ];
 
 // ---------------------------------------------------------------------------
-// LocalStorage helpers
-// ---------------------------------------------------------------------------
-function loadPortfolios(): SavedPortfolio[] {
-  if (typeof window === "undefined") return [];
-  try { return JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "[]"); }
-  catch { return []; }
-}
-function persistPortfolios(portfolios: SavedPortfolio[]) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(portfolios));
-}
-
-// ---------------------------------------------------------------------------
 // Page
 // ---------------------------------------------------------------------------
 export default function PortfolioPage() {
   const { theme } = useTheme();
   const { t } = useI18n();
+  const { plan, canUseMethod, canAddPortfolio } = usePlan();
   const isDark = theme === "dark";
 
   const [activeTab, setActiveTab]             = useState<Tab>("optimize");
@@ -103,7 +92,26 @@ export default function PortfolioPage() {
   const [dcaFreq, setDcaFreq]     = useState<"daily" | "weekly" | "monthly" | "quarterly">("monthly");
   const [dcaIter, setDcaIter]     = useState<number>(24);
 
-  useEffect(() => { setSavedPortfolios(loadPortfolios()); }, []);
+  // Load portfolios from backend (user-scoped)
+  useEffect(() => {
+    get<{ name: string; tickers: string[]; weights: number[]; capital: number; method: string; created_at: string }[]>(
+      "/portfolio/saved"
+    )
+      .then((rows) => {
+        setSavedPortfolios(
+          rows.map((r) => ({
+            id: r.name,
+            name: r.name,
+            tickers: r.tickers,
+            method: r.method,
+            capital: r.capital,
+            result: null,       // results not persisted — user re-runs after loading
+            savedAt: r.created_at,
+          }))
+        );
+      })
+      .catch(() => {}); // not logged in yet or backend down
+  }, []);
 
   const { register, handleSubmit, watch, setValue, getValues } = useForm<OptForm>({
     resolver: zodResolver(OptSchema),
@@ -119,6 +127,14 @@ export default function PortfolioPage() {
   });
 
   const watchedMethod = watch("method");
+
+  // If current method is locked by the user's plan, switch to first allowed.
+  useEffect(() => {
+    if (!canUseMethod(watchedMethod)) {
+      const firstAllowed = METHODS.find((m) => canUseMethod(m.value));
+      if (firstAllowed) setValue("method", firstAllowed.value);
+    }
+  }, [watchedMethod, canUseMethod, setValue]);
 
   // --------------------------------------------------------------------------
   // Mutations
@@ -192,24 +208,41 @@ export default function PortfolioPage() {
   const removeTicker = (t: string) => setTickers((prev) => prev.filter((x) => x !== t));
 
   // --------------------------------------------------------------------------
-  // Portfolio save / load
+  // Portfolio save / load — all server-side, user-scoped
   // --------------------------------------------------------------------------
-  const savePortfolio = () => {
+  const [saving, setSaving] = useState(false);
+
+  const savePortfolio = async () => {
     const name = saveNameInput.trim();
     if (!name) { toast.error("Enter a portfolio name."); return; }
     if (!optResult) { toast.error("Run optimization before saving."); return; }
     const formValues = getValues();
-    const pf: SavedPortfolio = {
-      id: crypto.randomUUID(), name, tickers: [...tickers],
-      method: formValues.method, capital: formValues.capital,
-      result: optResult, savedAt: new Date().toISOString(),
-    };
-    const updated = [pf, ...savedPortfolios.filter((p) => p.name !== name)];
-    setSavedPortfolios(updated);
-    persistPortfolios(updated);
-    setSaveModalOpen(false);
-    setSaveNameInput("");
-    toast.success(`"${name}" saved.`);
+    const weights = Object.values(optResult.weights);
+    const wtickers = Object.keys(optResult.weights);
+    setSaving(true);
+    try {
+      await post("/portfolio/save", {
+        name,
+        tickers: wtickers,
+        weights,
+        capital: formValues.capital,
+        method: formValues.method,
+      });
+      const pf: SavedPortfolio = {
+        id: name, name, tickers: wtickers,
+        method: formValues.method, capital: formValues.capital,
+        result: optResult, savedAt: new Date().toISOString(),
+      };
+      setSavedPortfolios((prev) => [pf, ...prev.filter((p) => p.name !== name)]);
+      setSaveModalOpen(false);
+      setSaveNameInput("");
+      toast.success(`"${name}" saved.`);
+    } catch (err: any) {
+      const detail = err?.response?.data?.detail ?? "Failed to save portfolio.";
+      toast.error(detail);
+    } finally {
+      setSaving(false);
+    }
   };
 
   const loadPortfolio = (pf: SavedPortfolio) => {
@@ -218,14 +251,17 @@ export default function PortfolioPage() {
     setValue("capital", pf.capital);
     setOptResult(pf.result);
     setLoadPanelOpen(false);
-    toast.success(`Loaded "${pf.name}"`);
+    toast.success(`Loaded "${pf.name}" — re-run optimization to get metrics.`);
   };
 
-  const deletePortfolio = (id: string) => {
-    const updated = savedPortfolios.filter((p) => p.id !== id);
-    setSavedPortfolios(updated);
-    persistPortfolios(updated);
-    toast.success("Portfolio deleted.");
+  const deletePortfolio = async (name: string) => {
+    try {
+      await del(`/portfolio/saved/${encodeURIComponent(name)}`);
+      setSavedPortfolios((prev) => prev.filter((p) => p.name !== name));
+      toast.success("Portfolio deleted.");
+    } catch {
+      toast.error("Failed to delete portfolio.");
+    }
   };
 
   // --------------------------------------------------------------------------
@@ -369,7 +405,7 @@ export default function PortfolioPage() {
                       >
                         Load
                       </button>
-                      <button onClick={() => deletePortfolio(pf.id)} style={{ color: "var(--t3)" }}>
+                      <button onClick={() => deletePortfolio(pf.name)} style={{ color: "var(--t3)" }}>
                         <Trash2 size={11} />
                       </button>
                     </div>
@@ -495,30 +531,46 @@ export default function PortfolioPage() {
                       Optimization Method
                     </p>
 
-                    {/* Method pill cards */}
+                    {/* Method pill cards (disabled if locked by plan) */}
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-5">
                       {METHODS.map((m) => {
                         const active = watchedMethod === m.value;
+                        const locked = !canUseMethod(m.value);
                         return (
                           <button
                             key={m.value}
                             type="button"
-                            onClick={() => setValue("method", m.value)}
-                            className="text-left px-3 py-2.5 rounded border transition-all"
+                            disabled={locked}
+                            title={locked ? `Locked — upgrade to unlock ${m.label}` : ""}
+                            onClick={() => !locked && setValue("method", m.value)}
+                            className="text-left px-3 py-2.5 rounded border transition-all relative"
                             style={{
-                              background: active ? "var(--orange-dim)" : "var(--bg-hover)",
-                              borderColor: active ? "var(--orange-border)" : "var(--border)",
+                              background: locked
+                                ? "var(--bg-hover)"
+                                : active ? "var(--orange-dim)" : "var(--bg-hover)",
+                              borderColor: active && !locked ? "var(--orange-border)" : "var(--border)",
+                              opacity: locked ? 0.45 : 1,
+                              cursor: locked ? "not-allowed" : "pointer",
                             }}
                           >
+                            {locked && (
+                              <Lock
+                                size={10}
+                                style={{ position: "absolute", top: 6, right: 6, color: "var(--t3)" }}
+                              />
+                            )}
                             <p
                               className="text-xs font-semibold"
-                              style={{ color: active ? "var(--orange)" : "var(--t1)" }}
+                              style={{ color: active && !locked ? "var(--orange)" : "var(--t1)" }}
                             >
                               {m.label}
                             </p>
                             <p
                               className="text-xs mt-0.5 leading-snug"
-                              style={{ color: active ? "var(--orange)" : "var(--t3)", opacity: active ? 0.8 : 1 }}
+                              style={{
+                                color: active && !locked ? "var(--orange)" : "var(--t3)",
+                                opacity: active && !locked ? 0.8 : 1,
+                              }}
                             >
                               {m.desc}
                             </p>
@@ -526,6 +578,18 @@ export default function PortfolioPage() {
                         );
                       })}
                     </div>
+                    {plan === "free" && (
+                      <p className="text-xs mb-4" style={{ color: "var(--t3)" }}>
+                        Free plan — only Equal Weights is available.{" "}
+                        <Link href="/account" style={{ color: "var(--orange)" }}>Upgrade →</Link>
+                      </p>
+                    )}
+                    {plan === "pro" && (
+                      <p className="text-xs mb-4" style={{ color: "var(--t3)" }}>
+                        HRP locked — included in Institutional plan.{" "}
+                        <Link href="/account" style={{ color: "var(--orange)" }}>Upgrade →</Link>
+                      </p>
+                    )}
 
                     <p className="text-xs font-semibold tracking-widest uppercase mb-3" style={{ color: "var(--t3)" }}>
                       Parameters
@@ -1360,11 +1424,12 @@ export default function PortfolioPage() {
 
             <button
               onClick={savePortfolio}
-              disabled={!saveNameInput.trim()}
-              className="w-full py-2.5 rounded text-xs font-semibold transition-all disabled:opacity-40"
+              disabled={!saveNameInput.trim() || saving}
+              className="w-full py-2.5 rounded text-xs font-semibold transition-all disabled:opacity-40 flex items-center justify-center gap-2"
               style={{ background: "var(--orange)", color: isDark ? "#0A0A0A" : "#ffffff" }}
             >
-              Save
+              {saving ? <LoadingSpinner size="sm" /> : null}
+              {saving ? "Saving…" : "Save"}
             </button>
           </div>
         </div>

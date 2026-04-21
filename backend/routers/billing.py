@@ -27,6 +27,7 @@ from ..db import (
     set_stripe_customer,
     upsert_subscription,
 )
+from ..plan_gate import PLAN_LIMITS, get_limits, get_plan_for_user
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -35,8 +36,10 @@ STRIPE_SECRET_KEY: str | None = os.environ.get("STRIPE_SECRET_KEY")
 STRIPE_WEBHOOK_SECRET: str | None = os.environ.get("STRIPE_WEBHOOK_SECRET")
 FRONTEND_URL: str = os.environ.get("FRONTEND_URL", "http://localhost:3000")
 
-STRIPE_PRICE_PRO = os.environ.get("STRIPE_PRICE_PRO", "price_REPLACE_PRO")
-STRIPE_PRICE_INSTITUTIONAL = os.environ.get("STRIPE_PRICE_INSTITUTIONAL", "price_REPLACE_INST")
+STRIPE_PRICE_PRO = os.environ.get("STRIPE_PRICE_PRO", "price_1TOY7jDTTquLlx6jY7Co5scP")
+STRIPE_PRICE_INSTITUTIONAL = os.environ.get("STRIPE_PRICE_INSTITUTIONAL", "price_1TOY7jDTTquLlx6jbrXY6dBh")
+STRIPE_PAYMENT_LINK_PRO = os.environ.get("STRIPE_PAYMENT_LINK_PRO", "https://buy.stripe.com/test_3cIbJ1aO84W73ZG8qa9MY00")
+STRIPE_PAYMENT_LINK_INSTITUTIONAL = os.environ.get("STRIPE_PAYMENT_LINK_INSTITUTIONAL", "https://buy.stripe.com/test_eVq5kDg8s4W77bS49U9MY01")
 
 # price_id → plan name mapping (used in webhook)
 _PRICE_TO_PLAN: dict[str, str] = {
@@ -51,39 +54,44 @@ PLANS = [
         "price_eur": 0,
         "billing_interval": None,
         "stripe_price_id": None,
+        "payment_link": None,
         "features": [
             "Macro dashboard (read-only)",
+            "1 portfolio max",
+            "Equal Weight optimization only",
             "3 screener runs / day",
-            "Portfolio optimizer (HRP only)",
         ],
     },
     {
         "id": "pro",
         "name": "PRO",
-        "price_eur": 29,
+        "price_eur": 7,
         "billing_interval": "month",
         "stripe_price_id": STRIPE_PRICE_PRO,
+        "payment_link": STRIPE_PAYMENT_LINK_PRO,
         "features": [
+            "Up to 3 portfolios",
+            "Markowitz, Equal Weight & Min Variance",
             "Unlimited screener + scorer",
-            "All 5 optimization methods",
             "Monte Carlo & VaR/CVaR",
             "ML Alpha signals",
             "PDF export",
-            "API access (1 000 req/day)",
         ],
     },
     {
         "id": "institutional",
         "name": "INSTITUTIONAL",
-        "price_eur": 149,
+        "price_eur": 20,
         "billing_interval": "month",
         "stripe_price_id": STRIPE_PRICE_INSTITUTIONAL,
+        "payment_link": STRIPE_PAYMENT_LINK_INSTITUTIONAL,
         "features": [
-            "Unlimited API access",
-            "Custom screener universe",
-            "White-label reports",
-            "Team seats (up to 10)",
-            "Priority support (SLA 4h)",
+            "Unlimited portfolios",
+            "All methods: Markowitz, HRP, Min Variance, Max Sharpe, Equal Weight",
+            "Unlimited screener + scorer",
+            "White-label PDF reports",
+            "Priority support",
+            "API access",
         ],
     },
 ]
@@ -114,7 +122,20 @@ def _require_stripe():
 # ---------------------------------------------------------------------------
 @router.get("/plans")
 def list_plans() -> Any:
-    return {"plans": PLANS}
+    # Merge in limits for each plan so frontend can render gating badges
+    plans_with_limits = []
+    for p in PLANS:
+        plans_with_limits.append({**p, "limits": PLAN_LIMITS.get(p["id"], {})})
+    return {"plans": plans_with_limits}
+
+
+# ---------------------------------------------------------------------------
+# GET /billing/limits  —  current user's plan + enforced limits
+# ---------------------------------------------------------------------------
+@router.get("/limits")
+def my_limits(current_user: dict = Depends(get_current_user)) -> Any:
+    plan = get_plan_for_user(current_user["sub"])
+    return {"plan": plan, "limits": get_limits(plan)}
 
 
 # ---------------------------------------------------------------------------

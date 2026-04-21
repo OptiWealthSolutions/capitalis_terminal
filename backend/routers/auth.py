@@ -1,18 +1,23 @@
 """
 Authentication router.
 
-POST /auth/register  — create account, return token pair
-POST /auth/login     — verify credentials, return token pair
-POST /auth/refresh   — exchange refresh token for new access token
-GET  /auth/me        — current user profile + subscription
+POST /auth/register        — create account, return token pair
+POST /auth/login           — verify credentials, return token pair
+POST /auth/google          — Google OAuth: verify id_token, login/create user
+POST /auth/refresh         — exchange refresh token for new access token
+GET  /auth/me              — current user profile + subscription + plan limits
+PATCH /auth/profile        — update display_name
+POST /auth/change-password — update password
+DELETE /auth/account       — delete account (irreversible)
 """
 
 import logging
 import os
+import secrets
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from jose import JWTError, jwt
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 
 from ..auth.jwt_handler import (
     create_access_token,
@@ -23,11 +28,16 @@ from ..auth.jwt_handler import (
 )
 from ..db import (
     create_user,
+    delete_user,
     get_subscription,
     get_user_by_email,
+    get_user_by_google_sub,
     get_user_by_id,
+    update_display_name,
+    update_google_sub,
     update_password,
 )
+from ..plan_gate import get_limits, get_plan_for_user
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -57,6 +67,18 @@ class RefreshRequest(BaseModel):
 class ChangePasswordRequest(BaseModel):
     current_password: str
     new_password: str
+
+
+class GoogleLoginRequest(BaseModel):
+    id_token: str = Field(min_length=10)
+
+
+class ProfileUpdateRequest(BaseModel):
+    display_name: str = Field(max_length=64)
+
+
+class DeleteAccountRequest(BaseModel):
+    password: str | None = None   # required for password-auth users, optional for Google-only
 
 
 # ---------------------------------------------------------------------------
@@ -129,15 +151,109 @@ def change_password(req: ChangePasswordRequest, current_user: dict = Depends(get
     update_password(user["id"], hash_password(req.new_password))
 
 
+@router.patch("/profile")
+def patch_profile(req: ProfileUpdateRequest, current_user: dict = Depends(get_current_user)):
+    user = get_user_by_id(current_user["sub"])
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found.")
+    update_display_name(user["id"], req.display_name.strip())
+    return {"status": "updated", "display_name": req.display_name.strip()}
+
+
+@router.delete("/account", status_code=status.HTTP_204_NO_CONTENT)
+def delete_account(req: DeleteAccountRequest, current_user: dict = Depends(get_current_user)):
+    user = get_user_by_id(current_user["sub"])
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found.")
+    # Password verification required unless account is Google-only
+    is_google_only = bool(user["google_sub"]) and (not user["hashed_password"] or user["hashed_password"].startswith("GOOGLE_ONLY_"))
+    if not is_google_only:
+        if not req.password or not verify_password(req.password, user["hashed_password"]):
+            raise HTTPException(status_code=400, detail="Password verification failed.")
+    delete_user(user["id"])
+
+
+# ---------------------------------------------------------------------------
+# Google OAuth
+# ---------------------------------------------------------------------------
+_GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "")
+
+
+@router.post("/google")
+def google_login(req: GoogleLoginRequest):
+    """
+    Accepts a Google ID token (from the frontend Google Identity Services),
+    verifies it, and either logs in an existing user or creates a new one.
+    """
+    if not _GOOGLE_CLIENT_ID:
+        raise HTTPException(
+            status_code=503,
+            detail="Google OAuth not configured. Set GOOGLE_CLIENT_ID in backend .env.",
+        )
+    try:
+        from google.oauth2 import id_token as google_id_token
+        from google.auth.transport import requests as google_requests
+    except ImportError:
+        raise HTTPException(
+            status_code=503,
+            detail="google-auth package not installed. Run: pip install google-auth",
+        )
+
+    try:
+        claims = google_id_token.verify_oauth2_token(
+            req.id_token, google_requests.Request(), _GOOGLE_CLIENT_ID
+        )
+    except ValueError as exc:
+        logger.warning("Google token verification failed: %s", exc)
+        raise HTTPException(status_code=401, detail="Invalid Google token.")
+
+    google_sub = claims.get("sub")
+    email = claims.get("email")
+    email_verified = claims.get("email_verified", False)
+    name = claims.get("name") or ""
+    picture = claims.get("picture")
+
+    if not google_sub or not email or not email_verified:
+        raise HTTPException(status_code=400, detail="Google account email not verified.")
+
+    # 1) Existing Google-linked user → log in
+    user = get_user_by_google_sub(google_sub)
+    if user:
+        return _token_pair(user["id"], user["email"])
+
+    # 2) Existing email user → link Google sub
+    user = get_user_by_email(email)
+    if user:
+        update_google_sub(user["id"], google_sub, picture)
+        return _token_pair(user["id"], user["email"])
+
+    # 3) New user — create with random password (never used; login via Google only)
+    random_pwd = hash_password(secrets.token_urlsafe(32))
+    # Mark as google-only to allow account deletion without password
+    random_pwd = "GOOGLE_ONLY_" + random_pwd
+    user = create_user(
+        email=email,
+        hashed_password=random_pwd,
+        display_name=name,
+        google_sub=google_sub,
+        avatar_url=picture,
+    )
+    return _token_pair(user["id"], user["email"])
+
+
 @router.get("/me")
 def me(current_user: dict = Depends(get_current_user)):
     user = get_user_by_id(current_user["sub"])
     if not user:
         raise HTTPException(status_code=404, detail="User not found.")
     sub = get_subscription(user["id"])
+    plan = get_plan_for_user(user["id"])
     return {
         "id": user["id"],
         "email": user["email"],
+        "display_name": user["display_name"] or "",
+        "avatar_url": user["avatar_url"],
+        "auth_provider": "google" if user["google_sub"] else "password",
         "created_at": user["created_at"],
         "subscription": {
             "plan": sub["plan"],
@@ -145,4 +261,5 @@ def me(current_user: dict = Depends(get_current_user)):
             "current_period_end": sub["current_period_end"],
             "cancel_at_period_end": bool(sub["cancel_at_period_end"]),
         } if sub else {"plan": "free", "status": "active", "current_period_end": None, "cancel_at_period_end": False},
+        "plan_limits": get_limits(plan),
     }

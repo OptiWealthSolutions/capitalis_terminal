@@ -80,8 +80,13 @@ export async function put<T>(path: string, body?: unknown): Promise<T> {
   return res.data;
 }
 
-export async function del<T>(path: string): Promise<T> {
-  const res = await apiClient.delete<T>(path);
+export async function del<T>(path: string, body?: unknown): Promise<T> {
+  const res = await apiClient.delete<T>(path, body ? { data: body } : undefined);
+  return res.data;
+}
+
+export async function patch<T>(path: string, body?: unknown): Promise<T> {
+  const res = await apiClient.patch<T>(path, body);
   return res.data;
 }
 

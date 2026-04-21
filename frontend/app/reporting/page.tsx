@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
-import { downloadPdf } from "@/lib/api";
+import { downloadPdf, get } from "@/lib/api";
 import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
 import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 import { triggerBlobDownload } from "@/lib/utils";
@@ -25,14 +25,6 @@ interface SavedPortfolio {
   capital: number;
   result: OptimizationResult | null;
   savedAt: string;
-}
-
-const PF_STORAGE_KEY = "capitalis_portfolios_v2";
-
-function loadPortfolios(): SavedPortfolio[] {
-  if (typeof window === "undefined") return [];
-  try { return JSON.parse(localStorage.getItem(PF_STORAGE_KEY) ?? "[]"); }
-  catch { return []; }
 }
 
 function fmtPct(v: number | null | undefined, digits = 2): string {
@@ -58,9 +50,23 @@ export default function ReportingPage() {
   const [nSims, setNSims]             = useState(500);
 
   useEffect(() => {
-    const pfs = loadPortfolios().sort((a, b) => b.savedAt.localeCompare(a.savedAt));
-    setPortfolios(pfs);
-    if (pfs.length > 0) setSelectedId(pfs[0].id);
+    get<{ name: string; tickers: string[]; weights: number[]; capital: number; method: string; created_at: string }[]>(
+      "/portfolio/saved"
+    )
+      .then((rows) => {
+        const pfs = rows.map((r) => ({
+          id: r.name,
+          name: r.name,
+          tickers: r.tickers,
+          method: r.method,
+          capital: r.capital,
+          result: null,
+          savedAt: r.created_at,
+        }));
+        setPortfolios(pfs);
+        if (pfs.length > 0) setSelectedId(pfs[0].id);
+      })
+      .catch(() => {});
   }, []);
 
   const selected = portfolios.find(p => p.id === selectedId) ?? null;

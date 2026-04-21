@@ -6,6 +6,7 @@ import Link from "next/link";
 import { BarChart2, Eye, EyeOff, UserPlus } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { useI18n } from "@/lib/i18n";
+import GoogleButton from "@/components/auth/GoogleButton";
 import toast from "react-hot-toast";
 
 export default function RegisterPage() {
@@ -142,6 +143,15 @@ export default function RegisterPage() {
               )}
             </button>
           </form>
+
+          {/* OR divider */}
+          <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "18px 0" }}>
+            <div style={{ flex: 1, height: 1, background: "var(--border)" }} />
+            <span style={{ color: "var(--t3)", fontSize: "0.62rem", letterSpacing: "0.1em" }}>OR</span>
+            <div style={{ flex: 1, height: 1, background: "var(--border)" }} />
+          </div>
+
+          <GoogleButton redirectTo="/dashboard" text="signup_with" />
 
           <div style={{ marginTop: 20, paddingTop: 20, borderTop: "1px solid var(--border)", textAlign: "center" }}>
             <span style={{ color: "var(--t3)", fontSize: "0.72rem" }}>{t.auth.register.hasAccount} </span>

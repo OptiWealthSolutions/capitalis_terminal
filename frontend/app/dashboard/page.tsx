@@ -40,28 +40,10 @@ interface CorporateEvent {
   next_dividend: string | null; dividend_rate: number | null;
 }
 
-// ---------------------------------------------------------------------------
-// Storage keys
-// ---------------------------------------------------------------------------
-const OPT_KEY     = "capitalis_portfolios_v2";
-const TRACKER_KEY = "capitalis_tracker_v2";
-
 const CHART_COLORS = [
   "#7AA7E8", "#86B38A", "#C9B178", "#D48585", "#A97CC0",
   "#5BBCB8", "#E8A87C", "#7CA8D4", "#B5CC8E", "#D4A5A5",
 ];
-
-// ---------------------------------------------------------------------------
-// Loaders
-// ---------------------------------------------------------------------------
-function loadOptPortfolios(): SavedPortfolio[] {
-  if (typeof window === "undefined") return [];
-  try { return JSON.parse(localStorage.getItem(OPT_KEY) ?? "[]"); } catch { return []; }
-}
-function loadTrackerPortfolios(): TrackerPortfolio[] {
-  if (typeof window === "undefined") return [];
-  try { return JSON.parse(localStorage.getItem(TRACKER_KEY) ?? "[]"); } catch { return []; }
-}
 
 // ---------------------------------------------------------------------------
 // Formatters
@@ -112,15 +94,32 @@ export default function DashboardPage() {
     return d.toISOString().split("T")[0];
   }, []);
 
-  // Load from localStorage on mount
+  // Load portfolios from backend (user-scoped)
   useEffect(() => {
-    const opts = loadOptPortfolios().sort((a, b) => (b.savedAt ?? "").localeCompare(a.savedAt ?? ""));
-    setOptPortfolios(opts);
-    if (opts.length > 0) setSelectedOptId(opts[0].id);
+    get<{ name: string; tickers: string[]; weights: number[]; capital: number; method: string; created_at: string }[]>(
+      "/portfolio/saved"
+    )
+      .then((rows) => {
+        const opts = rows.map((r) => ({
+          id: r.name,
+          name: r.name,
+          tickers: r.tickers,
+          method: r.method,
+          capital: r.capital,
+          result: null,
+          savedAt: r.created_at,
+        }));
+        setOptPortfolios(opts);
+        if (opts.length > 0) setSelectedOptId(opts[0].id);
+      })
+      .catch(() => {});
 
-    const trks = loadTrackerPortfolios();
-    setTrackerPortfolios(trks);
-    if (trks.length > 0) setSelectedTrkId(trks[0].id);
+    get<TrackerPortfolio[]>("/portfolio/tracker")
+      .then((trks) => {
+        setTrackerPortfolios(trks);
+        if (trks.length > 0) setSelectedTrkId(trks[0].id);
+      })
+      .catch(() => {});
   }, []);
 
   const portfolio      = optPortfolios.find(p => p.id === selectedOptId) ?? null;

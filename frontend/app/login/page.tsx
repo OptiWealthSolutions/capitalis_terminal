@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Eye, EyeOff, Activity } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { useI18n } from "@/lib/i18n";
+import GoogleButton from "@/components/auth/GoogleButton";
 import toast from "react-hot-toast";
 
 export default function LoginPage() {
@@ -136,6 +137,17 @@ export default function LoginPage() {
               )}
             </button>
           </form>
+
+          {/* OR divider */}
+          <div className="flex items-center gap-3 my-5">
+            <div style={{ flex: 1, height: 1, background: "var(--border)" }} />
+            <span className="text-xs" style={{ color: "var(--ink-3)", fontSize: "0.65rem", letterSpacing: "0.1em" }}>
+              OR
+            </span>
+            <div style={{ flex: 1, height: 1, background: "var(--border)" }} />
+          </div>
+
+          <GoogleButton redirectTo="/dashboard" text="signin_with" />
 
           <div
             className="mt-6 pt-5 text-center text-sm"

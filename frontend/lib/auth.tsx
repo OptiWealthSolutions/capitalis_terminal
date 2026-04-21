@@ -6,12 +6,25 @@ import { post, get } from "./api";
 export interface AuthUser {
   id: string;
   email: string;
+  display_name?: string;
+  avatar_url?: string | null;
+  auth_provider?: "password" | "google";
   created_at: string;
   subscription: {
     plan: string;
     status: string;
     current_period_end: string | null;
     cancel_at_period_end: boolean;
+  };
+  plan_limits?: {
+    max_portfolios: number | null;
+    optimization_methods: string[];
+    screener_runs_per_day: number | null;
+    pdf_export: boolean;
+    monte_carlo: boolean;
+    ml_alpha: boolean;
+    api_access: boolean;
+    tracker_portfolios: number | null;
   };
 }
 
