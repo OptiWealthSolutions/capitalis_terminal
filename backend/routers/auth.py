@@ -33,6 +33,8 @@ from ..db import (
     get_user_by_email,
     get_user_by_google_sub,
     get_user_by_id,
+    has_redeemed_beta,
+    redeem_beta_code,
     update_display_name,
     update_google_sub,
     update_password,
@@ -263,3 +265,35 @@ def me(current_user: dict = Depends(get_current_user)):
         } if sub else {"plan": "free", "status": "active", "current_period_end": None, "cancel_at_period_end": False},
         "plan_limits": get_limits(plan),
     }
+
+
+# ---------------------------------------------------------------------------
+# Beta code redemption
+# ---------------------------------------------------------------------------
+
+_BETA_CODES: set[str] = {
+    c.strip().upper()
+    for c in os.environ.get("BETA_CODES", "").split(",")
+    if c.strip()
+}
+
+
+class RedeemBetaRequest(BaseModel):
+    code: str = Field(..., min_length=4, max_length=64)
+
+
+@router.post("/redeem-beta")
+def redeem_beta(req: RedeemBetaRequest, current_user: dict = Depends(get_current_user)):
+    code = req.code.strip().upper()
+
+    if not _BETA_CODES:
+        raise HTTPException(status_code=503, detail="Beta program not active.")
+
+    if code not in _BETA_CODES:
+        raise HTTPException(status_code=400, detail="Invalid beta code.")
+
+    if has_redeemed_beta(current_user["id"]):
+        raise HTTPException(status_code=409, detail="Beta code already redeemed on this account.")
+
+    redeem_beta_code(current_user["id"], code)
+    return {"message": "Beta access activated. Institutional plan active for 30 days."}

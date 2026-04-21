@@ -42,10 +42,19 @@ _DDL_SUBSCRIPTIONS = """
     )
 """
 
+_DDL_BETA_REDEMPTIONS = """
+    CREATE TABLE IF NOT EXISTS beta_redemptions (
+        code        TEXT NOT NULL,
+        user_id     TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        redeemed_at TEXT NOT NULL,
+        PRIMARY KEY (code, user_id)
+    )
+"""
+
 
 def init_db() -> None:
     with db_context(DB_PATH) as conn:
-        conn.executescript(_DDL_USERS + "; " + _DDL_SUBSCRIPTIONS)
+        conn.executescript(_DDL_USERS + "; " + _DDL_SUBSCRIPTIONS + "; " + _DDL_BETA_REDEMPTIONS)
         if USE_PG:
             # ADD COLUMN IF NOT EXISTS supported in PostgreSQL 9.6+
             for col, ddl in (
@@ -220,4 +229,43 @@ def set_cancel_at_period_end(user_id: str, flag: bool) -> None:
         conn.execute(
             "UPDATE subscriptions SET cancel_at_period_end = ? WHERE user_id = ?",
             (int(flag), user_id),
+        )
+
+
+# ---------------------------------------------------------------------------
+# Beta code redemption
+# ---------------------------------------------------------------------------
+
+def has_redeemed_beta(user_id: str) -> bool:
+    """True if user already redeemed any beta code."""
+    with db_context(DB_PATH) as conn:
+        row = conn.execute(
+            "SELECT code FROM beta_redemptions WHERE user_id = ?", (user_id,)
+        ).fetchone()
+        return row is not None
+
+
+def redeem_beta_code(user_id: str, code: str) -> None:
+    """Record redemption + upgrade user to institutional for 30 days."""
+    from datetime import timedelta
+    now = datetime.now(timezone.utc)
+    period_end = (now + timedelta(days=30)).isoformat()
+    with db_context(DB_PATH) as conn:
+        conn.execute(
+            "INSERT INTO beta_redemptions (code, user_id, redeemed_at) VALUES (?, ?, ?)",
+            (code.upper(), user_id, now.isoformat()),
+        )
+        conn.execute(
+            """
+            INSERT INTO subscriptions
+                (user_id, plan, status, current_period_end, cancel_at_period_end, stripe_subscription_id)
+            VALUES (?, 'institutional', 'active', ?, 0, NULL)
+            ON CONFLICT(user_id) DO UPDATE SET
+                plan               = 'institutional',
+                status             = 'active',
+                current_period_end = ?,
+                cancel_at_period_end = 0,
+                stripe_subscription_id = NULL
+            """,
+            (user_id, period_end, period_end),
         )

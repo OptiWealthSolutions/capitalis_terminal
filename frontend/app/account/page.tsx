@@ -758,6 +758,11 @@ export default function AccountPage() {
   const { t } = useI18n();
   const [tab, setTab]    = useState<Tab>("overview");
   const [billingInterval, setBillingInterval] = useState<BillingInterval>("month");
+
+  // Beta code redemption
+  const [betaCode, setBetaCode]       = useState("");
+  const [betaLoading, setBetaLoading] = useState(false);
+  const [betaOpen, setBetaOpen]       = useState(false);
   const [paymentLinks, setPaymentLinks] = useState<Record<string, string>>({});
 
   const currentPlan = (user?.subscription?.plan ?? "free") as PlanId;
@@ -801,6 +806,22 @@ export default function AccountPage() {
       window.location.href = url;
     } catch {
       toast.error("No active subscription or Stripe not configured.");
+    }
+  };
+
+  const handleRedeemBeta = async () => {
+    if (!betaCode.trim()) return;
+    setBetaLoading(true);
+    try {
+      const res = await post<{ message: string }>("/auth/redeem-beta", { code: betaCode.trim() });
+      toast.success(res.message);
+      setBetaOpen(false);
+      setBetaCode("");
+      await refreshUser();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.detail ?? "Invalid code.");
+    } finally {
+      setBetaLoading(false);
     }
   };
 
@@ -859,6 +880,52 @@ export default function AccountPage() {
               <div className="col-span-1 lg:col-span-4 space-y-4">
                 <ProfileCard user={user} onSaved={refreshUser} />
                 <UsageCard />
+
+                {/* Beta access code */}
+                {currentPlan === "free" && (
+                  <div className="rounded-xl p-4" style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>
+                    <p className="text-xs font-semibold tracking-widest uppercase mb-2" style={{ color: "var(--t3)" }}>Beta access</p>
+                    {!betaOpen ? (
+                      <button
+                        onClick={() => setBetaOpen(true)}
+                        className="text-xs px-3 py-1.5 rounded-lg font-medium transition-all"
+                        style={{ background: "var(--bg-hover)", color: "var(--orange)", border: "1px solid var(--border)" }}
+                      >
+                        Have a beta code?
+                      </button>
+                    ) : (
+                      <div className="flex flex-col gap-2">
+                        <input
+                          type="text"
+                          placeholder="Enter code"
+                          value={betaCode}
+                          onChange={e => setBetaCode(e.target.value.toUpperCase())}
+                          onKeyDown={e => e.key === "Enter" && handleRedeemBeta()}
+                          className="w-full px-3 py-2 rounded-lg text-xs font-mono tracking-widest"
+                          style={{ background: "var(--bg-hover)", border: "1px solid var(--border)", color: "var(--t1)", outline: "none" }}
+                          autoFocus
+                        />
+                        <div className="flex gap-2">
+                          <button
+                            onClick={handleRedeemBeta}
+                            disabled={betaLoading || !betaCode.trim()}
+                            className="flex-1 text-xs px-3 py-1.5 rounded-lg font-medium transition-all"
+                            style={{ background: "var(--orange)", color: "#000", opacity: betaLoading ? 0.6 : 1 }}
+                          >
+                            {betaLoading ? "..." : "Redeem"}
+                          </button>
+                          <button
+                            onClick={() => { setBetaOpen(false); setBetaCode(""); }}
+                            className="text-xs px-3 py-1.5 rounded-lg"
+                            style={{ background: "var(--bg-hover)", color: "var(--t2)", border: "1px solid var(--border)" }}
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
               <div className="col-span-1 lg:col-span-8">
                 {/* Header + billing toggle */}
