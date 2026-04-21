@@ -7,12 +7,10 @@ import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
 import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 import { triggerBlobDownload } from "@/lib/utils";
 import {
-  FileText, Download, CheckSquare, Square, AlertTriangle,
-  TrendingUp, Activity, Target, TrendingDown, ChevronRight,
+  FileText, Download, CheckSquare,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { useI18n } from "@/lib/i18n";
-import type { OptimizationResult } from "@/lib/types";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -31,10 +29,6 @@ function fmtPct(v: number | null | undefined, digits = 2): string {
   if (v === null || v === undefined || Number.isNaN(v)) return "—";
   return `${(v * 100).toFixed(digits)}%`;
 }
-function fmtNum(v: number | null | undefined, digits = 3): string {
-  if (v === null || v === undefined || Number.isNaN(v)) return "—";
-  return v.toFixed(digits);
-}
 function fmtEur(v: number | null | undefined): string {
   if (v === null || v === undefined || Number.isNaN(v)) return "—";
   return new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(v);
@@ -45,9 +39,9 @@ function fmtEur(v: number | null | undefined): string {
 // ---------------------------------------------------------------------------
 export default function ReportingPage() {
   const { t } = useI18n();
-  const [portfolios, setPortfolios]   = useState<SavedPortfolio[]>([]);
-  const [selectedId, setSelectedId]   = useState<string | null>(null);
-  const [nSims, setNSims]             = useState(500);
+  const [portfolios, setPortfolios] = useState<SavedPortfolio[]>([]);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [nSims, setNSims]           = useState(500);
 
   useEffect(() => {
     get<{ name: string; tickers: string[]; weights: number[]; capital: number; method: string; created_at: string }[]>(
@@ -70,8 +64,9 @@ export default function ReportingPage() {
   }, []);
 
   const selected = portfolios.find(p => p.id === selectedId) ?? null;
-  const metrics  = null; // fetched live by backend during PDF generation
-  const weights: Record<string, number> = selected
+
+  // weights dict for allocation table display
+  const weightsMap: Record<string, number> = selected
     ? Object.fromEntries(selected.tickers.map((t, i) => [t, selected.weights[i] ?? 0]))
     : {};
 
@@ -79,15 +74,11 @@ export default function ReportingPage() {
     mutationFn: () => {
       if (!selected) throw new Error("No portfolio selected.");
       if (!selected.tickers.length) throw new Error("Portfolio has no tickers.");
-
-      const tickers = selected.tickers;
-      const wValues = selected.weights;
-
       return downloadPdf("/reporting/generate-pdf", {
         portfolio_name: selected.name,
         method: selected.method,
-        tickers,
-        weights: wValues,
+        tickers: selected.tickers,
+        weights: selected.weights,
         capital: selected.capital,
         n_simulations: nSims,
         precomputed_metrics: null,
@@ -156,7 +147,6 @@ export default function ReportingPage() {
               </p>
               {portfolios.map(pf => {
                 const active = pf.id === selectedId;
-                const m = null; // metrics shown in PDF, not in sidebar
                 return (
                   <button
                     key={pf.id}
@@ -171,26 +161,10 @@ export default function ReportingPage() {
                       <span className="text-xs font-semibold" style={{ color: active ? "var(--orange)" : "var(--t1)" }}>
                         {pf.name}
                       </span>
-                      {active && <ChevronRight size={13} style={{ color: "var(--orange)" }} />}
                     </div>
                     <p className="text-xs mt-1" style={{ color: "var(--t3)" }}>
                       {pf.method} · {pf.tickers.length} assets · {fmtEur(pf.capital)}
                     </p>
-                    {m && (
-                      <div className="flex items-center gap-3 mt-1.5">
-                        <span className="text-xs font-mono" style={{ color: "var(--green)" }}>
-                          {fmtPct(m.expected_annual_return)}
-                        </span>
-                        <span className="text-xs font-mono" style={{ color: "var(--t2)" }}>
-                          Sharpe {fmtNum(m.sharpe_ratio, 2)}
-                        </span>
-                      </div>
-                    )}
-                    {pf.tickers.length > 0 && (
-                      <span className="text-xs mt-1" style={{ color: "var(--t3)" }}>
-                        {pf.tickers.length} assets · {pf.method}
-                      </span>
-                    )}
                   </button>
                 );
               })}
@@ -201,52 +175,11 @@ export default function ReportingPage() {
 
               {selected ? (
                 <>
-                  {/* Metrics strip */}
-                  {metrics && (
-                    <div className="rounded border overflow-hidden" style={{ borderColor: "var(--border)" }}>
-                      <div className="px-5 py-3 border-b" style={{ borderColor: "var(--border)", background: "var(--bg-card)" }}>
-                        <span className="text-xs font-semibold tracking-widest uppercase" style={{ color: "var(--t2)" }}>
-                          Risk Metrics — {selected.name}
-                        </span>
-                      </div>
-                      <div className="grid grid-cols-2 md:grid-cols-4 divide-x" style={{ borderColor: "var(--border)" }}>
-                        {[
-                          { label: "Expected Return", value: fmtPct(metrics.expected_annual_return), icon: <TrendingUp size={12} />, color: metrics.expected_annual_return >= 0 ? "var(--green)" : "var(--red)" },
-                          { label: "Volatility",      value: fmtPct(metrics.annual_volatility),      icon: <Activity size={12} />,   color: "var(--yellow)" },
-                          { label: "Sharpe Ratio",    value: fmtNum(metrics.sharpe_ratio),            icon: <Target size={12} />,     color: "var(--orange)" },
-                          { label: "Max Drawdown",    value: fmtPct(metrics.max_drawdown),            icon: <TrendingDown size={12} />, color: "var(--red)" },
-                        ].map((m, i) => (
-                          <div key={m.label} className="px-4 py-4" style={{ background: "var(--bg-card)" }}>
-                            <div className="flex items-center gap-1.5 mb-1.5" style={{ color: "var(--t3)" }}>
-                              <span style={{ color: "var(--orange)" }}>{m.icon}</span>
-                              <span className="text-xs">{m.label}</span>
-                            </div>
-                            <p className="font-mono text-base font-semibold" style={{ color: m.color }}>{m.value}</p>
-                          </div>
-                        ))}
-                      </div>
-
-                      {/* Extended metrics */}
-                      <div className="grid grid-cols-1 sm:grid-cols-3 divide-x border-t" style={{ borderColor: "var(--border)" }}>
-                        {[
-                          { label: "Sortino Ratio", value: fmtNum(metrics.sortino_ratio) },
-                          { label: "Calmar Ratio",  value: fmtNum(metrics.calmar_ratio) },
-                          { label: "Beta vs S&P",   value: fmtNum(metrics.beta) },
-                        ].map(m => (
-                          <div key={m.label} className="px-4 py-3" style={{ background: "var(--bg-card)" }}>
-                            <p className="text-xs mb-1" style={{ color: "var(--t3)" }}>{m.label}</p>
-                            <p className="font-mono text-sm font-semibold" style={{ color: "var(--t1)" }}>{m.value}</p>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
                   {/* Allocation table */}
                   <div className="rounded border overflow-hidden" style={{ borderColor: "var(--border)" }}>
                     <div className="px-5 py-3 border-b" style={{ borderColor: "var(--border)", background: "var(--bg-card)" }}>
                       <span className="text-xs font-semibold tracking-widest uppercase" style={{ color: "var(--t2)" }}>
-                        Allocation — {Object.keys(weights).length} positions
+                        Allocation — {Object.keys(weightsMap).length} positions
                       </span>
                     </div>
                     <table className="w-full text-xs" style={{ background: "var(--bg-card)" }}>
@@ -260,7 +193,7 @@ export default function ReportingPage() {
                         </tr>
                       </thead>
                       <tbody>
-                        {Object.entries(weights)
+                        {Object.entries(weightsMap)
                           .sort(([, a], [, b]) => b - a)
                           .map(([tkr, w]) => (
                             <tr key={tkr} style={{ borderBottom: "1px solid var(--border)" }}>
