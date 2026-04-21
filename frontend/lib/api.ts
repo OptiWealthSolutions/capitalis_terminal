@@ -7,7 +7,11 @@
 import axios, { AxiosError, AxiosInstance, AxiosResponse } from "axios";
 import toast from "react-hot-toast";
 
-const BASE_URL = "/api";
+// In prod (static export): NEXT_PUBLIC_API_URL=https://api.capitalis.io → calls backend directly
+// In dev: no env var set → "/api" is proxied by Next.js rewrite to localhost:8000
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL
+  ? `${process.env.NEXT_PUBLIC_API_URL}/api`
+  : "/api";
 
 const apiClient: AxiosInstance = axios.create({
   baseURL: BASE_URL,
