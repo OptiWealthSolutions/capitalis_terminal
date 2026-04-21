@@ -1,28 +1,37 @@
-import streamlit as st
+import logging
+import time
 import requests
 
-@st.cache_data(ttl=3600)
+logger = logging.getLogger(__name__)
+
+# Simple in-process TTL cache (no streamlit dependency)
+_cache: dict = {}
+_CACHE_TTL = 3600
+
+
 def fetch_macro_news(api_key: str, limit: int = 15) -> list:
-    """
-    Récupère les actualités macro-économiques via l'API Alpha Vantage.
-    Mise en cache pendant 1 heure pour préserver le quota d'API.
-    """
-    url = f"https://www.alphavantage.co/query?function=NEWS_SENTIMENT&topics=economy_macro&sort=LATEST&apikey={api_key}"
-    
+    cache_key = f"macro_news:{limit}"
+    entry = _cache.get(cache_key)
+    if entry and time.time() - entry["ts"] < _CACHE_TTL:
+        return entry["data"]
+
+    url = (
+        f"https://www.alphavantage.co/query"
+        f"?function=NEWS_SENTIMENT&topics=economy_macro&sort=LATEST&apikey={api_key}"
+    )
     try:
         response = requests.get(url, timeout=10)
         response.raise_for_status()
         data = response.json()
-        
-        # Vérification des limites d'API Alpha Vantage
+
         if "Information" in data:
-            st.warning(f"Limite d'API Alpha Vantage atteinte : {data['Information']}")
+            logger.warning("Alpha Vantage API limit: %s", data["Information"])
             return []
-            
-        if "feed" in data:
-            return data["feed"][:limit]
-        return []
-        
+
+        result = data.get("feed", [])[:limit]
+        _cache[cache_key] = {"ts": time.time(), "data": result}
+        return result
+
     except requests.exceptions.RequestException as e:
-        st.error(f"Erreur de connexion à l'API Alpha Vantage : {e}")
+        logger.error("Alpha Vantage connection error: %s", e)
         return []
