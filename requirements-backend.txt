@@ -17,6 +17,9 @@ email-validator>=2.0.0
 # --- Billing ---
 stripe>=8.0.0
 
+# --- Database (PostgreSQL for prod) ---
+psycopg2-binary>=2.9.9
+
 # --- Validation ---
 pydantic==2.7.4
 pydantic-settings==2.3.4

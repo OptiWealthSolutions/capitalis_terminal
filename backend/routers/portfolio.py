@@ -4,10 +4,9 @@ Endpoints: optimize, monte-carlo, stress-test, portfolio CRUD.
 """
 
 import json
-import sqlite3
 import sys
 import logging
-from contextlib import contextmanager
+import uuid
 from pathlib import Path
 from typing import Any
 
@@ -17,6 +16,7 @@ import yfinance as yf
 from fastapi import APIRouter, HTTPException, Depends
 from ..auth.jwt_handler import get_current_user
 from ..plan_gate import check_optimization_method, check_portfolio_count
+from ..database import db_context
 from pydantic import BaseModel, Field
 
 ROOT = Path(__file__).resolve().parent.parent.parent
@@ -33,21 +33,17 @@ from ..schemas.portfolio import OptimizationRequest, MonteCarloRequest, Performa
 from ..cache.memory_cache import cache
 
 # ---------------------------------------------------------------------------
-# Lightweight SQLite helpers (independent of Streamlit DatabaseManager)
+# DB paths (SQLite dev mode) — ignored when DATABASE_URL is set
 # ---------------------------------------------------------------------------
-_PF_DB_PATH = ROOT / "data" / "portfolios_v2.db"
-_PF_DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-
-
+_PF_DB_PATH      = ROOT / "data" / "portfolios_v2.db"
 _TRACKER_DB_PATH = ROOT / "data" / "tracker_v2.db"
-_TRACKER_DB_PATH.parent.mkdir(parents=True, exist_ok=True)
 
 
 def _init_pf_db() -> None:
-    with sqlite3.connect(_PF_DB_PATH) as conn:
-        conn.execute("""
+    with db_context(_PF_DB_PATH) as conn:
+        conn.executescript("""
             CREATE TABLE IF NOT EXISTS portfolios (
-                id         TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
+                id         TEXT PRIMARY KEY,
                 user_id    TEXT NOT NULL DEFAULT '',
                 name       TEXT NOT NULL,
                 tickers    TEXT NOT NULL,
@@ -58,20 +54,11 @@ def _init_pf_db() -> None:
                 UNIQUE(user_id, name)
             )
         """)
-        for col, ddl in [
-            ("user_id", "ALTER TABLE portfolios ADD COLUMN user_id TEXT NOT NULL DEFAULT ''"),
-            ("method",  "ALTER TABLE portfolios ADD COLUMN method TEXT NOT NULL DEFAULT 'EqualWeights'"),
-        ]:
-            try:
-                conn.execute(ddl)
-            except Exception:
-                pass
-        conn.commit()
 
 
 def _init_tracker_db() -> None:
-    with sqlite3.connect(_TRACKER_DB_PATH) as conn:
-        conn.execute("""
+    with db_context(_TRACKER_DB_PATH) as conn:
+        conn.executescript("""
             CREATE TABLE IF NOT EXISTS tracker_portfolios (
                 id         TEXT PRIMARY KEY,
                 user_id    TEXT NOT NULL,
@@ -81,20 +68,10 @@ def _init_tracker_db() -> None:
                 UNIQUE(user_id, name)
             )
         """)
-        conn.commit()
 
 
 _init_pf_db()
 _init_tracker_db()
-
-
-@contextmanager
-def _pf_db():
-    conn = sqlite3.connect(_PF_DB_PATH)
-    try:
-        yield conn
-    finally:
-        conn.close()
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -393,19 +370,19 @@ class SavePortfolioRequest(BaseModel):
 def list_saved_portfolios(user: dict = Depends(get_current_user)) -> Any:
     """Returns saved portfolios for the authenticated user."""
     try:
-        with _pf_db() as conn:
+        with db_context(_PF_DB_PATH) as conn:
             rows = conn.execute(
                 "SELECT name, tickers, weights, capital, method, created_at FROM portfolios WHERE user_id = ? ORDER BY created_at DESC",
                 (user["sub"],),
             ).fetchall()
         return [
             {
-                "name": r[0],
-                "tickers": json.loads(r[1]),
-                "weights": json.loads(r[2]),
-                "capital": r[3],
-                "method": r[4] or "EqualWeights",
-                "created_at": r[5],
+                "name":       r["name"],
+                "tickers":    json.loads(r["tickers"]),
+                "weights":    json.loads(r["weights"]),
+                "capital":    r["capital"],
+                "method":     r["method"] or "EqualWeights",
+                "created_at": r["created_at"],
             }
             for r in rows
         ]
@@ -416,29 +393,27 @@ def list_saved_portfolios(user: dict = Depends(get_current_user)) -> Any:
 
 @router.post("/save")
 def save_portfolio(req: SavePortfolioRequest, user: dict = Depends(get_current_user)) -> Any:
-    """Persists portfolio to SQLite scoped to authenticated user. Enforces plan portfolio limit."""
+    """Persists portfolio scoped to authenticated user. Enforces plan portfolio limit."""
     try:
-        with _pf_db() as conn:
+        with db_context(_PF_DB_PATH) as conn:
             existing_count = conn.execute(
-                "SELECT COUNT(*) FROM portfolios WHERE user_id = ?", (user["sub"],)
-            ).fetchone()[0]
+                "SELECT COUNT(*) AS cnt FROM portfolios WHERE user_id = ?", (user["sub"],)
+            ).fetchone()["cnt"]
             same_name = conn.execute(
                 "SELECT 1 FROM portfolios WHERE user_id = ? AND name = ?", (user["sub"], req.name)
             ).fetchone()
-        if not same_name:
-            check_portfolio_count(user["sub"], existing_count)
-
-        with _pf_db() as conn:
+            if not same_name:
+                check_portfolio_count(user["sub"], existing_count)
             conn.execute(
-                """INSERT INTO portfolios (user_id, name, tickers, weights, capital, method, created_at)
-                   VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
+                """INSERT INTO portfolios (id, user_id, name, tickers, weights, capital, method, created_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))
                    ON CONFLICT(user_id, name) DO UPDATE SET
                        tickers=excluded.tickers, weights=excluded.weights,
                        capital=excluded.capital, method=excluded.method,
                        created_at=excluded.created_at""",
-                (user["sub"], req.name, json.dumps(req.tickers), json.dumps(req.weights), req.capital, req.method),
+                (str(uuid.uuid4()), user["sub"], req.name,
+                 json.dumps(req.tickers), json.dumps(req.weights), req.capital, req.method),
             )
-            conn.commit()
     except HTTPException:
         raise
     except Exception as exc:
@@ -451,9 +426,8 @@ def save_portfolio(req: SavePortfolioRequest, user: dict = Depends(get_current_u
 def delete_portfolio(name: str, user: dict = Depends(get_current_user)) -> Any:
     """Deletes saved portfolio owned by authenticated user."""
     try:
-        with _pf_db() as conn:
+        with db_context(_PF_DB_PATH) as conn:
             conn.execute("DELETE FROM portfolios WHERE name = ? AND user_id = ?", (name, user["sub"]))
-            conn.commit()
     except Exception as exc:
         logger.error("DB write error (portfolios): %s", exc)
         raise HTTPException(status_code=500, detail="Failed to delete portfolio.")
@@ -463,15 +437,6 @@ def delete_portfolio(name: str, user: dict = Depends(get_current_user)) -> Any:
 # ---------------------------------------------------------------------------
 # Tracker portfolios — user-scoped server-side storage
 # ---------------------------------------------------------------------------
-
-@contextmanager
-def _tracker_db():
-    conn = sqlite3.connect(_TRACKER_DB_PATH)
-    try:
-        yield conn
-    finally:
-        conn.close()
-
 
 class SaveTrackerRequest(BaseModel):
     id: str
@@ -483,13 +448,13 @@ class SaveTrackerRequest(BaseModel):
 @router.get("/tracker")
 def list_tracker_portfolios(user: dict = Depends(get_current_user)) -> Any:
     """Returns tracker portfolios for authenticated user."""
-    with _tracker_db() as conn:
+    with db_context(_TRACKER_DB_PATH) as conn:
         rows = conn.execute(
             "SELECT id, name, data, created_at FROM tracker_portfolios WHERE user_id = ? ORDER BY created_at DESC",
             (user["sub"],),
         ).fetchall()
     return [
-        {"id": r[0], "name": r[1], **json.loads(r[2]), "createdAt": r[3]}
+        {"id": r["id"], "name": r["name"], **json.loads(r["data"]), "createdAt": r["created_at"]}
         for r in rows
     ]
 
@@ -502,22 +467,21 @@ def save_tracker_portfolio(req: SaveTrackerRequest, user: dict = Depends(get_cur
     limits = get_limits(plan)
     max_tracker = limits.get("tracker_portfolios")
 
-    with _tracker_db() as conn:
+    with db_context(_TRACKER_DB_PATH) as conn:
         existing_count = conn.execute(
-            "SELECT COUNT(*) FROM tracker_portfolios WHERE user_id = ?", (user["sub"],)
-        ).fetchone()[0]
+            "SELECT COUNT(*) AS cnt FROM tracker_portfolios WHERE user_id = ?", (user["sub"],)
+        ).fetchone()["cnt"]
         same_id = conn.execute(
             "SELECT 1 FROM tracker_portfolios WHERE user_id = ? AND id = ?", (user["sub"], req.id)
         ).fetchone()
 
-    if not same_id and max_tracker is not None and existing_count >= max_tracker:
-        raise HTTPException(
-            status_code=402,
-            detail=f"Tracker portfolio limit ({max_tracker}) reached on plan '{plan}'. Upgrade to add more.",
-        )
+        if not same_id and max_tracker is not None and existing_count >= max_tracker:
+            raise HTTPException(
+                status_code=402,
+                detail=f"Tracker portfolio limit ({max_tracker}) reached on plan '{plan}'. Upgrade to add more.",
+            )
 
-    data = json.dumps({"positions": req.positions})
-    with _tracker_db() as conn:
+        data = json.dumps({"positions": req.positions})
         conn.execute(
             """INSERT INTO tracker_portfolios (id, user_id, name, data, created_at)
                VALUES (?, ?, ?, ?, ?)
@@ -525,19 +489,17 @@ def save_tracker_portfolio(req: SaveTrackerRequest, user: dict = Depends(get_cur
                    data=excluded.data, id=excluded.id""",
             (req.id, user["sub"], req.name, data, req.created_at or ""),
         )
-        conn.commit()
     return {"status": "saved", "id": req.id}
 
 
 @router.delete("/tracker/{portfolio_id}")
 def delete_tracker_portfolio(portfolio_id: str, user: dict = Depends(get_current_user)) -> Any:
     """Deletes tracker portfolio owned by authenticated user."""
-    with _tracker_db() as conn:
+    with db_context(_TRACKER_DB_PATH) as conn:
         conn.execute(
             "DELETE FROM tracker_portfolios WHERE id = ? AND user_id = ?",
             (portfolio_id, user["sub"]),
         )
-        conn.commit()
     return {"status": "deleted", "id": portfolio_id}
 
 

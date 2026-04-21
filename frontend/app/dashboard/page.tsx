@@ -26,7 +26,7 @@ interface StressData { score: number; regime: string; components: Record<string,
 interface MarketOverview { indices: MarketIndex[]; stress: StressData; }
 
 interface SavedPortfolio {
-  id: string; name: string; tickers: string[]; method: string;
+  id: string; name: string; tickers: string[]; weights: number[]; method: string;
   capital: number; result: OptimizationResult | null; savedAt: string;
 }
 
@@ -104,6 +104,7 @@ export default function DashboardPage() {
           id: r.name,
           name: r.name,
           tickers: r.tickers,
+          weights: r.weights,
           method: r.method,
           capital: r.capital,
           result: null,
@@ -124,18 +125,24 @@ export default function DashboardPage() {
 
   const portfolio      = optPortfolios.find(p => p.id === selectedOptId) ?? null;
   const trackerPf      = trackerPortfolios.find(p => p.id === selectedTrkId) ?? null;
-  const metrics        = portfolio?.result?.metrics;
-  const weights        = portfolio?.result?.weights ?? {};
+
+  // Build weights dict from parallel arrays stored in backend
+  const weights = useMemo<Record<string, number>>(() => {
+    if (!portfolio) return {};
+    return Object.fromEntries(
+      portfolio.tickers.map((t, i) => [t, portfolio.weights[i] ?? 0])
+    );
+  }, [portfolio]);
 
   // Optimizer equity curve
   const perfMutation = useMutation({
     mutationFn: (pf: SavedPortfolio) => {
-      if (!pf.result) throw new Error("No result.");
-      const pfTickers = Object.keys(pf.result.weights);
-      const pfWeights = pfTickers.map(t => pf.result!.weights[t]);
+      if (!pf.tickers.length) throw new Error("No tickers.");
       return post<PerformanceResult>("/portfolio/performance", {
-        tickers: pfTickers, weights: pfWeights,
-        capital: pf.capital, start_date: perfStartDate,
+        tickers: pf.tickers,
+        weights: pf.weights,
+        capital: pf.capital,
+        start_date: perfStartDate,
       });
     },
     onSuccess: (data) => setPerfResult(data),
@@ -157,7 +164,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     setPerfResult(null);
-    if (portfolio?.result) perfMutation.mutate(portfolio);
+    if (portfolio && portfolio.tickers.length > 0) perfMutation.mutate(portfolio);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedOptId]);
 
@@ -292,8 +299,8 @@ export default function DashboardPage() {
                 )}
                 {!perfResult && !perfMutation.isPending && (
                   <EmptyCurve label={
-                    !portfolio?.result
-                      ? "Run an optimization in Allocation to see the equity curve."
+                    !portfolio || !portfolio.tickers.length
+                      ? "Select a portfolio or run an optimization in Allocation."
                       : perfMutation.isError
                       ? "Failed to load equity curve. Try refreshing."
                       : "Loading…"
@@ -434,10 +441,10 @@ export default function DashboardPage() {
               </div>
 
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
-                <StatTile label="Expected Return" value={fmtPct(metrics?.expected_annual_return)} icon={<TrendingUp size={14} />} tone={metrics && metrics.expected_annual_return >= 0 ? "up" : "down"} />
-                <StatTile label="Volatility"       value={fmtPct(metrics?.annual_volatility)}      icon={<Activity size={14} />} />
-                <StatTile label="Sharpe Ratio"     value={fmtNum(metrics?.sharpe_ratio)}            icon={<Target size={14} />} tone={metrics && metrics.sharpe_ratio >= 1 ? "up" : undefined} />
-                <StatTile label="Max Drawdown"     value={fmtPct(metrics?.max_drawdown)}            icon={<TrendingDown size={14} />} tone="down" />
+                <StatTile label="Ann. Return"  value={fmtPct(perfResult?.metrics?.ann_return)}        icon={<TrendingUp size={14} />}   tone={(perfResult?.metrics?.ann_return ?? 0) >= 0 ? "up" : "down"} />
+                <StatTile label="Volatility"   value={fmtPct(perfResult?.metrics?.ann_volatility)}     icon={<Activity size={14} />} />
+                <StatTile label="Sharpe Ratio" value={fmtNum(perfResult?.metrics?.sharpe_ratio)}       icon={<Target size={14} />}       tone={(perfResult?.metrics?.sharpe_ratio ?? 0) >= 1 ? "up" : undefined} />
+                <StatTile label="Max Drawdown" value={fmtPct(perfResult?.metrics?.max_drawdown)}       icon={<TrendingDown size={14} />}  tone="down" />
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">

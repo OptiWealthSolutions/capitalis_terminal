@@ -5,8 +5,6 @@ User settings/preferences router — per-user SQLite storage.
 import json
 import logging
 import os
-import sqlite3
-from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 
@@ -14,6 +12,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from ..auth.jwt_handler import get_current_user
+from ..database import db_context
 
 ROOT = Path(__file__).resolve().parent.parent.parent
 
@@ -47,31 +46,20 @@ _VALID_HORIZONS    = {"1y", "2y", "3y", "5y", "10y"}
 
 
 def _init_prefs_db() -> None:
-    with sqlite3.connect(_PREFS_DB_PATH) as conn:
-        conn.execute("""
+    with db_context(_PREFS_DB_PATH) as conn:
+        conn.executescript("""
             CREATE TABLE IF NOT EXISTS user_preferences (
                 user_id TEXT PRIMARY KEY,
                 prefs   TEXT NOT NULL
             )
         """)
-        conn.commit()
 
 
 _init_prefs_db()
 
 
-@contextmanager
-def _prefs_db():
-    conn = sqlite3.connect(_PREFS_DB_PATH)
-    conn.row_factory = sqlite3.Row
-    try:
-        yield conn
-    finally:
-        conn.close()
-
-
 def _load_prefs(user_id: str) -> dict[str, Any]:
-    with _prefs_db() as conn:
+    with db_context(_PREFS_DB_PATH) as conn:
         row = conn.execute(
             "SELECT prefs FROM user_preferences WHERE user_id = ?", (user_id,)
         ).fetchone()
@@ -85,13 +73,12 @@ def _load_prefs(user_id: str) -> dict[str, Any]:
 
 
 def _save_prefs(user_id: str, prefs: dict[str, Any]) -> None:
-    with _prefs_db() as conn:
+    with db_context(_PREFS_DB_PATH) as conn:
         conn.execute(
             """INSERT INTO user_preferences (user_id, prefs) VALUES (?, ?)
                ON CONFLICT(user_id) DO UPDATE SET prefs = excluded.prefs""",
             (user_id, json.dumps(prefs)),
         )
-        conn.commit()
 
 
 class PreferencesRequest(BaseModel):
