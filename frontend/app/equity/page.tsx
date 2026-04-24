@@ -328,7 +328,7 @@ export default function EquityPage() {
                 </div>
 
                 {/* Company description */}
-                {(fund?.longBusinessSummary || fund?.fullTimeEmployees) && (
+                {(!!fund?.longBusinessSummary || fund?.fullTimeEmployees != null) && (
                   <div style={{
                     background: "var(--bg-card)", border: "1px solid var(--border)",
                     borderRadius: "var(--r)", padding: "16px 20px",
@@ -345,7 +345,7 @@ export default function EquityPage() {
                         </span>
                       )}
                     </div>
-                    {fund?.longBusinessSummary && (
+                    {!!fund?.longBusinessSummary && (
                       <p style={{
                         fontSize: "0.78rem", color: "var(--t2)", lineHeight: 1.6,
                         margin: 0, display: "-webkit-box", WebkitLineClamp: 4,
@@ -431,9 +431,9 @@ export default function EquityPage() {
                     ["Operating CF",      formatLargeNumber(n(fund?.operatingCashflow))],
                   ]} />
                   <FundSection title="Trading Info" rows={[
-                    ["Volume",            n(fund?.volume) != null ? formatLargeNumber(n(fund.volume)) : "—"],
-                    ["Avg Volume",        n(fund?.averageVolume) != null ? formatLargeNumber(n(fund.averageVolume)) : "—"],
-                    ["Avg Vol (10D)",     n(fund?.averageVolume10days) != null ? formatLargeNumber(n(fund.averageVolume10days)) : "—"],
+                    ["Volume",            n(fund?.volume) != null ? formatLargeNumber(n(fund?.volume)) : "—"],
+                    ["Avg Volume",        n(fund?.averageVolume) != null ? formatLargeNumber(n(fund?.averageVolume)) : "—"],
+                    ["Avg Vol (10D)",     n(fund?.averageVolume10days) != null ? formatLargeNumber(n(fund?.averageVolume10days)) : "—"],
                     ["52W High",          fund?.fiftyTwoWeekHigh != null ? formatCurrency(n(fund.fiftyTwoWeekHigh)!, (fund.currency as string) ?? "USD") : "—"],
                     ["52W Low",           fund?.fiftyTwoWeekLow  != null ? formatCurrency(n(fund.fiftyTwoWeekLow)!,  (fund.currency as string) ?? "USD") : "—"],
                     ["Day High",          fund?.dayHigh != null ? formatCurrency(n(fund.dayHigh)!, (fund.currency as string) ?? "USD") : "—"],
