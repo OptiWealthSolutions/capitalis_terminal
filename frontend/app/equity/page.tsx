@@ -17,6 +17,7 @@ import {
 } from "@/lib/utils";
 import { Search, TrendingUp, BarChart2, LineChart, Users } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
+import { useTheme } from "@/lib/theme";
 
 const PERIODS = ["1mo", "3mo", "6mo", "1y", "2y", "5y"] as const;
 type Period = typeof PERIODS[number];
@@ -73,6 +74,8 @@ function fmtBNull(v: number | null): string {
 ════════════════════════════════════════════════════════════ */
 export default function EquityPage() {
   const { t } = useI18n();
+  const { theme } = useTheme();
+  const isDark = theme === "dark";
   const TABS: { id: Tab; label: string; Icon: React.ElementType }[] = [
     { id: "overview",   label: t.equity.tabs.overview,   Icon: TrendingUp },
     { id: "financials", label: t.equity.tabs.financials, Icon: BarChart2  },
@@ -614,7 +617,8 @@ export default function EquityPage() {
                   volume={history.data.volume}
                   sma50={history.data.sma_50}
                   sma200={history.data.sma_200}
-                  height={340}
+                  height={460}
+                  isDark={isDark}
                 />
               ) : null}
             </div>
