@@ -145,13 +145,13 @@ export default function DashboardPage() {
 
   // Optimizer equity curve
   const perfMutation = useMutation({
-    mutationFn: (pf: SavedPortfolio) => {
+    mutationFn: ({ pf, range }: { pf: SavedPortfolio; range: TimeRange }) => {
       if (!pf.tickers.length) throw new Error("No tickers.");
       return post<PerformanceResult>("/portfolio/performance", {
         tickers: pf.tickers,
         weights: pf.weights,
         capital: pf.capital,
-        start_date: rangeToStartDate(optTimeRange),
+        start_date: rangeToStartDate(range),
       });
     },
     onSuccess: (data) => setPerfResult(data),
@@ -173,7 +173,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     setPerfResult(null);
-    if (portfolio && portfolio.tickers.length > 0) perfMutation.mutate(portfolio);
+    if (portfolio && portfolio.tickers.length > 0) perfMutation.mutate({ pf: portfolio, range: optTimeRange });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedOptId, optTimeRange]);
 
@@ -265,7 +265,7 @@ export default function DashboardPage() {
                     onChange={id => { setSelectedOptId(id); setPerfResult(null); }}
                   />
                 }
-                onRefresh={() => portfolio && perfMutation.mutate(portfolio)}
+                onRefresh={() => portfolio && perfMutation.mutate({ pf: portfolio, range: optTimeRange })}
                 refreshing={perfMutation.isPending}
                 timeRange={optTimeRange}
                 onTimeRangeChange={r => { setOptTimeRange(r); setPerfResult(null); }}

@@ -116,7 +116,7 @@ class Screener:
         # Select fields explicitly
         fields_to_select = list(self.tv_field_map.values())
         extra_fields = []
-        for attr in ('SECTOR', 'INDUSTRY'):
+        for attr in ('SECTOR', 'INDUSTRY', 'NAME', 'DESCRIPTION'):
             if hasattr(StockField, attr):
                 extra_fields.append(getattr(StockField, attr))
         if hasattr(screener, 'select') and fields_to_select:

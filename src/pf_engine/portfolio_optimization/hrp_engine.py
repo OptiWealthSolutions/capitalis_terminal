@@ -109,9 +109,9 @@ def get_ewma_mu(returns, halflife=40):
 
 
 def run_hrp(returns, mu=None, risk_aversion=None):
-    corr = returns.corr()
-    returns.dropna(inplace=True) 
-    
+    returns = returns.dropna()  # clean copy — don't mutate caller's DataFrame
+    corr = returns.corr()       # compute on clean data (no NaN → no NaN distances)
+
     if mu is None and risk_aversion is not None:
 
         mu = get_ewma_mu(returns, halflife=63)
