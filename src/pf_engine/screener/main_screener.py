@@ -228,6 +228,9 @@ class Screener:
             lambda x: x.split(':')[-1] if ':' in x else x
         )
 
+        # ---- Drop preferred/warrant shares (tickers with '/' e.g. MS/PL, GS/PA) ----
+        df = df[~df['Ticker'].str.contains('/', regex=False, na=False)].copy()
+
         # ---- Dedup: one row per base ticker (drop exchange-suffix duplicates e.g. LVMH.PA vs LVMH) ----
         df['_base'] = df['Ticker'].apply(_base_ticker)
         df = df.drop_duplicates(subset='_base', keep='first').drop(columns=['_base'])
