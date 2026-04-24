@@ -44,3 +44,6 @@ Thumbs.db
 *.log
 logs/
 out/
+
+# Claude Code worktrees (nested git repos)
+.claude/worktrees/
