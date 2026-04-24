@@ -522,6 +522,63 @@ export default function EquityPage() {
         {/* ════ Tab: Charts ════ */}
         {tab === "charts" && (
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            {/* Key indicators block */}
+            {fund && (
+              <div style={{
+                display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
+                gap: 0, border: "1px solid var(--border)", borderRadius: "var(--r)", overflow: "hidden",
+                background: "var(--bg-card)",
+              }}>
+                {[
+                  {
+                    label: "52W Range",
+                    custom: (() => {
+                      const lo = n(fund?.fiftyTwoWeekLow), hi = n(fund?.fiftyTwoWeekHigh), cur = currentPrice;
+                      if (lo == null || hi == null || cur == null || hi === lo) return null;
+                      const pct = (cur - lo) / (hi - lo);
+                      const curr = (fund?.currency as string) ?? "USD";
+                      return (
+                        <div>
+                          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}>
+                            <span style={{ fontSize: "0.65rem", color: "var(--t3)", fontFamily: "JetBrains Mono, monospace" }}>{formatCurrency(lo, curr)}</span>
+                            <span style={{ fontSize: "0.65rem", color: "var(--t3)", fontFamily: "JetBrains Mono, monospace" }}>{formatCurrency(hi, curr)}</span>
+                          </div>
+                          <div style={{ height: 4, background: "var(--bg-hover)", borderRadius: 2, position: "relative" }}>
+                            <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: `${pct * 100}%`, background: `linear-gradient(90deg, var(--red), var(--green))`, borderRadius: 2 }} />
+                            <div style={{ position: "absolute", top: -3, left: `calc(${pct * 100}% - 4px)`, width: 8, height: 10, background: "var(--orange)", borderRadius: 2 }} />
+                          </div>
+                          <div style={{ textAlign: "center", marginTop: 5, fontSize: "0.7rem", fontFamily: "JetBrains Mono, monospace", color: "var(--t1)", fontWeight: 600 }}>
+                            {(pct * 100).toFixed(0)}% of range
+                          </div>
+                        </div>
+                      );
+                    })(),
+                  },
+                  { label: "50D SMA",   value: fund?.fiftyDayAverage    != null ? formatCurrency(n(fund.fiftyDayAverage)!,    (fund.currency as string) ?? "USD") : "—", color: currentPrice != null && n(fund?.fiftyDayAverage) != null ? (currentPrice > n(fund.fiftyDayAverage)! ? "var(--green)" : "var(--red)") : "var(--t1)" },
+                  { label: "200D SMA",  value: fund?.twoHundredDayAverage != null ? formatCurrency(n(fund.twoHundredDayAverage)!, (fund.currency as string) ?? "USD") : "—", color: currentPrice != null && n(fund?.twoHundredDayAverage) != null ? (currentPrice > n(fund.twoHundredDayAverage)! ? "var(--green)" : "var(--red)") : "var(--t1)" },
+                  { label: "Volume",    value: n(fund?.volume) != null ? formatLargeNumber(n(fund.volume)) : "—",         color: "var(--t1)" },
+                  { label: "Avg Vol",   value: n(fund?.averageVolume) != null ? formatLargeNumber(n(fund.averageVolume)) : "—", color: "var(--t1)" },
+                  { label: "Beta",      value: formatNumber(n(fund?.beta), 2),  color: n(fund?.beta) != null && n(fund.beta)! > 1 ? "var(--red)" : "var(--green)" },
+                  { label: "Fwd P/E",   value: formatNumber(n(fund?.forwardPE), 2), color: "var(--t1)" },
+                  { label: "Div Yield", value: formatPercent(n(fund?.dividendYield)), color: n(fund?.dividendYield) != null && n(fund.dividendYield)! > 0 ? "var(--green)" : "var(--t3)" },
+                ].map((item, i, arr) => (
+                  <div key={item.label} style={{
+                    padding: "12px 16px",
+                    borderRight: i < arr.length - 1 ? "1px solid var(--border)" : "none",
+                  }}>
+                    <div style={{ fontSize: "0.58rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--t3)", marginBottom: 8 }}>
+                      {item.label}
+                    </div>
+                    {item.custom ?? (
+                      <div style={{ fontFamily: "JetBrains Mono, monospace", fontSize: "0.9rem", fontWeight: 600, color: (item as { color?: string }).color ?? "var(--t1)" }}>
+                        {(item as { value?: string }).value ?? "—"}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+
             <div style={{ display: "flex", gap: 4 }}>
               {PERIODS.map((p) => (
                 <button
@@ -681,8 +738,47 @@ function FinancialCharts({ data, view }: { data: FinancialPeriod; view: FinView 
     </div>
   );
 
+  // Compute latest values for KPI strip
+  const last = labels.length - 1;
+  const latestRevenue   = data.revenue?.[last];
+  const latestNetIncome = data.net_income?.[last];
+  const latestGrossM    = data.gross_margin?.[last];
+  const latestNetM      = data.net_margin?.[last];
+  const latestOpM       = data.operating_margin?.[last];
+  const latestFCF       = data.free_cash_flow?.[last];
+  const latestEPS       = data.eps_diluted?.[last];
+
+  const kpis: { label: string; value: string; color?: string }[] = [
+    { label: "Revenue",      value: latestRevenue   != null ? `${(latestRevenue / 1e9).toFixed(2)}B`    : "—" },
+    { label: "Net Income",   value: latestNetIncome != null ? `${(latestNetIncome / 1e9).toFixed(2)}B`  : "—", color: latestNetIncome != null && latestNetIncome >= 0 ? "var(--green)" : "var(--red)" },
+    { label: "Gross Margin", value: latestGrossM    != null ? `${(latestGrossM * 100).toFixed(1)}%`     : "—", color: "var(--t1)" },
+    { label: "Op. Margin",   value: latestOpM       != null ? `${(latestOpM * 100).toFixed(1)}%`        : "—", color: latestOpM != null && latestOpM >= 0 ? "var(--green)" : "var(--red)" },
+    { label: "Net Margin",   value: latestNetM      != null ? `${(latestNetM * 100).toFixed(1)}%`       : "—", color: latestNetM != null && latestNetM >= 0 ? "var(--green)" : "var(--red)" },
+    { label: "Free CF",      value: latestFCF       != null ? `${(latestFCF / 1e9).toFixed(2)}B`       : "—", color: latestFCF != null && latestFCF >= 0 ? "var(--green)" : "var(--red)" },
+    { label: "EPS (dil.)",   value: latestEPS       != null ? `$${latestEPS.toFixed(2)}`                : "—", color: latestEPS != null && latestEPS >= 0 ? "var(--green)" : "var(--red)" },
+  ];
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+
+      {/* KPI strip — latest period snapshot */}
+      <div style={{
+        display: "grid", gridTemplateColumns: `repeat(${kpis.length}, 1fr)`,
+        border: "1px solid var(--border)", borderRadius: "var(--r)", overflow: "hidden",
+        background: "var(--bg-card)",
+      }}>
+        {kpis.map((k, i) => (
+          <div key={k.label} style={{
+            padding: "12px 14px",
+            borderRight: i < kpis.length - 1 ? "1px solid var(--border)" : "none",
+          }}>
+            <div style={{ fontSize: "0.55rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--t3)", marginBottom: 6 }}>{k.label}</div>
+            <div style={{ fontFamily: "JetBrains Mono, monospace", fontSize: "0.88rem", fontWeight: 600, color: k.color ?? "var(--t1)" }}>{k.value}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Revenue breakdown — stacked bar style */}
       {card("Revenue / Gross Profit / Net Income (B)", (
         <FinBarChart labels={labels} series={[
           { name: "Revenue",      data: scaleB(data.revenue),      color: "#5B8FD4" },
@@ -691,14 +787,16 @@ function FinancialCharts({ data, view }: { data: FinancialPeriod; view: FinView 
         ]} yUnit="B" height={160} />
       ))}
 
+      {/* Margins area chart */}
       {card("Profit Margins (%)", (
-        <FinLineChart labels={labels} series={[
-          { name: "Gross",     data: data.gross_margin,     color: "#5BA87A" },
-          { name: "Operating", data: data.operating_margin, color: "#5B8FD4" },
-          { name: "Net",       data: data.net_margin,       color: "#C9A84C" },
+        <FinAreaLineChart labels={labels} series={[
+          { name: "Gross",     data: data.gross_margin?.map(v => v != null ? +(v * 100).toFixed(2) : null) ?? [],     color: "#5BA87A" },
+          { name: "Operating", data: data.operating_margin?.map(v => v != null ? +(v * 100).toFixed(2) : null) ?? [], color: "#5B8FD4" },
+          { name: "Net",       data: data.net_margin?.map(v => v != null ? +(v * 100).toFixed(2) : null) ?? [],       color: "#C9A84C" },
         ]} yUnit="%" height={160} />
       ))}
 
+      {/* EPS + FCF dual bar */}
       {card("EPS (Diluted) & Free Cash Flow", (
         <FinDualBarChart labels={labels}
           leftSeries={{ name: "EPS", data: data.eps_diluted, color: "#9575D4", unit: "$" }}
@@ -706,6 +804,127 @@ function FinancialCharts({ data, view }: { data: FinancialPeriod; view: FinView 
           height={160}
         />
       ))}
+
+      {/* YoY growth bars */}
+      {data.revenue && data.revenue.length >= 2 && card("YoY Revenue Growth (%)", (() => {
+        const growthData: (number | null)[] = data.revenue!.map((v, i) => {
+          if (i === 0 || v == null || data.revenue![i - 1] == null || data.revenue![i - 1] === 0) return null;
+          return +((v / data.revenue![i - 1]! - 1) * 100).toFixed(2);
+        });
+        return (
+          <FinBarChart labels={labels} series={[
+            { name: "Rev Growth %", data: growthData, color: "#5B8FD4" },
+          ]} yUnit="%" height={130} />
+        );
+      })())}
+
+    </div>
+  );
+}
+
+/* ─── FinAreaLineChart ─── */
+function FinAreaLineChart({ labels, series, yUnit = "", height = 280 }: {
+  labels: string[];
+  series: { name: string; data: (number | null)[]; color: string }[];
+  yUnit?: string;
+  height?: number;
+}) {
+  const [hover, setHover] = useState<{ idx: number; pctX: number } | null>(null);
+  const W = SVG_W, H = height;
+  const PW = W - ML - MR, PH = H - MT - MB;
+
+  const vals = series.flatMap(s => s.data).filter((v): v is number => v != null);
+  const { min, max, ticks } = niceAxis(vals);
+  const yRange = max - min || 1;
+  const n = labels.length;
+  const toX = (i: number) => ML + (n > 1 ? (i / (n - 1)) * PW : PW / 2);
+  const toY = (v: number) => MT + PH - ((v - min) / yRange) * PH;
+
+  const legendItemW = 88;
+  const legendTotalW = series.length * legendItemW;
+  const legendStartX = (W - legendTotalW) / 2;
+
+  return (
+    <div style={{ position: "relative" }} onMouseLeave={() => setHover(null)}>
+      <svg viewBox={`0 0 ${W} ${H}`} width="100%" style={{ display: "block", overflow: "visible" }}>
+        <rect x={ML} y={MT} width={PW} height={PH} style={{ fill: "var(--bg-hover)" }} opacity={0.25} rx={2} />
+        {ticks.map((t, i) => {
+          const y = toY(t);
+          return (
+            <g key={i}>
+              <line x1={ML} x2={W - MR} y1={y} y2={y} style={{ stroke: "var(--border)" }} strokeWidth={0.6} strokeDasharray="4 3" />
+              <text x={ML - 6} y={y + 3.5} textAnchor="end" fontSize={8.5} fontFamily="JetBrains Mono, monospace" style={{ fill: "var(--t3)" }}>
+                {t.toFixed(1)}
+              </text>
+            </g>
+          );
+        })}
+        <text x={ML - 8} y={MT - 10} textAnchor="end" fontSize={9} fontFamily="JetBrains Mono, monospace" style={{ fill: "var(--orange)" }} fontWeight="700">{yUnit}</text>
+        <line x1={ML} x2={ML} y1={MT} y2={MT + PH} style={{ stroke: "var(--border)" }} strokeWidth={1} />
+        <line x1={ML} x2={W - MR} y1={MT + PH} y2={MT + PH} style={{ stroke: "var(--border)" }} strokeWidth={1} />
+
+        {/* Filled areas (back to front = lowest opacity first) */}
+        {[...series].reverse().map(s => {
+          const pts: [number, number][] = s.data
+            .map((v, i) => (v != null ? [toX(i), toY(v)] as [number, number] : null))
+            .filter((p): p is [number, number] => p != null);
+          if (pts.length < 2) return null;
+          const baseY = MT + PH;
+          const area = `M${pts[0][0]},${baseY} ` + pts.map(p => `L${p[0]},${p[1]}`).join(" ") + ` L${pts[pts.length - 1][0]},${baseY} Z`;
+          return <path key={`${s.name}-area`} d={area} style={{ fill: s.color }} opacity={0.15} />;
+        })}
+
+        {/* Lines */}
+        {series.map(s => {
+          const segments: string[][] = [];
+          let cur: string[] = [];
+          s.data.forEach((v, i) => {
+            if (v != null) { cur.push(`${toX(i)},${toY(v)}`); }
+            else if (cur.length) { segments.push(cur); cur = []; }
+          });
+          if (cur.length) segments.push(cur);
+          return segments.map((seg, si) => (
+            <polyline key={`${s.name}-${si}`} points={seg.join(" ")} fill="none" style={{ stroke: s.color }} strokeWidth={2} strokeLinejoin="round" />
+          ));
+        })}
+
+        {/* Dots on hover */}
+        {hover && series.map(s => {
+          const v = s.data[hover.idx];
+          if (v == null) return null;
+          return <circle key={s.name} cx={toX(hover.idx)} cy={toY(v)} r={5} style={{ fill: s.color, stroke: "var(--bg-card)" }} strokeWidth={1.8} />;
+        })}
+
+        {hover && <line x1={toX(hover.idx)} x2={toX(hover.idx)} y1={MT} y2={MT + PH} style={{ stroke: "var(--t2)" }} strokeWidth={1} strokeDasharray="5 3" opacity={0.5} />}
+
+        {labels.map((_, i) => {
+          const hw = n > 1 ? PW / (n - 1) / 2 : PW;
+          return (
+            <rect key={i} x={Math.max(ML, toX(i) - hw)} y={MT} width={Math.min(hw * 2, PW)} height={PH}
+              fill="transparent" style={{ cursor: "crosshair" }}
+              onMouseEnter={() => setHover({ idx: i, pctX: n > 1 ? i / (n - 1) : 0.5 })} />
+          );
+        })}
+
+        {labels.map((lbl, i) => (
+          <text key={i} x={toX(i)} y={H - MB + 14} textAnchor="middle" fontSize={8.5} fontFamily="JetBrains Mono, monospace" style={{ fill: "var(--t3)" }}>{lbl}</text>
+        ))}
+
+        {series.map((s, i) => (
+          <g key={s.name} transform={`translate(${legendStartX + i * legendItemW}, ${MT - 18})`}>
+            <line x1={0} y1={5} x2={12} y2={5} style={{ stroke: s.color }} strokeWidth={2} />
+            <circle cx={6} cy={5} r={3} style={{ fill: s.color, stroke: "var(--bg-card)" }} strokeWidth={1.5} />
+            <text x={17} y={9} fontSize={8.5} fontFamily="JetBrains Mono, monospace" style={{ fill: "var(--t2)" }} fontWeight="500">{s.name}</text>
+          </g>
+        ))}
+      </svg>
+
+      {hover && (
+        <Tooltip hover={hover} labels={labels} items={series.map(s => ({
+          name: s.name, color: s.color,
+          value: s.data[hover.idx] != null ? `${s.data[hover.idx]!.toFixed(1)} ${yUnit}` : "—",
+        }))} />
+      )}
     </div>
   );
 }

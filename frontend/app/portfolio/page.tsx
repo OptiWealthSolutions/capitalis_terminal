@@ -41,6 +41,7 @@ interface SavedPortfolio {
   id: string;
   name: string;
   tickers: string[];
+  weights: number[];
   method: string;
   capital: number;
   result: OptimizationResult | null;
@@ -104,9 +105,10 @@ export default function PortfolioPage() {
             id: r.name,
             name: r.name,
             tickers: r.tickers,
+            weights: r.weights,
             method: r.method,
             capital: r.capital,
-            result: null,       // results not persisted — user re-runs after loading
+            result: null,
             savedAt: r.created_at,
           }))
         );
@@ -187,9 +189,14 @@ export default function PortfolioPage() {
   const performance = useMutation({
     mutationFn: () => {
       const pf = savedPortfolios.find((p) => p.id === perfPortfolioId);
-      if (!pf?.result) throw new Error("Select a saved portfolio.");
-      const pfTickers = Object.keys(pf.result.weights);
-      const pfWeights = pfTickers.map((t) => pf.result!.weights[t]);
+      if (!pf) throw new Error("Select a portfolio.");
+      // Use saved weights directly — no need to re-run optimization
+      const pfTickers = pf.result ? Object.keys(pf.result.weights) : pf.tickers;
+      const pfWeights = pf.result
+        ? pfTickers.map((t) => pf.result!.weights[t])
+        : (pf.weights?.length === pf.tickers.length
+            ? pf.weights
+            : pf.tickers.map(() => 1 / pf.tickers.length));
       return post<PerformanceResult>("/portfolio/performance", {
         tickers: pfTickers, weights: pfWeights, capital: pf.capital, start_date: perfStartDate,
       });
@@ -253,6 +260,7 @@ export default function PortfolioPage() {
       });
       const pf: SavedPortfolio = {
         id: name, name, tickers: wtickers,
+        weights,
         method: formValues.method, capital: formValues.capital,
         result: optResult, savedAt: new Date().toISOString(),
       };
@@ -1260,25 +1268,34 @@ export default function PortfolioPage() {
 
             {perfResult && !performance.isPending && (
               <>
-                <div
-                  className="grid grid-cols-1 sm:grid-cols-3 gap-0 rounded border overflow-hidden"
-                  style={{ borderColor: "var(--border)" }}
-                >
-                  {[
-                    { label: "Total Return",  value: formatPercent(perfResult.metrics.total_return),   color: perfResult.metrics.total_return >= 0 ? "var(--green)" : "var(--red)" },
-                    { label: "Current Value", value: formatCurrency(perfResult.metrics.current_value), color: "var(--orange)" },
-                    { label: "Max Drawdown",  value: formatPercent(perfResult.metrics.max_drawdown),   color: "var(--red)" },
-                  ].map((m, i) => (
-                    <div
-                      key={m.label}
-                      className="px-5 py-4"
-                      style={{ background: "var(--bg-card)", borderRight: i < 2 ? "1px solid var(--border)" : "none" }}
-                    >
-                      <p className="text-xs mb-1.5" style={{ color: "var(--t3)" }}>{m.label}</p>
-                      <p className="text-base font-semibold font-mono" style={{ color: m.color }}>{m.value}</p>
+                {(() => {
+                  const pf = savedPortfolios.find((p) => p.id === perfPortfolioId);
+                  const capital = pf?.capital ?? 0;
+                  const pnl = perfResult.metrics.current_value - capital;
+                  const nYears = perfResult.n_days / 252;
+                  const cagr = nYears > 0
+                    ? Math.pow(perfResult.metrics.current_value / Math.max(capital, 1), 1 / nYears) - 1
+                    : 0;
+                  const kpis = [
+                    { label: "P&L (€)",       value: `${pnl >= 0 ? "+" : ""}${formatCurrency(pnl)}`,                     color: pnl >= 0 ? "var(--green)" : "var(--red)" },
+                    { label: "Total Return",   value: formatPercent(perfResult.metrics.total_return),                      color: perfResult.metrics.total_return >= 0 ? "var(--green)" : "var(--red)" },
+                    { label: "CAGR",           value: formatPercent(cagr),                                                 color: cagr >= 0 ? "var(--green)" : "var(--red)" },
+                    { label: "Current Value",  value: formatCurrency(perfResult.metrics.current_value),                    color: "var(--orange)" },
+                    { label: "Max Drawdown",   value: formatPercent(perfResult.metrics.max_drawdown),                      color: "var(--red)" },
+                    { label: "Duration",       value: `${perfResult.n_days}d`,                                             color: "var(--t2)" },
+                  ];
+                  return (
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-0 rounded border overflow-hidden" style={{ borderColor: "var(--border)" }}>
+                      {kpis.map((m, i) => (
+                        <div key={m.label} className="px-5 py-4"
+                          style={{ background: "var(--bg-card)", borderRight: i < kpis.length - 1 ? "1px solid var(--border)" : "none" }}>
+                          <p className="text-xs mb-1.5" style={{ color: "var(--t3)" }}>{m.label}</p>
+                          <p className="text-base font-semibold font-mono" style={{ color: m.color }}>{m.value}</p>
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
+                  );
+                })()}
 
                 {perfResult.metrics.ann_return !== undefined && (
                   <div
