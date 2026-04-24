@@ -37,8 +37,10 @@ _rate_store: dict[str, list[float]] = defaultdict(list)
 
 _RATE_RULES: dict[str, tuple[int, int]] = {
     # path_prefix: (max_requests, window_seconds)
-    "/api/auth/login":    (10, 60),
-    "/api/auth/register": (5,  300),
+    "/api/auth/login":    (10,  60),
+    "/api/auth/register": (5,   300),
+    "/api/equity/search": (30,  60),   # Yahoo Finance proxy — throttle
+    "/api/reporting/":    (5,   60),   # PDF generation is heavy
     "/api/":              (120, 60),
 }
 
@@ -103,10 +105,10 @@ app = FastAPI(
 # GZip compression for responses > 1KB
 app.add_middleware(GZipMiddleware, minimum_size=1024)
 
-# CORS — auth uses Bearer tokens (sessionStorage), not cookies → allow_origins=["*"] safe
+# CORS — locked to ALLOWED_ORIGINS env var (default: localhost:3000)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=False,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type", "Accept"],
@@ -137,8 +139,15 @@ async def security_headers(request: Request, call_next):
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["X-XSS-Protection"] = "1; mode=block"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=(), payment=()"
+    response.headers["X-Permitted-Cross-Domain-Policies"] = "none"
+    response.headers["Content-Security-Policy"] = (
+        "default-src 'none'; "
+        "connect-src 'self'; "
+        "frame-ancestors 'none';"
+    )
     if ENV == "production":
-        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains; preload"
     return response
 
 

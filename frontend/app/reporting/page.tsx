@@ -243,6 +243,7 @@ export default function ReportingPage() {
                         <div className="space-y-1.5 pt-1">
                           {[
                             "Cover page — portfolio summary",
+                            "Historical equity curve (1Y vs SPY)",
                             "Risk metrics table",
                             "Capital allocation table",
                             `Monte Carlo fan chart (${nSims} paths)`,

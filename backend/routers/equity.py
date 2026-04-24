@@ -34,6 +34,39 @@ def _assert_valid_ticker(ticker: str) -> str:
 
 
 # ---------------------------------------------------------------------------
+# GET /equity/search?q=...
+# ---------------------------------------------------------------------------
+@router.get("/search")
+def search_equity(q: str, limit: int = 10) -> Any:
+    """Search tickers by company name or symbol using Yahoo Finance search API."""
+    import requests
+    if not q or len(q.strip()) < 1:
+        return {"results": []}
+    try:
+        resp = requests.get(
+            "https://query2.finance.yahoo.com/v1/finance/search",
+            params={"q": q, "quotesCount": min(limit, 20), "newsCount": 0, "enableFuzzyQuery": False},
+            headers={"User-Agent": "Mozilla/5.0"},
+            timeout=5,
+        )
+        data = resp.json()
+        quotes = data.get("quotes", [])
+        results = []
+        for item in quotes:
+            if item.get("quoteType") not in ("EQUITY", "ETF"):
+                continue
+            results.append({
+                "ticker": item.get("symbol", ""),
+                "name": item.get("longname") or item.get("shortname") or "",
+                "exchange": item.get("exchDisp", ""),
+                "type": item.get("quoteType", ""),
+            })
+        return {"results": results[:limit]}
+    except Exception:
+        return {"results": []}
+
+
+# ---------------------------------------------------------------------------
 # GET /equity/{ticker}/history
 # ---------------------------------------------------------------------------
 @router.get("/{ticker}/history")

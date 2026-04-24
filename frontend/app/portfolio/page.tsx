@@ -77,6 +77,7 @@ export default function PortfolioPage() {
   const [saveNameInput, setSaveNameInput]     = useState("");
   const [loadPanelOpen, setLoadPanelOpen]     = useState(false);
   const [compareSel, setCompareSel]           = useState<string[]>([]);
+  const [comparingIds, setComparingIds]       = useState<Set<string>>(new Set());
   const [configOpen, setConfigOpen]           = useState(true);
   const [useTopScored, setUseTopScored]       = useState(true);
   const [perfPortfolioId, setPerfPortfolioId] = useState<string>("");
@@ -195,6 +196,28 @@ export default function PortfolioPage() {
     },
     onSuccess: (data) => { setPerfResult(data); toast.success("Performance data loaded."); },
     onError: (e: Error) => toast.error(e.message || "Performance tracking failed."),
+  });
+
+  const compareOptimize = useMutation({
+    mutationFn: (pf: SavedPortfolio) =>
+      post<OptimizationResult>("/portfolio/optimize", {
+        tickers: pf.tickers,
+        method: pf.method,
+        capital: pf.capital,
+        min_weight: 0.01,
+        max_weight: 0.40,
+        risk_aversion: 1.0,
+      }),
+    onSuccess: (data, pf) => {
+      setSavedPortfolios(prev => prev.map(p =>
+        p.id === pf.id ? { ...p, result: data } : p
+      ));
+      setComparingIds(prev => { const s = new Set(prev); s.delete(pf.id); return s; });
+    },
+    onError: (_, pf) => {
+      setComparingIds(prev => { const s = new Set(prev); s.delete(pf.id); return s; });
+      toast.error(`Failed to load results for ${pf.name}`);
+    },
   });
 
   // --------------------------------------------------------------------------
@@ -1087,18 +1110,24 @@ export default function PortfolioPage() {
                     {savedPortfolios.map((pf) => (
                       <button
                         key={pf.id}
-                        onClick={() =>
+                        onClick={() => {
+                          const willBeSelected = !compareSel.includes(pf.id);
                           setCompareSel((prev) =>
                             prev.includes(pf.id) ? prev.filter((id) => id !== pf.id) : [...prev, pf.id]
-                          )
-                        }
-                        className="px-3 py-1.5 text-xs rounded border transition-all"
+                          );
+                          if (willBeSelected && !pf.result) {
+                            setComparingIds(prev => new Set([...prev, pf.id]));
+                            compareOptimize.mutate(pf);
+                          }
+                        }}
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded border transition-all"
                         style={{
                           background: compareSel.includes(pf.id) ? "var(--orange-dim)" : "var(--bg-hover)",
                           borderColor: compareSel.includes(pf.id) ? "var(--orange-border)" : "var(--border)",
                           color: compareSel.includes(pf.id) ? "var(--orange)" : "var(--t2)",
                         }}
                       >
+                        {comparingIds.has(pf.id) && <LoadingSpinner size="sm" />}
                         {pf.name}
                       </button>
                     ))}
@@ -1466,6 +1495,7 @@ function FieldInput({
 
 // SVG donut chart — sector / geographic breakdown
 function DonutChart({ title, data }: { title: string; data: Record<string, number> }) {
+  if (!data) return null;
   const entries = Object.entries(data)
     .filter(([, v]) => typeof v === "number" && v > 0)
     .sort(([, a], [, b]) => b - a);

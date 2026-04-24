@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
+import Link from "next/link";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { get, post, del } from "@/lib/api";
 import type { ScreenerResult, Preset } from "@/lib/types";
@@ -39,6 +40,7 @@ interface CriterionRow { id: string; metric: string; op: string; val: string }
 
 const RESULT_COLS = [
   { key: "Ticker",         label: "TICKER" },
+  { key: "Name",           label: "COMPANY" },
   { key: "Sector",         label: "SECTOR" },
   { key: "currentPrice",   label: "PRICE",      fmt: (v: number) => formatNumber(v, 2) },
   { key: "marketCap",      label: "MKT CAP",    fmt: formatLargeNumber },
@@ -137,6 +139,7 @@ export default function ScreenerPage() {
   const [sortDir, setSortDir]         = useState<"asc" | "desc">("desc");
   const [showBuilder, setShowBuilder] = useState(true);
   const [activeQuick, setActiveQuick] = useState<string | null>(null);
+  const [sectorFilter, setSectorFilter] = useState<string>("All");
 
   // ---- saved presets from API ----
   const savedPresets = useQuery<Record<string, Preset>>({
@@ -212,13 +215,21 @@ export default function ScreenerPage() {
     setActiveQuick(null);
   };
 
+  const availableSectors = useMemo(() => {
+    if (!result?.assets) return [];
+    const sectors = new Set(result.assets.map(a => String(a["Sector"] ?? "Unknown")));
+    return ["All", ...Array.from(sectors).filter(s => s !== "Unknown" && s !== "All").sort()];
+  }, [result]);
+
   const sortedAssets = result?.assets
-    ? [...result.assets].sort((a, b) => {
-        if (!sortKey) return 0;
-        const av = parseFloat(String(a[sortKey] ?? 0)) || 0;
-        const bv = parseFloat(String(b[sortKey] ?? 0)) || 0;
-        return sortDir === "asc" ? av - bv : bv - av;
-      })
+    ? [...result.assets]
+        .filter(a => sectorFilter === "All" || String(a["Sector"] ?? "") === sectorFilter)
+        .sort((a, b) => {
+          if (!sortKey) return 0;
+          const av = parseFloat(String(a[sortKey] ?? 0)) || 0;
+          const bv = parseFloat(String(b[sortKey] ?? 0)) || 0;
+          return sortDir === "asc" ? av - bv : bv - av;
+        })
     : [];
 
   const handleSort = (key: string) => {
@@ -520,6 +531,23 @@ export default function ScreenerPage() {
                 ))}
               </div>
 
+              {availableSectors.length > 1 && (
+                <div className="px-5 py-2 border-b flex items-center gap-2 flex-wrap" style={{ borderColor: "var(--border)", background: "var(--bg-hover)" }}>
+                  <span className="text-xs" style={{ color: "var(--t3)" }}>Sector:</span>
+                  {availableSectors.map(s => (
+                    <button key={s} onClick={() => setSectorFilter(s)}
+                      className="px-2 py-0.5 rounded text-xs border transition-all"
+                      style={{
+                        background: sectorFilter === s ? "var(--orange-dim)" : "transparent",
+                        borderColor: sectorFilter === s ? "var(--orange-border)" : "var(--border)",
+                        color: sectorFilter === s ? "var(--orange)" : "var(--t3)",
+                      }}>
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              )}
+
               <div style={{ overflowX: "auto" }}>
                 <table className="w-full text-xs" style={{ background: "var(--bg-card)" }}>
                   <thead>
@@ -557,14 +585,27 @@ export default function ScreenerPage() {
                             key={col.key}
                             style={{
                               padding: "10px 20px",
-                              fontFamily: col.key !== "Sector" ? "JetBrains Mono, monospace" : undefined,
+                              fontFamily: col.key !== "Sector" && col.key !== "Name" ? "JetBrains Mono, monospace" : undefined,
                               color: col.key === "Ticker" ? "var(--orange)"
-                                : col.key === "Sector" ? "var(--t2)"
+                                : col.key === "Sector" || col.key === "Name" ? "var(--t2)"
                                 : "var(--t1)",
                               fontWeight: col.key === "Ticker" ? 600 : 400,
                             }}
                           >
-                            {col.fmt
+                            {col.key === "Ticker" ? (
+                              <Link
+                                href={`/equity?ticker=${encodeURIComponent(String(asset[col.key] ?? ""))}`}
+                                style={{
+                                  color: "var(--orange)", fontWeight: 600,
+                                  textDecoration: "none",
+                                  transition: "opacity 0.15s",
+                                }}
+                                onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.opacity = "0.7")}
+                                onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.opacity = "1")}
+                              >
+                                {String(asset[col.key] ?? "N/A")}
+                              </Link>
+                            ) : col.fmt
                               ? col.fmt(asset[col.key] as number)
                               : String(asset[col.key] ?? "N/A")}
                           </td>

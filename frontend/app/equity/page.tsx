@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
+import { useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { get } from "@/lib/api";
 import type {
@@ -79,8 +80,19 @@ export default function EquityPage() {
     { id: "ownership",  label: t.equity.tabs.ownership,  Icon: Users      },
   ];
 
-  const [ticker, setTicker] = useState("NVDA");
-  const [inputValue, setInputValue] = useState("NVDA");
+  const searchParams = useSearchParams();
+  const [ticker, setTicker] = useState(() => {
+    const t = searchParams?.get("ticker");
+    return t ? t.toUpperCase() : "NVDA";
+  });
+  const [inputValue, setInputValue] = useState(() => {
+    const t = searchParams?.get("ticker");
+    return t ? t.toUpperCase() : "NVDA";
+  });
+  const [suggestions, setSuggestions] = useState<{ticker: string; name: string; exchange: string}[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [period, setPeriod] = useState<Period>("1y");
   const [finView, setFinView] = useState<FinView>("annual");
   const [tab, setTab] = useState<Tab>("overview");
@@ -116,6 +128,22 @@ export default function EquityPage() {
     if (val) { setTicker(val); setTab("overview"); }
   };
 
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setInputValue(val);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    if (val.trim().length < 1) { setSuggestions([]); setShowSuggestions(false); return; }
+    debounceRef.current = setTimeout(async () => {
+      setSearchLoading(true);
+      try {
+        const data = await get<{results: {ticker: string; name: string; exchange: string}[]}>(`/equity/search?q=${encodeURIComponent(val)}`);
+        setSuggestions(data.results || []);
+        setShowSuggestions(true);
+      } catch { setSuggestions([]); }
+      finally { setSearchLoading(false); }
+    }, 350);
+  };
+
   const fund = fundamentals.data;
   const s = stats.data;
   const n = (v: unknown) => v as number | undefined;
@@ -132,34 +160,72 @@ export default function EquityPage() {
         {/* ── Page header ── */}
         <div style={{ marginBottom: 20, display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
           <h1 style={{ fontSize: "1.5rem", fontWeight: 600, color: "var(--t1)" }}>{t.equity.title}</h1>
-          <div style={{
-            display: "flex", border: "1px solid var(--border)",
-            borderRadius: "var(--r-sm)", overflow: "hidden",
-          }}>
-            <input
-              value={inputValue}
-              onChange={(e) => setInputValue(e.target.value.toUpperCase())}
-              onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-              placeholder="TICKER…"
-              style={{
-                background: "var(--bg-base)", border: "none", outline: "none",
-                color: "var(--t1)", fontSize: "0.82rem", padding: "8px 14px",
-                fontFamily: "JetBrains Mono, monospace", fontWeight: 600,
-                width: 120, letterSpacing: "0.04em",
-              }}
-            />
-            <button
-              onClick={handleSearch}
-              style={{
-                background: "var(--orange)", border: "none", cursor: "pointer",
-                padding: "0 14px", display: "flex", alignItems: "center",
-                transition: "filter 0.15s",
-              }}
-              onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.filter = "brightness(1.1)")}
-              onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.filter = "")}
-            >
-              <Search size={13} color="#fff" />
-            </button>
+          <div style={{ position: "relative" }}>
+            <div style={{
+              display: "flex", border: "1px solid var(--border)",
+              borderRadius: "var(--r-sm)", overflow: "visible",
+            }}>
+              <input
+                value={inputValue}
+                onChange={handleInputChange}
+                onKeyDown={(e) => { if (e.key === "Enter") { handleSearch(); setShowSuggestions(false); } if (e.key === "Escape") setShowSuggestions(false); }}
+                onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
+                onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+                placeholder="Ticker or company name…"
+                style={{
+                  background: "var(--bg-base)", border: "none", outline: "none",
+                  color: "var(--t1)", fontSize: "0.82rem", padding: "8px 14px",
+                  fontFamily: "inherit", fontWeight: 500,
+                  width: 220, borderRadius: "var(--r-sm) 0 0 var(--r-sm)",
+                }}
+              />
+              <button
+                onClick={() => { handleSearch(); setShowSuggestions(false); }}
+                style={{
+                  background: "var(--orange)", border: "none", cursor: "pointer",
+                  padding: "0 14px", display: "flex", alignItems: "center",
+                  transition: "filter 0.15s", borderRadius: "0 var(--r-sm) var(--r-sm) 0",
+                }}
+                onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.filter = "brightness(1.1)")}
+                onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.filter = "")}
+              >
+                {searchLoading ? <div style={{ width: 13, height: 13, border: "2px solid rgba(255,255,255,0.3)", borderTopColor: "#fff", borderRadius: "50%", animation: "spin 0.6s linear infinite" }} /> : <Search size={13} color="#fff" />}
+              </button>
+            </div>
+
+            {showSuggestions && suggestions.length > 0 && (
+              <div style={{
+                position: "absolute", top: "100%", left: 0, right: 0,
+                background: "var(--bg-card)", border: "1px solid var(--border)",
+                borderRadius: "var(--r-sm)", marginTop: 4, zIndex: 50,
+                maxHeight: 280, overflowY: "auto",
+                boxShadow: "0 8px 24px rgba(0,0,0,0.25)",
+              }}>
+                {suggestions.map((s) => (
+                  <button
+                    key={s.ticker}
+                    onMouseDown={() => {
+                      setInputValue(s.ticker);
+                      setTicker(s.ticker);
+                      setTab("overview");
+                      setShowSuggestions(false);
+                    }}
+                    style={{
+                      display: "flex", alignItems: "center", gap: 10,
+                      width: "100%", padding: "8px 14px", background: "none",
+                      border: "none", cursor: "pointer", textAlign: "left",
+                      borderBottom: "1px solid var(--border)",
+                    }}
+                    onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.background = "var(--bg-hover)")}
+                    onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.background = "none")}
+                  >
+                    <span style={{ fontFamily: "JetBrains Mono, monospace", fontWeight: 700, color: "var(--orange)", fontSize: "0.78rem", minWidth: 60 }}>{s.ticker}</span>
+                    <span style={{ color: "var(--t2)", fontSize: "0.75rem", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.name}</span>
+                    <span style={{ color: "var(--t3)", fontSize: "0.65rem", flexShrink: 0 }}>{s.exchange}</span>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 

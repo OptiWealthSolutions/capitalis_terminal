@@ -8,7 +8,7 @@ import { post, get, patch, del } from "@/lib/api";
 import {
   UserCircle, CreditCard, Shield, CheckCircle, AlertCircle,
   ExternalLink, LogOut, Key, Eye, EyeOff, Save, Zap, Building2,
-  Star, Lock, Bell, Trash2, Download, ChevronRight, Check,
+  Star, Lock, Bell, Trash2, Download, ChevronRight, Check, MessageCircle,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { useI18n } from "@/lib/i18n";
@@ -279,6 +279,42 @@ function UsageCard() {
             </span>
           </div>
         ))}
+      </div>
+    </Card>
+  );
+}
+
+function FeedbackCard() {
+  const [msg, setMsg] = useState("");
+
+  return (
+    <Card>
+      <CardTitle>Feedback</CardTitle>
+      <div className="space-y-3">
+        <textarea
+          rows={3}
+          value={msg}
+          onChange={e => setMsg(e.target.value)}
+          placeholder="Share your feedback, bug reports, or ideas…"
+          className="w-full text-xs px-3 py-2 rounded border outline-none resize-none transition-colors"
+          style={{
+            background: "var(--bg-hover)",
+            borderColor: "var(--border)",
+            color: "var(--t1)",
+          }}
+        />
+        <button
+          onClick={() => {
+            window.location.href =
+              "mailto:optiwealth.solutions@gmail.com?subject=Capitalis%20Feedback&body=" +
+              encodeURIComponent(msg);
+          }}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-semibold transition-all"
+          style={{ background: "var(--orange)", color: "var(--bg-base)" }}
+        >
+          <MessageCircle size={11} />
+          Send Feedback
+        </button>
       </div>
     </Card>
   );
@@ -880,6 +916,7 @@ export default function AccountPage() {
               <div className="col-span-1 lg:col-span-4 space-y-4">
                 <ProfileCard user={user} onSaved={refreshUser} />
                 <UsageCard />
+                <FeedbackCard />
 
                 {/* Beta access code */}
                 {currentPlan === "free" && (

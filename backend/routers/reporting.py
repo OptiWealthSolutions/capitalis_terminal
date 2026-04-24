@@ -167,6 +167,74 @@ def _alloc_chart(tickers: list[str], weights: list[float]) -> bytes:
         return b""
 
 
+def _equity_curve_chart(tickers: list[str], weights: list[float], capital: float) -> bytes:
+    """Portfolio equity curve vs SPY benchmark → PNG bytes."""
+    try:
+        import matplotlib
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+        import matplotlib.ticker as mticker
+        import matplotlib.dates as mdates
+
+        w_arr = np.array(weights, dtype=float)
+        all_tickers = list(set(tickers + ["SPY"]))
+
+        raw = yf.download(all_tickers, period="1y", interval="1d", progress=False, auto_adjust=True)
+        if isinstance(raw.columns, pd.MultiIndex):
+            close = raw["Close"]
+        else:
+            close = raw
+
+        # Align to portfolio tickers
+        pf_close = close[tickers].dropna()
+        if pf_close.empty:
+            return b""
+
+        # Normalize returns
+        norm = pf_close / pf_close.iloc[0]
+        port_vals = (norm.values @ w_arr) * capital
+        dates = pf_close.index
+
+        # SPY benchmark
+        spy_close = close.get("SPY", pd.Series(dtype=float))
+        if spy_close is not None and len(spy_close) > 0:
+            spy_aligned = spy_close.reindex(dates).ffill().bfill()
+            spy_vals = (spy_aligned / spy_aligned.iloc[0]) * capital
+        else:
+            spy_vals = None
+
+        fig, ax = plt.subplots(figsize=(11, 3.5), dpi=150)
+        fig.patch.set_facecolor("white")
+        ax.set_facecolor("white")
+
+        ax.fill_between(dates, port_vals, alpha=0.08, color="#2B5EA7")
+        ax.plot(dates, port_vals, color="#2B5EA7", linewidth=2, label="Portfolio")
+        if spy_vals is not None:
+            ax.plot(dates, spy_vals, color="#888888", linewidth=1.2, linestyle="--", label="SPY (Benchmark)")
+        ax.axhline(capital, color="#888888", linewidth=0.8, linestyle=":", alpha=0.6)
+
+        ax.xaxis.set_major_formatter(mdates.DateFormatter("%b '%y"))
+        ax.xaxis.set_major_locator(mdates.MonthLocator(interval=2))
+        plt.setp(ax.xaxis.get_majorticklabels(), rotation=30, ha="right")
+        ax.yaxis.set_major_formatter(mticker.FuncFormatter(lambda x, _: f"€{x:,.0f}"))
+        ax.set_ylabel("Portfolio Value", fontsize=9, color="#333333")
+        ax.grid(True, alpha=0.2, color="#CCCCCC")
+        ax.spines["top"].set_visible(False)
+        ax.spines["right"].set_visible(False)
+        ax.tick_params(labelsize=8, colors="#444444")
+        ax.legend(fontsize=8, loc="upper left", framealpha=0.85)
+
+        plt.tight_layout()
+        buf = io.BytesIO()
+        plt.savefig(buf, format="png", dpi=150, bbox_inches="tight", facecolor="white")
+        plt.close(fig)
+        buf.seek(0)
+        return buf.read()
+    except Exception as e:
+        logger.warning("Equity curve chart generation failed: %s", e)
+        return b""
+
+
 # ---------------------------------------------------------------------------
 # PDF builder
 # ---------------------------------------------------------------------------
@@ -378,7 +446,22 @@ def _build_pdf(
         pdf.ln()
     pdf.set_text_color(*DARK)
 
-    # ── PAGE 3: MC fan chart + VaR box ── ────────────────────────────────────
+    # ── PAGE 3: Historical Equity Curve ── ───────────────────────────────────────
+    pdf.add_page()
+    pdf.section_title("HISTORICAL PERFORMANCE — 1Y")
+
+    ec_png = _equity_curve_chart(req.tickers, req.weights, req.capital)
+    if ec_png:
+        buf = io.BytesIO(ec_png)
+        pdf.image(buf, x=pdf.l_margin, y=None, w=pdf.w - 2 * pdf.l_margin)
+        pdf.ln(3)
+    else:
+        pdf.set_font("Helvetica", "I", 9)
+        pdf.set_text_color(120, 120, 120)
+        pdf.cell(0, 8, "  Chart unavailable — market data could not be fetched.", 0, 1)
+        pdf.set_text_color(30, 30, 30)
+
+    # ── PAGE 4: MC fan chart + VaR box ── ────────────────────────────────────
     pdf.add_page()
     pdf.section_title("MONTE CARLO SIMULATION — 1Y HORIZON")
 
@@ -391,6 +474,12 @@ def _build_pdf(
     if mc_png:
         buf = io.BytesIO(mc_png)
         pdf.image(buf, x=pdf.l_margin, y=None, w=pdf.w - 2 * pdf.l_margin)
+        pdf.ln(4)
+    else:
+        pdf.set_font("Helvetica", "I", 9)
+        pdf.set_text_color(120, 120, 120)
+        pdf.cell(0, 8, "  Monte Carlo chart unavailable.", 0, 1)
+        pdf.set_text_color(30, 30, 30)
         pdf.ln(4)
 
     # VaR summary box
@@ -411,7 +500,7 @@ def _build_pdf(
         pdf.cell(0, 7, value, 0, 1)
     pdf.set_text_color(*DARK)
 
-    # ── PAGE 4: Allocation bar chart ── ──────────────────────────────────────
+    # ── PAGE 5: Allocation bar chart ── ──────────────────────────────────────
     pdf.add_page()
     pdf.section_title("ALLOCATION BREAKDOWN")
 
@@ -419,6 +508,11 @@ def _build_pdf(
     if alloc_png:
         buf = io.BytesIO(alloc_png)
         pdf.image(buf, x=pdf.l_margin, y=None, w=pdf.w - 2 * pdf.l_margin)
+    else:
+        pdf.set_font("Helvetica", "I", 9)
+        pdf.set_text_color(120, 120, 120)
+        pdf.cell(0, 8, "  Allocation chart unavailable.", 0, 1)
+        pdf.set_text_color(30, 30, 30)
 
     return bytes(pdf.output())
 

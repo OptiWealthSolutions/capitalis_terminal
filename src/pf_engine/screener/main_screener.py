@@ -218,6 +218,15 @@ class Screener:
             lambda x: x.split(':')[-1] if ':' in x else x
         )
 
+        # Preserve company name in output
+        name_col_found = next((c for c in df.columns if str(c).lower() in ('name', 'description', 'company')), None)
+        if name_col_found and name_col_found != ticker_src:
+            df['Name'] = df[name_col_found].astype(str).replace('nan', '').replace('None', '')
+        elif name_col_found == ticker_src:
+            df['Name'] = df['Ticker']
+        else:
+            df['Name'] = df['Ticker']
+
         # ---- Persist to SQLite ----
         try:
             from src.data_managers.db_manager import DatabaseManager
@@ -252,6 +261,11 @@ class Screener:
         except Exception as e:
             logging.error(f"SCREENER fallback: cannot read equity_scored.csv → {e}")
             return pd.DataFrame()
+
+        if 'Name' not in df.columns and 'name' in df.columns:
+            df['Name'] = df['name']
+        elif 'Name' not in df.columns:
+            df['Name'] = df.get('ticker', df.get('Ticker', ''))
 
         if custom_rules:
             for metric, crit in custom_rules.items():

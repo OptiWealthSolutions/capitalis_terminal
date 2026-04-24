@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import Link from "next/link";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { get, post } from "@/lib/api";
 import type { ScorerResult } from "@/lib/types";
@@ -97,6 +98,7 @@ const RADAR_FACTORS = [
 
 const RESULT_COLS = [
   { key: "ticker",         label: "TICKER" },
+  { key: "name",           label: "COMPANY" },
   { key: "sector",         label: "SECTOR" },
   { key: "TOTAL_SCORE",    label: "SCORE",   fmt: (v: number) => formatNumber(v, 4) },
   { key: "F_Score",        label: "F-SCORE", fmt: (v: number) => formatNumber(v, 0) },
@@ -129,6 +131,7 @@ export default function ScorerPage() {
   const [showCustom, setShowCustom] = useState(false);
   const [result, setResult] = useState<ScorerResult | null>(null);
   const [selectedTicker, setSelectedTicker] = useState<string | null>(null);
+  const [sectorFilter, setSectorFilter] = useState<string>("All");
 
   const defaultScores = useQuery<ScorerResult>({
     queryKey: ["scorer-latest"],
@@ -192,6 +195,17 @@ export default function ScorerPage() {
     }
     return out;
   }, [assets]);
+
+  const availableSectors = useMemo(() => {
+    if (!assets.length) return [];
+    const sectors = new Set(assets.map(a => String(getSafeValue(a, "sector") ?? "Unknown")));
+    return ["All", ...Array.from(sectors).filter(s => s !== "Unknown").sort()];
+  }, [assets]);
+
+  const filteredAssets = useMemo(() =>
+    sectorFilter === "All" ? assets : assets.filter(a => getSafeValue(a, "sector") === sectorFilter),
+    [assets, sectorFilter]
+  );
 
   const activeAsset = assets.find((a) => getSafeValue(a, "ticker") === selectedTicker) ?? assets[0] ?? null;
   const activeTicker = activeAsset ? String(getSafeValue(activeAsset, "ticker") ?? "") : null;
@@ -511,6 +525,24 @@ export default function ScorerPage() {
                 </p>
                 <span style={{ fontSize: "0.65rem", color: "var(--t3)" }}>Click row to inspect factor profile</span>
               </div>
+
+              {availableSectors.length > 1 && (
+                <div style={{ padding: "8px 20px", borderBottom: "1px solid var(--border)", background: "var(--bg-hover)", display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                  <span style={{ fontSize: "0.65rem", color: "var(--t3)" }}>Sector:</span>
+                  {availableSectors.map(s => (
+                    <button key={s} onClick={() => setSectorFilter(s)}
+                      style={{
+                        padding: "2px 8px", borderRadius: "var(--r-sm)", fontSize: "0.65rem",
+                        border: `1px solid ${sectorFilter === s ? "var(--orange-border)" : "var(--border)"}`,
+                        background: sectorFilter === s ? "var(--orange-dim)" : "transparent",
+                        color: sectorFilter === s ? "var(--orange)" : "var(--t3)",
+                        cursor: "pointer", transition: "all 0.12s",
+                      }}>
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              )}
               <div style={{ overflowX: "auto" }}>
                 <table className="terminal-table">
                   <thead>
@@ -520,7 +552,7 @@ export default function ScorerPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {assets.slice(0, 50).map((asset, i) => {
+                    {filteredAssets.slice(0, 50).map((asset, i) => {
                       const t = String(getSafeValue(asset, "ticker") ?? "");
                       const isActive = t === activeTicker;
                       return (
@@ -542,9 +574,24 @@ export default function ScorerPage() {
                                 key={col.key}
                                 style={col.key === "ticker"
                                   ? { color: "var(--orange)", fontWeight: 600, fontFamily: "JetBrains Mono, monospace" }
+                                  : col.key === "name" || col.key === "sector"
+                                  ? { color: "var(--t2)" }
                                   : {}}
                               >
-                                {col.fmt && val !== undefined && val !== null
+                                {col.key === "ticker" ? (
+                                  <Link
+                                    href={`/equity?ticker=${encodeURIComponent(String(val ?? ""))}`}
+                                    onClick={(e) => e.stopPropagation()}
+                                    style={{
+                                      color: "var(--orange)", fontWeight: 600,
+                                      textDecoration: "none", transition: "opacity 0.15s",
+                                    }}
+                                    onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.opacity = "0.7")}
+                                    onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.opacity = "1")}
+                                  >
+                                    {String(val ?? "N/A")}
+                                  </Link>
+                                ) : col.fmt && val !== undefined && val !== null
                                   ? (col.fmt as (v: number) => string)(val as number)
                                   : String(val ?? "N/A")}
                               </td>

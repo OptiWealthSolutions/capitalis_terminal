@@ -1,6 +1,18 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+
+type TimeRange = "6mo" | "1y" | "3y" | "5y" | "10y";
+
+function rangeToStartDate(r: TimeRange): string {
+  const d = new Date();
+  if (r === "6mo") d.setMonth(d.getMonth() - 6);
+  else if (r === "1y") d.setFullYear(d.getFullYear() - 1);
+  else if (r === "3y") d.setFullYear(d.getFullYear() - 3);
+  else if (r === "5y") d.setFullYear(d.getFullYear() - 5);
+  else if (r === "10y") d.setFullYear(d.getFullYear() - 10);
+  return d.toISOString().split("T")[0];
+}
 import Link from "next/link";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import {
@@ -89,10 +101,7 @@ export default function DashboardPage() {
   const [selectedTrkId,     setSelectedTrkId]     = useState<string | null>(null);
   const [trackerResult,     setTrackerResult]     = useState<TrackerPerfResult | null>(null);
 
-  const perfStartDate = useMemo(() => {
-    const d = new Date(); d.setFullYear(d.getFullYear() - 1);
-    return d.toISOString().split("T")[0];
-  }, []);
+  const [optTimeRange, setOptTimeRange] = useState<TimeRange>("1y");
 
   // Load portfolios from backend (user-scoped)
   useEffect(() => {
@@ -142,7 +151,7 @@ export default function DashboardPage() {
         tickers: pf.tickers,
         weights: pf.weights,
         capital: pf.capital,
-        start_date: perfStartDate,
+        start_date: rangeToStartDate(optTimeRange),
       });
     },
     onSuccess: (data) => setPerfResult(data),
@@ -166,7 +175,7 @@ export default function DashboardPage() {
     setPerfResult(null);
     if (portfolio && portfolio.tickers.length > 0) perfMutation.mutate(portfolio);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedOptId]);
+  }, [selectedOptId, optTimeRange]);
 
   useEffect(() => {
     setTrackerResult(null);
@@ -248,7 +257,7 @@ export default function DashboardPage() {
               <EquityCurveCard
                 title="Optimizer Portfolio"
                 badgeLabel={portfolio?.method}
-                subtitle={`since ${perfStartDate}${perfResult ? ` · ${perfResult.n_days} trading days` : ""}`}
+                subtitle={`since ${rangeToStartDate(optTimeRange)}${perfResult ? ` · ${perfResult.n_days} trading days` : ""}`}
                 selector={
                   <PortfolioSelect
                     options={optPortfolios.map(p => ({ id: p.id, label: p.name }))}
@@ -258,6 +267,8 @@ export default function DashboardPage() {
                 }
                 onRefresh={() => portfolio && perfMutation.mutate(portfolio)}
                 refreshing={perfMutation.isPending}
+                timeRange={optTimeRange}
+                onTimeRangeChange={r => { setOptTimeRange(r); setPerfResult(null); }}
               >
                 {perfMutation.isPending && !perfResult && (
                   <div className="px-5 py-3"><div className="skeleton" style={{ height: 200 }} /></div>
@@ -509,11 +520,13 @@ export default function DashboardPage() {
 // Shared sub-components
 // ---------------------------------------------------------------------------
 function EquityCurveCard({
-  title, badgeLabel, subtitle, selector, onRefresh, refreshing, accent = "#7AA7E8", children,
+  title, badgeLabel, subtitle, selector, onRefresh, refreshing, accent = "#7AA7E8",
+  timeRange, onTimeRangeChange, children,
 }: {
   title: string; badgeLabel?: string; subtitle?: string;
   selector: React.ReactNode; onRefresh: () => void; refreshing: boolean;
-  accent?: string; children: React.ReactNode;
+  accent?: string; timeRange?: TimeRange; onTimeRangeChange?: (r: TimeRange) => void;
+  children: React.ReactNode;
 }) {
   return (
     <div className="rounded border overflow-hidden" style={{ borderColor: "var(--border)", background: "var(--bg-card)" }}>
@@ -531,6 +544,21 @@ function EquityCurveCard({
         </div>
         <div className="flex items-center gap-3">
           {subtitle && <span style={{ color: "var(--t3)", fontSize: "0.68rem" }}>{subtitle}</span>}
+          {timeRange !== undefined && onTimeRangeChange && (
+            <div className="flex items-center gap-1">
+              {(["6mo", "1y", "3y", "5y", "10y"] as TimeRange[]).map(r => (
+                <button key={r} onClick={() => onTimeRangeChange(r)}
+                  className="px-2 py-0.5 rounded text-xs border transition-all"
+                  style={{
+                    background: timeRange === r ? "var(--orange-dim)" : "var(--bg-hover)",
+                    borderColor: timeRange === r ? "var(--orange-border)" : "var(--border)",
+                    color: timeRange === r ? "var(--orange)" : "var(--t3)",
+                  }}>
+                  {r}
+                </button>
+              ))}
+            </div>
+          )}
           <button onClick={onRefresh} disabled={refreshing}
             className="flex items-center gap-1 px-2 py-1 rounded border text-xs transition-all disabled:opacity-40"
             style={{ borderColor: "var(--border)", color: "var(--t3)", background: "var(--bg-hover)" }}>
