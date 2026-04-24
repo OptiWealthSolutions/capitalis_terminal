@@ -327,38 +327,152 @@ export default function EquityPage() {
                   <StatKPI label="CAGR (5Y)"        value={s ? formatPercent(s.cagr) : "—"} tone={s && s.cagr > 0 ? "up" : "down"} />
                 </div>
 
-                {/* Fundamentals 2×2 grid */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Company description */}
+                {(fund?.longBusinessSummary || fund?.fullTimeEmployees) && (
+                  <div style={{
+                    background: "var(--bg-card)", border: "1px solid var(--border)",
+                    borderRadius: "var(--r)", padding: "16px 20px",
+                  }}>
+                    <div style={{
+                      fontSize: "0.6rem", fontWeight: 700, letterSpacing: "0.08em",
+                      textTransform: "uppercase", color: "var(--t3)", marginBottom: 10,
+                      display: "flex", justifyContent: "space-between", alignItems: "center",
+                    }}>
+                      <span>About</span>
+                      {fund?.fullTimeEmployees != null && (
+                        <span style={{ fontFamily: "JetBrains Mono, monospace", color: "var(--t2)", fontSize: "0.68rem", fontWeight: 500, textTransform: "none", letterSpacing: 0 }}>
+                          {formatLargeNumber(n(fund.fullTimeEmployees))} employees
+                        </span>
+                      )}
+                    </div>
+                    {fund?.longBusinessSummary && (
+                      <p style={{
+                        fontSize: "0.78rem", color: "var(--t2)", lineHeight: 1.6,
+                        margin: 0, display: "-webkit-box", WebkitLineClamp: 4,
+                        WebkitBoxOrient: "vertical", overflow: "hidden",
+                      }}>
+                        {String(fund.longBusinessSummary)}
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {/* Analyst Targets */}
+                {(fund?.targetMeanPrice != null || fund?.recommendationMean != null) && (
+                  <div style={{
+                    background: "var(--bg-card)", border: "1px solid var(--border)",
+                    borderLeft: "3px solid var(--orange)", borderRadius: "var(--r)", overflow: "hidden",
+                  }}>
+                    <div style={{
+                      padding: "11px 16px", borderBottom: "1px solid var(--border)",
+                      fontSize: "0.6rem", fontWeight: 700, letterSpacing: "0.08em",
+                      textTransform: "uppercase", color: "var(--t3)",
+                      display: "flex", justifyContent: "space-between", alignItems: "center",
+                    }}>
+                      <span>Analyst Consensus</span>
+                      {fund?.numberOfAnalystOpinions != null && (
+                        <span style={{ fontWeight: 500, color: "var(--t2)", fontSize: "0.68rem", textTransform: "none", letterSpacing: 0 }}>
+                          {String(fund.numberOfAnalystOpinions)} analysts
+                        </span>
+                      )}
+                    </div>
+                    <div style={{ display: "flex", flexWrap: "wrap" }}>
+                      {[
+                        ["Mean Target",   fund?.targetMeanPrice   != null ? formatCurrency(n(fund.targetMeanPrice)!,   (fund.currency as string) ?? "USD") : "—"],
+                        ["High Target",   fund?.targetHighPrice   != null ? formatCurrency(n(fund.targetHighPrice)!,   (fund.currency as string) ?? "USD") : "—"],
+                        ["Low Target",    fund?.targetLowPrice    != null ? formatCurrency(n(fund.targetLowPrice)!,    (fund.currency as string) ?? "USD") : "—"],
+                        ["Median Target", fund?.targetMedianPrice != null ? formatCurrency(n(fund.targetMedianPrice)!, (fund.currency as string) ?? "USD") : "—"],
+                        ["Rec. Score",    fund?.recommendationMean != null ? `${formatNumber(n(fund.recommendationMean), 2)} / 5` : "—"],
+                      ].map(([label, value], i) => (
+                        <div key={label} style={{
+                          flex: "1 1 160px", padding: "12px 16px",
+                          borderRight: i < 4 ? "1px solid var(--border)" : "none",
+                          borderBottom: "none",
+                        }}>
+                          <div style={{ fontSize: "0.6rem", color: "var(--t3)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>{label}</div>
+                          <div style={{ fontFamily: "JetBrains Mono, monospace", fontSize: "0.92rem", fontWeight: 600, color: "var(--t1)" }}>{value}</div>
+                          {label === "Mean Target" && currentPrice != null && fund?.targetMeanPrice != null && (
+                            <div style={{
+                              fontSize: "0.65rem", marginTop: 3,
+                              color: (n(fund.targetMeanPrice)! > currentPrice) ? "var(--green)" : "var(--red)",
+                              fontFamily: "JetBrains Mono, monospace",
+                            }}>
+                              {((n(fund.targetMeanPrice)! - currentPrice) / currentPrice * 100).toFixed(1)}% upside
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* 3-column: Valuation | Profitability | Trading Info */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   <FundSection title="Valuation" rows={[
-                    ["Market Cap",       formatLargeNumber(n(fund?.marketCap))],
-                    ["Forward P/E",      formatNumber(n(fund?.forwardPE), 2)],
-                    ["Trailing P/E",     formatNumber(n(fund?.trailingPE), 2)],
-                    ["Price / Book",     formatNumber(n(fund?.priceToBook), 3)],
-                    ["Enterprise Value", formatLargeNumber(n(fund?.enterpriseValue))],
-                    ["Beta",             formatNumber(n(fund?.beta), 3)],
+                    ["Market Cap",        formatLargeNumber(n(fund?.marketCap))],
+                    ["Enterprise Value",  formatLargeNumber(n(fund?.enterpriseValue))],
+                    ["Forward P/E",       formatNumber(n(fund?.forwardPE), 2)],
+                    ["Trailing P/E",      formatNumber(n(fund?.trailingPE), 2)],
+                    ["Price / Book",      formatNumber(n(fund?.priceToBook), 3)],
+                    ["Price / Sales",     formatNumber(n(fund?.priceToSalesTrailing12Months), 3)],
+                    ["EV / EBITDA",       formatNumber(n(fund?.enterpriseToEbitda), 2)],
+                    ["EV / Revenue",      formatNumber(n(fund?.enterpriseToRevenue), 2)],
+                    ["PEG Ratio",         formatNumber(n(fund?.pegRatio), 3)],
+                    ["Beta",              formatNumber(n(fund?.beta), 3)],
                   ]} />
                   <FundSection title="Profitability" rows={[
-                    ["ROE",              formatPercent(n(fund?.returnOnEquity))],
-                    ["ROA",              formatPercent(n(fund?.returnOnAssets))],
-                    ["Gross Margin",     formatPercent(n(fund?.grossMargins))],
-                    ["Operating Margin", formatPercent(n(fund?.operatingMargins))],
-                    ["Net Margin",       formatPercent(n(fund?.profitMargins))],
-                    ["Dividend Yield",   formatPercent(n(fund?.dividendYield))],
+                    ["ROE",               formatPercent(n(fund?.returnOnEquity))],
+                    ["ROA",               formatPercent(n(fund?.returnOnAssets))],
+                    ["Gross Margin",      formatPercent(n(fund?.grossMargins))],
+                    ["Operating Margin",  formatPercent(n(fund?.operatingMargins))],
+                    ["Net Margin",        formatPercent(n(fund?.profitMargins))],
+                    ["EBITDA Margin",     formatPercent(n(fund?.ebitdaMargins))],
+                    ["EBITDA",            formatLargeNumber(n(fund?.ebitda))],
+                    ["Operating CF",      formatLargeNumber(n(fund?.operatingCashflow))],
+                  ]} />
+                  <FundSection title="Trading Info" rows={[
+                    ["Volume",            n(fund?.volume) != null ? formatLargeNumber(n(fund.volume)) : "—"],
+                    ["Avg Volume",        n(fund?.averageVolume) != null ? formatLargeNumber(n(fund.averageVolume)) : "—"],
+                    ["Avg Vol (10D)",     n(fund?.averageVolume10days) != null ? formatLargeNumber(n(fund.averageVolume10days)) : "—"],
+                    ["52W High",          fund?.fiftyTwoWeekHigh != null ? formatCurrency(n(fund.fiftyTwoWeekHigh)!, (fund.currency as string) ?? "USD") : "—"],
+                    ["52W Low",           fund?.fiftyTwoWeekLow  != null ? formatCurrency(n(fund.fiftyTwoWeekLow)!,  (fund.currency as string) ?? "USD") : "—"],
+                    ["Day High",          fund?.dayHigh != null ? formatCurrency(n(fund.dayHigh)!, (fund.currency as string) ?? "USD") : "—"],
+                    ["Day Low",           fund?.dayLow  != null ? formatCurrency(n(fund.dayLow)!,  (fund.currency as string) ?? "USD") : "—"],
+                    ["50D Avg",           fund?.fiftyDayAverage  != null ? formatCurrency(n(fund.fiftyDayAverage)!,  (fund.currency as string) ?? "USD") : "—"],
+                    ["200D Avg",          fund?.twoHundredDayAverage != null ? formatCurrency(n(fund.twoHundredDayAverage)!, (fund.currency as string) ?? "USD") : "—"],
+                  ]} />
+                </div>
+
+                {/* 3-column: Per Share | Growth | Financial Health */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <FundSection title="Per Share" rows={[
+                    ["EPS (TTM)",         fund?.trailingEps != null ? formatCurrency(n(fund.trailingEps)!, (fund.currency as string) ?? "USD") : "—"],
+                    ["EPS (Forward)",     fund?.forwardEps  != null ? formatCurrency(n(fund.forwardEps)!,  (fund.currency as string) ?? "USD") : "—"],
+                    ["Revenue / Share",   fund?.revenuePerShare != null ? formatCurrency(n(fund.revenuePerShare)!, (fund.currency as string) ?? "USD") : "—"],
+                    ["Book Value",        fund?.bookValue != null ? formatCurrency(n(fund.bookValue)!, (fund.currency as string) ?? "USD") : "—"],
+                    ["Dividend / Share",  fund?.dividendRate != null ? formatCurrency(n(fund.dividendRate)!, (fund.currency as string) ?? "USD") : "—"],
+                    ["Dividend Yield",    formatPercent(n(fund?.dividendYield))],
+                    ["Payout Ratio",      formatPercent(n(fund?.payoutRatio))],
+                    ["Ex-Div Date",       fund?.exDividendDate ? String(fund.exDividendDate) : "—"],
                   ]} />
                   <FundSection title="Growth" rows={[
-                    ["Earnings Growth",  formatPercent(n(fund?.earningsGrowth))],
-                    ["Revenue Growth",   formatPercent(n(fund?.revenueGrowth))],
-                    ["Total Revenue",    formatLargeNumber(n(fund?.totalRevenue))],
-                    ["Free Cash Flow",   formatLargeNumber(n(fund?.freeCashflow))],
-                    ["Net Income",       formatLargeNumber(n(fund?.netIncomeToCommon))],
+                    ["Earnings Growth",   formatPercent(n(fund?.earningsGrowth))],
+                    ["Revenue Growth",    formatPercent(n(fund?.revenueGrowth))],
+                    ["Total Revenue",     formatLargeNumber(n(fund?.totalRevenue))],
+                    ["Free Cash Flow",    formatLargeNumber(n(fund?.freeCashflow))],
+                    ["Net Income",        formatLargeNumber(n(fund?.netIncomeToCommon))],
                   ]} />
                   <FundSection title="Financial Health" rows={[
-                    ["Current Ratio",    formatNumber(n(fund?.currentRatio), 2)],
-                    ["Quick Ratio",      formatNumber(n(fund?.quickRatio), 2)],
-                    ["Debt / Equity",    formatNumber(n(fund?.debtToEquity), 2)],
-                    ["Shares Out.",      formatLargeNumber(n(fund?.sharesOutstanding))],
-                    ["Insider Held",     formatPercent(n(fund?.heldPercentInsiders))],
-                    ["Short Float",      formatPercent(n(fund?.shortPercentOfFloat))],
+                    ["Total Cash",        formatLargeNumber(n(fund?.totalCash))],
+                    ["Total Debt",        formatLargeNumber(n(fund?.totalDebt))],
+                    ["Current Ratio",     formatNumber(n(fund?.currentRatio), 2)],
+                    ["Quick Ratio",       formatNumber(n(fund?.quickRatio), 2)],
+                    ["Debt / Equity",     formatNumber(n(fund?.debtToEquity), 2)],
+                    ["Float Shares",      formatLargeNumber(n(fund?.floatShares))],
+                    ["Shares Out.",       formatLargeNumber(n(fund?.sharesOutstanding))],
+                    ["Inst. Held",        formatPercent(n(fund?.heldPercentInstitutions))],
+                    ["Insider Held",      formatPercent(n(fund?.heldPercentInsiders))],
+                    ["Short Float",       formatPercent(n(fund?.shortPercentOfFloat))],
                   ]} />
                 </div>
               </>

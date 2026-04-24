@@ -1,3 +1,4 @@
+import re
 import sys
 from pathlib import Path
 import logging
@@ -5,6 +6,15 @@ import warnings
 import pandas as pd
 import operator
 from tvscreener import StockScreener, StockField
+
+# Exchange suffixes to strip when deduplicating (e.g. LVMH.PA, AZN.L, SAP.DE)
+_EXCH_SUFFIX_RE = re.compile(
+    r'\.(PA|L|DE|AS|TO|AX|SW|MC|MI|ST|CO|OL|HE|VI|WA|F|SA|HK|NS|BO|SI|TW|MX|BK|NZ|JK|IS|BR|SN|KL|JO)$',
+    re.IGNORECASE,
+)
+
+def _base_ticker(t: str) -> str:
+    return _EXCH_SUFFIX_RE.sub('', str(t).upper())
 
 # TradingView returns display-name columns (e.g. "Current Ratio (MRQ)").
 # The dynamic col_rename built from StockField.value uses API names that never match.
@@ -217,6 +227,11 @@ class Screener:
         df['Ticker'] = df[ticker_src].astype(str).apply(
             lambda x: x.split(':')[-1] if ':' in x else x
         )
+
+        # ---- Dedup: one row per base ticker (drop exchange-suffix duplicates e.g. LVMH.PA vs LVMH) ----
+        df['_base'] = df['Ticker'].apply(_base_ticker)
+        df = df.drop_duplicates(subset='_base', keep='first').drop(columns=['_base'])
+        df = df.reset_index(drop=True)
 
         # Preserve company name in output
         name_col_found = next((c for c in df.columns if str(c).lower() in ('name', 'description', 'company')), None)

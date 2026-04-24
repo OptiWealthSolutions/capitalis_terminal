@@ -29,10 +29,12 @@ def run_monte_carlo_portfolio(
     L_daily = L * np.sqrt(dt)
     diffusion = L_daily.dot(Z_reshaped).reshape(num_assets, horizon_days, n_simulations)
     
-    # Volatilités individuelles et Drift
-    sigmas = np.sqrt(np.diag(cov_matrix))
-    drift = (mu_vec - 0.5 * sigmas**2) * dt
-    drift = drift.reshape(-1, 1, 1)
+    # Drift: mu_vec estimated from log returns already contains Ito correction (μ - σ²/2).
+    # Using it directly as the daily log-return drift is correct — no further -σ²/2 needed.
+    # Cap at ±25% annual to prevent bull-market historical data from producing unrealistic paths.
+    MAX_ANNUAL_DRIFT = 0.25
+    mu_capped = np.clip(mu_vec, -MAX_ANNUAL_DRIFT, MAX_ANNUAL_DRIFT)
+    drift = mu_capped.reshape(-1, 1, 1) * dt
     
     daily_returns = np.exp(drift + diffusion)
     
@@ -94,7 +96,11 @@ def calculate_var_cvar_simple(
 ) -> tuple[float, float]:
     """
     Simplified wrapper returning (var_95, cvar_95) as POSITIVE loss amounts.
-    Intended for API consumers that display losses with a leading '-'.
+    If P5 > initial_capital (gain even in worst case), returns 0 (no loss risk).
     """
-    var_95, _var_99, cvar_95 = calculate_var_cvar(final_values, initial_capital)
-    return abs(var_95), abs(cvar_95)
+    p5  = float(np.percentile(final_values, 5))
+    p5_vals = final_values[final_values <= p5]
+    cvar_val = float(np.mean(p5_vals)) if len(p5_vals) > 0 else p5
+    var_95  = max(0.0, initial_capital - p5)
+    cvar_95 = max(0.0, initial_capital - cvar_val)
+    return var_95, cvar_95
