@@ -30,6 +30,7 @@ data/ml_models/
 data/cache/
 data/*.db
 data/*.csv
+!data/equity_scored.csv
 data/screener_presets/
 
 # TypeScript build artifacts

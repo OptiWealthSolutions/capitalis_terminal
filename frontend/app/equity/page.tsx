@@ -853,13 +853,13 @@ function FinAreaLineChart({ labels, series, yUnit = "", height = 280 }: {
           return (
             <g key={i}>
               <line x1={ML} x2={W - MR} y1={y} y2={y} style={{ stroke: "var(--border)" }} strokeWidth={0.6} strokeDasharray="4 3" />
-              <text x={ML - 6} y={y + 3.5} textAnchor="end" fontSize={8.5} fontFamily="JetBrains Mono, monospace" style={{ fill: "var(--t3)" }}>
+              <text x={ML - 6} y={y + 3.5} textAnchor="end" fontSize={7.5} fontFamily="JetBrains Mono, monospace" style={{ fill: "var(--t3)" }}>
                 {t.toFixed(1)}
               </text>
             </g>
           );
         })}
-        <text x={ML - 8} y={MT - 10} textAnchor="end" fontSize={9} fontFamily="JetBrains Mono, monospace" style={{ fill: "var(--orange)" }} fontWeight="700">{yUnit}</text>
+        <text x={ML - 8} y={MT - 10} textAnchor="end" fontSize={7.5} fontFamily="JetBrains Mono, monospace" style={{ fill: "var(--orange)" }} fontWeight="700">{yUnit}</text>
         <line x1={ML} x2={ML} y1={MT} y2={MT + PH} style={{ stroke: "var(--border)" }} strokeWidth={1} />
         <line x1={ML} x2={W - MR} y1={MT + PH} y2={MT + PH} style={{ stroke: "var(--border)" }} strokeWidth={1} />
 
@@ -907,14 +907,14 @@ function FinAreaLineChart({ labels, series, yUnit = "", height = 280 }: {
         })}
 
         {labels.map((lbl, i) => (
-          <text key={i} x={toX(i)} y={H - MB + 14} textAnchor="middle" fontSize={8.5} fontFamily="JetBrains Mono, monospace" style={{ fill: "var(--t3)" }}>{lbl}</text>
+          <text key={i} x={toX(i)} y={H - MB + 14} textAnchor="middle" fontSize={7.5} fontFamily="JetBrains Mono, monospace" style={{ fill: "var(--t3)" }}>{lbl}</text>
         ))}
 
         {series.map((s, i) => (
           <g key={s.name} transform={`translate(${legendStartX + i * legendItemW}, ${MT - 18})`}>
             <line x1={0} y1={5} x2={12} y2={5} style={{ stroke: s.color }} strokeWidth={2} />
             <circle cx={6} cy={5} r={3} style={{ fill: s.color, stroke: "var(--bg-card)" }} strokeWidth={1.5} />
-            <text x={17} y={9} fontSize={8.5} fontFamily="JetBrains Mono, monospace" style={{ fill: "var(--t2)" }} fontWeight="500">{s.name}</text>
+            <text x={17} y={9} fontSize={7.5} fontFamily="JetBrains Mono, monospace" style={{ fill: "var(--t2)" }} fontWeight="500">{s.name}</text>
           </g>
         ))}
       </svg>
@@ -931,8 +931,8 @@ function FinAreaLineChart({ labels, series, yUnit = "", height = 280 }: {
 
 /* ─── Custom SVG Financial Chart Primitives ─── */
 
-const SVG_W = 520;
-const ML = 42, MR = 14, MT = 24, MB = 32;
+const SVG_W = 760;
+const ML = 44, MR = 14, MT = 22, MB = 28;
 
 function niceAxis(vals: number[]): { min: number; max: number; ticks: number[] } {
   const hasVals = vals.filter(v => isFinite(v));
@@ -1022,7 +1022,7 @@ function FinBarChart({ labels, series, yUnit = "", height = 280 }: {
           return (
             <g key={i}>
               <line x1={ML} x2={W - MR} y1={y} y2={y} style={{ stroke: "var(--border)" }} strokeWidth={0.6} strokeDasharray="4 3" />
-              <text x={ML - 6} y={y + 3.5} textAnchor="end" fontSize={8.5} fontFamily="JetBrains Mono, monospace" style={{ fill: "var(--t3)" }}>
+              <text x={ML - 6} y={y + 3.5} textAnchor="end" fontSize={7.5} fontFamily="JetBrains Mono, monospace" style={{ fill: "var(--t3)" }}>
                 {Math.abs(t) >= 100 ? t.toFixed(0) : Math.abs(t) >= 10 ? t.toFixed(1) : t.toFixed(2)}
               </text>
             </g>
@@ -1030,7 +1030,7 @@ function FinBarChart({ labels, series, yUnit = "", height = 280 }: {
         })}
 
         {/* Y unit label */}
-        <text x={ML - 8} y={MT - 10} textAnchor="end" fontSize={9} fontFamily="JetBrains Mono, monospace" style={{ fill: "var(--orange)" }} fontWeight="700">{yUnit}</text>
+        <text x={ML - 8} y={MT - 10} textAnchor="end" fontSize={7.5} fontFamily="JetBrains Mono, monospace" style={{ fill: "var(--orange)" }} fontWeight="700">{yUnit}</text>
 
         {/* Axis borders */}
         <line x1={ML} x2={ML} y1={MT} y2={MT + PH} style={{ stroke: "var(--border)" }} strokeWidth={1} />
@@ -1060,7 +1060,7 @@ function FinBarChart({ labels, series, yUnit = "", height = 280 }: {
               {isH && <line x1={ML + gi * groupW + groupW / 2} x2={ML + gi * groupW + groupW / 2} y1={MT} y2={MT + PH} style={{ stroke: "var(--t2)" }} strokeWidth={1} opacity={0.4} />}
               <rect x={ML + gi * groupW} y={MT} width={groupW} height={PH} fill="transparent" style={{ cursor: "crosshair" }}
                 onMouseEnter={() => setHover({ idx: gi, pctX: (gi + 0.5) / n })} />
-              <text x={ML + gi * groupW + groupW / 2} y={H - MB + 14} textAnchor="middle" fontSize={8.5} fontFamily="JetBrains Mono, monospace" style={{ fill: "var(--t3)" }}>{lbl}</text>
+              <text x={ML + gi * groupW + groupW / 2} y={H - MB + 14} textAnchor="middle" fontSize={7.5} fontFamily="JetBrains Mono, monospace" style={{ fill: "var(--t3)" }}>{lbl}</text>
             </g>
           );
         })}
@@ -1069,7 +1069,7 @@ function FinBarChart({ labels, series, yUnit = "", height = 280 }: {
         {series.map((s, i) => (
           <g key={s.name} transform={`translate(${legendStartX + i * legendItemW}, ${MT - 18})`}>
             <rect x={0} y={1} width={9} height={9} rx={2} style={{ fill: s.color }} opacity={0.9} />
-            <text x={13} y={9} fontSize={8.5} fontFamily="JetBrains Mono, monospace" style={{ fill: "var(--t2)" }} fontWeight="500">{s.name}</text>
+            <text x={13} y={9} fontSize={7.5} fontFamily="JetBrains Mono, monospace" style={{ fill: "var(--t2)" }} fontWeight="500">{s.name}</text>
           </g>
         ))}
       </svg>
@@ -1117,7 +1117,7 @@ function FinLineChart({ labels, series, yUnit = "", height = 280 }: {
           return (
             <g key={i}>
               <line x1={ML} x2={W - MR} y1={y} y2={y} style={{ stroke: "var(--border)" }} strokeWidth={0.6} strokeDasharray="4 3" />
-              <text x={ML - 6} y={y + 3.5} textAnchor="end" fontSize={8.5} fontFamily="JetBrains Mono, monospace" style={{ fill: "var(--t3)" }}>
+              <text x={ML - 6} y={y + 3.5} textAnchor="end" fontSize={7.5} fontFamily="JetBrains Mono, monospace" style={{ fill: "var(--t3)" }}>
                 {t.toFixed(1)}
               </text>
             </g>
@@ -1125,7 +1125,7 @@ function FinLineChart({ labels, series, yUnit = "", height = 280 }: {
         })}
 
         {/* Y unit label */}
-        <text x={ML - 8} y={MT - 10} textAnchor="end" fontSize={9} fontFamily="JetBrains Mono, monospace" style={{ fill: "var(--orange)" }} fontWeight="700">{yUnit}</text>
+        <text x={ML - 8} y={MT - 10} textAnchor="end" fontSize={7.5} fontFamily="JetBrains Mono, monospace" style={{ fill: "var(--orange)" }} fontWeight="700">{yUnit}</text>
 
         {/* Axis borders */}
         <line x1={ML} x2={ML} y1={MT} y2={MT + PH} style={{ stroke: "var(--border)" }} strokeWidth={1} />
@@ -1187,7 +1187,7 @@ function FinLineChart({ labels, series, yUnit = "", height = 280 }: {
 
         {/* X labels */}
         {labels.map((lbl, i) => (
-          <text key={i} x={toX(i)} y={H - MB + 14} textAnchor="middle" fontSize={8.5} fontFamily="JetBrains Mono, monospace" style={{ fill: "var(--t3)" }}>{lbl}</text>
+          <text key={i} x={toX(i)} y={H - MB + 14} textAnchor="middle" fontSize={7.5} fontFamily="JetBrains Mono, monospace" style={{ fill: "var(--t3)" }}>{lbl}</text>
         ))}
 
         {/* Centered legend (line + dot style) */}
@@ -1195,7 +1195,7 @@ function FinLineChart({ labels, series, yUnit = "", height = 280 }: {
           <g key={s.name} transform={`translate(${legendStartX + i * legendItemW}, ${MT - 18})`}>
             <line x1={0} y1={5} x2={12} y2={5} style={{ stroke: s.color }} strokeWidth={2} />
             <circle cx={6} cy={5} r={3} style={{ fill: s.color, stroke: "var(--bg-card)" }} strokeWidth={1.5} />
-            <text x={17} y={9} fontSize={8.5} fontFamily="JetBrains Mono, monospace" style={{ fill: "var(--t2)" }} fontWeight="500">{s.name}</text>
+            <text x={17} y={9} fontSize={7.5} fontFamily="JetBrains Mono, monospace" style={{ fill: "var(--t2)" }} fontWeight="500">{s.name}</text>
           </g>
         ))}
       </svg>
@@ -1249,7 +1249,7 @@ function FinDualBarChart({ labels, leftSeries, rightSeries, height = 280 }: {
           return (
             <g key={i}>
               <line x1={ML} x2={ML + PW} y1={y} y2={y} style={{ stroke: "var(--border)" }} strokeWidth={0.6} strokeDasharray="4 3" />
-              <text x={ML - 8} y={y + 4} textAnchor="end" fontSize={9.5} fontFamily="JetBrains Mono, monospace" style={{ fill: "var(--t3)" }}>
+              <text x={ML - 8} y={y + 4} textAnchor="end" fontSize={8}fontFamily="JetBrains Mono, monospace" style={{ fill: "var(--t3)" }}>
                 {Math.abs(t) >= 10 ? t.toFixed(1) : t.toFixed(2)}
               </text>
             </g>
@@ -1257,13 +1257,13 @@ function FinDualBarChart({ labels, leftSeries, rightSeries, height = 280 }: {
         })}
 
         {/* Left Y unit */}
-        <text x={ML - 8} y={MT - 10} textAnchor="end" fontSize={9} fontFamily="JetBrains Mono, monospace" style={{ fill: leftSeries.color }} fontWeight="700">{leftSeries.unit}</text>
+        <text x={ML - 8} y={MT - 10} textAnchor="end" fontSize={7.5} fontFamily="JetBrains Mono, monospace" style={{ fill: leftSeries.color }} fontWeight="700">{leftSeries.unit}</text>
         {/* Right Y unit */}
-        <text x={ML + PW + 8} y={MT - 10} textAnchor="start" fontSize={9} fontFamily="JetBrains Mono, monospace" style={{ fill: rightSeries.color }} fontWeight="700">{rightSeries.unit}</text>
+        <text x={ML + PW + 8} y={MT - 10} textAnchor="start" fontSize={7.5} fontFamily="JetBrains Mono, monospace" style={{ fill: rightSeries.color }} fontWeight="700">{rightSeries.unit}</text>
 
         {/* Right ticks */}
         {rTicks.map((t, i) => (
-          <text key={i} x={ML + PW + 8} y={toYR(t) + 4} textAnchor="start" fontSize={9.5} fontFamily="JetBrains Mono, monospace" style={{ fill: "var(--t3)" }}>
+          <text key={i} x={ML + PW + 8} y={toYR(t) + 4} textAnchor="start" fontSize={8}fontFamily="JetBrains Mono, monospace" style={{ fill: "var(--t3)" }}>
             {Math.abs(t) >= 10 ? t.toFixed(1) : t.toFixed(2)}
           </text>
         ))}
@@ -1303,7 +1303,7 @@ function FinDualBarChart({ labels, leftSeries, rightSeries, height = 280 }: {
               })()}
               <rect x={ML + gi * groupW} y={MT} width={groupW} height={PH} fill="transparent" style={{ cursor: "crosshair" }}
                 onMouseEnter={() => setHover({ idx: gi, pctX: (gi + 0.5) / n })} />
-              <text x={cx} y={H - MB + 18} textAnchor="middle" fontSize={9.5} fontFamily="JetBrains Mono, monospace" style={{ fill: "var(--t3)" }}>{lbl}</text>
+              <text x={cx} y={H - MB + 18} textAnchor="middle" fontSize={8}fontFamily="JetBrains Mono, monospace" style={{ fill: "var(--t3)" }}>{lbl}</text>
             </g>
           );
         })}
@@ -1312,7 +1312,7 @@ function FinDualBarChart({ labels, leftSeries, rightSeries, height = 280 }: {
         {[leftSeries, rightSeries].map((s, i) => (
           <g key={s.name} transform={`translate(${legendStartX + i * legendItemW}, ${MT - 18})`}>
             <rect x={0} y={1} width={9} height={9} rx={2} style={{ fill: s.color }} opacity={0.9} />
-            <text x={13} y={9} fontSize={8.5} fontFamily="JetBrains Mono, monospace" style={{ fill: "var(--t2)" }} fontWeight="500">{s.name}</text>
+            <text x={13} y={9} fontSize={7.5} fontFamily="JetBrains Mono, monospace" style={{ fill: "var(--t2)" }} fontWeight="500">{s.name}</text>
           </g>
         ))}
       </svg>
