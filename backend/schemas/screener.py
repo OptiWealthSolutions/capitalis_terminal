@@ -21,7 +21,7 @@ class ScreenerCriterion(BaseModel):
 
 
 class ScreenerRunRequest(BaseModel):
-    criteria: dict[str, ScreenerCriterion] = Field(..., min_length=1, max_length=20)
+    criteria: dict[str, ScreenerCriterion] = Field(default_factory=dict, max_length=20)
 
     def model_post_init(self, __context) -> None:
         invalid_keys = set(self.criteria.keys()) - VALID_METRICS
