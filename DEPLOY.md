@@ -72,12 +72,7 @@ NEXT_PUBLIC_GOOGLE_CLIENT_ID=<same-as-backend>
 
 ---
 
-## Step 3 — Vercel Setup
 
-1. Push repo to GitHub
-2. Import project at vercel.com → select `frontend/` as root directory
-3. Add env vars in Vercel Dashboard → Settings → Environment Variables
-4. Add `vercel.json` to `frontend/`:
 
 ```json
 {
