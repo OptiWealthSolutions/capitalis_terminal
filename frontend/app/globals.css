@@ -673,4 +673,16 @@ select.input-field option { background: var(--bg-surface); color: var(--t1); }
 .text-xxs { font-size: 0.625rem; }
 input[type='range'] { cursor: pointer; accent-color: var(--orange); }
 .js-plotly-plot .plotly .modebar-btn path { fill: var(--t3) !important; }
+
+/* ═══════════════════════════════════════════════════
+   SIDEBAR LAYOUT OFFSETS
+   Static CSS to prevent Tailwind dynamic-class purge
+   in production builds. Matches sidebar width vars:
+     expanded  = 224px (w = 224)
+     collapsed =  56px (w =  56)
+═══════════════════════════════════════════════════ */
+@media (min-width: 768px) {
+  .sidebar-content           { margin-left: 224px; }
+  .sidebar-content-collapsed { margin-left: 56px; }
+}
 .js-plotly-plot .plotly .modebar { background: transparent !important; }

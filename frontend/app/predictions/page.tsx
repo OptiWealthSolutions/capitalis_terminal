@@ -6,7 +6,7 @@ import { get, post } from "@/lib/api";
 import { LoadingSpinner, SkeletonBlock } from "@/components/ui/LoadingSpinner";
 import { QueryError } from "@/components/ui/ErrorBoundary";
 import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
-import { Play, RefreshCw, AlertTriangle, CheckCircle, XCircle } from "lucide-react";
+import { Play, RefreshCw, AlertTriangle, CheckCircle, XCircle, Info } from "lucide-react";
 import toast from "react-hot-toast";
 import { useI18n } from "@/lib/i18n";
 
@@ -74,6 +74,23 @@ export default function PredictionsPage() {
           <p style={{ color: "var(--t2)", fontSize: "0.82rem", marginTop: 4 }}>
             {t.predictions.subtitle}
           </p>
+        </div>
+
+        {/* How it works */}
+        <div className="mb-5 rounded p-4 text-xs" style={{ background: "var(--orange-dim)", border: "1px solid var(--orange-border)", color: "var(--t2)" }}>
+          <div className="flex items-start gap-2">
+            <Info size={13} style={{ color: "var(--orange)", flexShrink: 0, marginTop: 1 }} />
+            <div style={{ lineHeight: 1.6 }}>
+              <strong style={{ color: "var(--orange)" }}>How it works:</strong>{" "}
+              An ML ensemble (XGBoost + LightGBM) trained on 50+ fundamental and technical factors outputs a{" "}
+              <span style={{ color: "var(--green)", fontWeight: 600 }}>BUY</span> /{" "}
+              <span style={{ color: "var(--yellow)", fontWeight: 600 }}>HOLD</span> /{" "}
+              <span style={{ color: "var(--red)", fontWeight: 600 }}>SELL</span> signal.
+              A meta-model (stacking layer) combines predictions to improve robustness.
+              <strong style={{ color: "var(--t1)" }}> Confidence</strong> = probability of the predicted class.
+              High confidence (&gt; 70%) is more actionable. Models must be trained before inference is available.
+            </div>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">

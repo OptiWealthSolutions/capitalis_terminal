@@ -7,6 +7,8 @@ import { queryClient } from "@/lib/queryClient";
 import { AuthProvider } from "@/lib/auth";
 import { ThemeProvider } from "@/lib/theme";
 import { LanguageProvider } from "@/lib/i18n";
+import { InvestorModeProvider } from "@/lib/investorMode";
+import { WatchlistProvider } from "@/lib/watchlist";
 
 const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ?? "";
 
@@ -15,6 +17,8 @@ export default function Providers({ children }: { children: React.ReactNode }) {
     <QueryClientProvider client={queryClient}>
       <LanguageProvider>
       <ThemeProvider>
+      <InvestorModeProvider>
+      <WatchlistProvider>
       <AuthProvider>
         {children}
         <Toaster
@@ -32,6 +36,8 @@ export default function Providers({ children }: { children: React.ReactNode }) {
           }}
         />
       </AuthProvider>
+      </WatchlistProvider>
+      </InvestorModeProvider>
       </ThemeProvider>
       </LanguageProvider>
     </QueryClientProvider>

@@ -14,11 +14,13 @@ import { formatPercent, formatCurrency, formatNumber } from "@/lib/utils";
 import {
   Plus, Trash2, Play, BarChart2, Save, FolderOpen, X,
   ChevronDown, ChevronUp, TrendingUp, Activity, Target, Lock,
+  Sparkles, Shield, Zap,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { useTheme } from "@/lib/theme";
 import { useI18n } from "@/lib/i18n";
 import { usePlan } from "@/lib/plan";
+import { useInvestorMode, SIMPLE_RISK_METHODS } from "@/lib/investorMode";
 import Link from "next/link";
 
 // ---------------------------------------------------------------------------
@@ -49,10 +51,10 @@ interface SavedPortfolio {
 }
 
 const METHODS = [
-  { value: "HRP",          label: "HRP",          desc: "Hierarchical Risk Parity" },
-  { value: "MeanVar",      label: "Mean-Variance", desc: "Markowitz Efficient Frontier" },
-  { value: "MinVol",       label: "Min Vol",       desc: "Minimum Volatility" },
-  { value: "EqualWeights", label: "Equal",         desc: "Equal Weights" },
+  { value: "HRP",          label: "HRP",          desc: "Hierarchical Risk Parity",     fullDesc: "Cluster-based risk budgeting. No return estimates needed — robust to estimation error. Best for diversification." },
+  { value: "MeanVar",      label: "Mean-Variance", desc: "Markowitz Efficient Frontier", fullDesc: "Maximises return per unit of risk. Can produce concentrated positions. Sensitive to input assumptions." },
+  { value: "MinVol",       label: "Min Vol",       desc: "Minimum Volatility",           fullDesc: "Finds the lowest possible variance portfolio regardless of return. Defensive, capital-preservation focused." },
+  { value: "EqualWeights", label: "Equal",         desc: "Equal Weights",                fullDesc: "Splits capital equally across all assets. Simple, transparent, and surprisingly hard to beat long-term." },
 ];
 
 const CHART_COLORS = [
@@ -67,10 +69,17 @@ export default function PortfolioPage() {
   const { theme } = useTheme();
   const { t } = useI18n();
   const { plan, canUseMethod, canAddPortfolio } = usePlan();
+  const { mode, profile, recommendations, openProfileModal } = useInvestorMode();
+  const isSimple = mode === "simple";
   const isDark = theme === "dark";
 
+  const [simpleRisk, setSimpleRisk] = useState<"conservative" | "balanced" | "aggressive">(
+    (profile?.risk as "conservative" | "balanced" | "aggressive") ?? "balanced"
+  );
+
   const [activeTab, setActiveTab]             = useState<Tab>("optimize");
-  const [tickers, setTickers]                 = useState<string[]>(["NVDA", "MSFT", "GOOG", "BRK-B"]);
+  const [tickers, setTickers]                 = useState<string[]>([]);
+  const [topScoredPct, setTopScoredPct]       = useState<number>(20);
   const [optResult, setOptResult]             = useState<OptimizationResult | null>(null);
   const [mcResult, setMcResult]               = useState<MonteCarloResult | null>(null);
   const [savedPortfolios, setSavedPortfolios] = useState<SavedPortfolio[]>([]);
@@ -165,6 +174,7 @@ export default function PortfolioPage() {
         tickers: payloadTickers, method: data.method, capital: data.capital,
         min_weight: data.min_weight, max_weight: data.max_weight,
         risk_aversion: data.risk_aversion, max_assets: data.max_assets ?? undefined,
+        top_scored_pct: topScoredPct,
       });
     },
     onSuccess: (data) => {
@@ -447,7 +457,134 @@ export default function PortfolioPage() {
           </div>
         )}
 
-        {/* ── Configuration panel ── */}
+        {/* ── 1-Click Templates ── */}
+        <PortfolioTemplates onSelect={(tmpl) => {
+          setTickers(tmpl.tickers);
+          setValue("method", tmpl.method);
+        }} />
+
+        {/* ── SIMPLE MODE: simplified config ── */}
+        {isSimple && (
+          <div className="mt-4 rounded-xl border overflow-hidden" style={{ background: "var(--surface)", borderColor: "var(--border)" }}>
+            <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: "var(--border)", background: "var(--bg-hover)" }}>
+              <span className="text-xs font-semibold tracking-widest uppercase flex items-center gap-2" style={{ color: "var(--t2)" }}>
+                <Sparkles size={12} style={{ color: "var(--orange)" }} />
+                Build Your Portfolio
+              </span>
+              <button
+                onClick={openProfileModal}
+                className="text-xs transition-opacity hover:opacity-70"
+                style={{ color: "var(--t3)" }}
+              >
+                Edit profile
+              </button>
+            </div>
+            <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Left: tickers + capital */}
+              <div className="space-y-4">
+                <div>
+                  <p className="text-xs font-semibold tracking-widest uppercase mb-2" style={{ color: "var(--t3)" }}>Add Stocks</p>
+                  <div className="flex gap-2">
+                    <input
+                      {...register("tickerInput")}
+                      placeholder="e.g. AAPL, MSFT, GOOG"
+                      className="flex-1 text-xs px-3 py-2 rounded border outline-none uppercase placeholder:normal-case placeholder:opacity-50 transition-colors"
+                      style={{ background: "var(--bg-hover)", borderColor: "var(--border)", color: "var(--t1)" }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          addTicker((e.target as HTMLInputElement).value);
+                          setValue("tickerInput", "");
+                        }
+                      }}
+                    />
+                    <button type="button" onClick={() => { addTicker(watch("tickerInput")); setValue("tickerInput", ""); }}
+                      className="px-3 py-2 rounded text-xs font-medium transition-all"
+                      style={{ background: "var(--orange)", color: isDark ? "#0A0A0A" : "#ffffff" }}>
+                      <Plus size={13} />
+                    </button>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5 mt-2">
+                    {tickers.map((t) => (
+                      <span key={t} className="flex items-center gap-1 px-2 py-0.5 rounded text-xs border"
+                        style={{ background: "var(--bg-hover)", borderColor: "var(--border)", color: "var(--t1)" }}>
+                        {t}
+                        <button onClick={() => removeTicker(t)} style={{ color: "var(--t3)" }}><X size={10} /></button>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold tracking-widest uppercase mb-2" style={{ color: "var(--t3)" }}>Capital (€)</p>
+                  <input
+                    type="number" min={100} step={100}
+                    {...register("capital", { valueAsNumber: true })}
+                    className="w-full text-xs px-3 py-2 rounded border outline-none transition-colors"
+                    style={{ background: "var(--bg-hover)", borderColor: "var(--border)", color: "var(--t1)" }}
+                  />
+                </div>
+              </div>
+
+              {/* Right: risk level + optimize */}
+              <div className="space-y-4">
+                <div>
+                  <p className="text-xs font-semibold tracking-widest uppercase mb-2" style={{ color: "var(--t3)" }}>Risk Level</p>
+                  <div className="grid grid-cols-3 gap-2">
+                    {([
+                      { value: "conservative", label: "Conservative", sub: "Capital preservation", icon: <Shield size={14} /> },
+                      { value: "balanced",     label: "Balanced",     sub: "Growth & stability",  icon: <BarChart2 size={14} /> },
+                      { value: "aggressive",   label: "Aggressive",   sub: "Maximum growth",      icon: <Zap size={14} /> },
+                    ] as const).map((opt) => {
+                      const isActive = simpleRisk === opt.value;
+                      const isRec    = recommendations?.allocationMethod === SIMPLE_RISK_METHODS[opt.value];
+                      return (
+                        <button
+                          key={opt.value}
+                          type="button"
+                          onClick={() => {
+                            setSimpleRisk(opt.value);
+                            setValue("method", SIMPLE_RISK_METHODS[opt.value]);
+                          }}
+                          className="text-left p-3 rounded-xl border transition-all relative"
+                          style={{
+                            background: isActive ? "var(--orange-dim)" : isRec ? "rgba(249,115,22,0.03)" : "var(--bg-hover)",
+                            borderColor: isActive ? "var(--orange)" : isRec ? "rgba(249,115,22,0.25)" : "var(--border)",
+                          }}
+                        >
+                          <div className="flex items-center gap-1.5 mb-1" style={{ color: isActive ? "var(--orange)" : "var(--t2)" }}>
+                            {opt.icon}
+                            <span className="text-xs font-bold" style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10 }}>{opt.label}</span>
+                          </div>
+                          <p className="text-xs leading-tight" style={{ color: "var(--t3)", fontSize: 10 }}>{opt.sub}</p>
+                          {isRec && !isActive && (
+                            <span className="absolute top-1.5 right-1.5" style={{ color: "var(--orange)", fontSize: 8 }}>★</span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <p className="text-xs mt-2" style={{ color: "var(--t3)" }}>
+                    Method: <span style={{ color: "var(--t2)", fontFamily: "'JetBrains Mono', monospace" }}>{SIMPLE_RISK_METHODS[simpleRisk]}</span>
+                  </p>
+                </div>
+                <form id="opt-form" onSubmit={handleSubmit((d) => { d.method = SIMPLE_RISK_METHODS[simpleRisk]; optimize.mutate(d); })}>
+                  <button
+                    type="submit"
+                    disabled={optimize.isPending || (tickers.length === 0 && !useTopScored)}
+                    className="w-full flex items-center justify-center gap-2 py-2.5 rounded text-xs font-semibold tracking-wider transition-all disabled:opacity-50"
+                    style={{ background: "var(--orange)", color: isDark ? "#0A0A0A" : "#ffffff" }}
+                  >
+                    {optimize.isPending ? <LoadingSpinner size="sm" /> : <Play size={12} />}
+                    {optimize.isPending ? "Optimizing…" : "Optimize Portfolio"}
+                  </button>
+                </form>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── ADVANCED MODE: Configuration panel ── */}
+        {!isSimple && (
         <div
           className="mt-4 rounded border overflow-hidden"
           style={{ background: "var(--bg-card)", borderColor: "var(--border)" }}
@@ -511,17 +648,37 @@ export default function PortfolioPage() {
                     </button>
                   </div>
 
-                  <label className="flex items-center gap-2.5 cursor-pointer select-none">
-                    <input
-                      type="checkbox"
-                      checked={useTopScored}
-                      onChange={(e) => setUseTopScored(e.target.checked)}
-                      className="w-3.5 h-3.5 rounded"
-                    />
-                    <span className="text-xs" style={{ color: "var(--t2)" }}>
-                      Include Top 20% Scored Assets
-                    </span>
-                  </label>
+                  <div className="flex items-center gap-3 flex-wrap">
+                    <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={useTopScored}
+                        onChange={(e) => setUseTopScored(e.target.checked)}
+                        className="w-3.5 h-3.5 rounded"
+                      />
+                      <span className="text-xs" style={{ color: "var(--t2)" }}>
+                        Include Top Scored Assets
+                      </span>
+                    </label>
+                    {useTopScored && (
+                      <div className="flex items-center gap-1.5">
+                        <input
+                          type="number"
+                          min={1}
+                          max={100}
+                          value={topScoredPct}
+                          onChange={(e) => setTopScoredPct(Math.min(100, Math.max(1, Number(e.target.value))))}
+                          className="w-14 rounded border px-1.5 py-0.5 text-xs text-center"
+                          style={{
+                            background: "var(--bg-hover)",
+                            borderColor: "var(--border)",
+                            color: "var(--t1)",
+                          }}
+                        />
+                        <span className="text-xs" style={{ color: "var(--t3)" }}>%</span>
+                      </div>
+                    )}
+                  </div>
 
                   <div className="flex flex-wrap gap-1.5">
                     {tickers.map((t) => (
@@ -549,7 +706,7 @@ export default function PortfolioPage() {
                           color: "var(--orange)",
                         }}
                       >
-                        + TOP 20%
+                        + TOP {topScoredPct}%
                       </span>
                     )}
                   </div>
@@ -609,6 +766,17 @@ export default function PortfolioPage() {
                         );
                       })}
                     </div>
+                    {/* Method description */}
+                    {(() => {
+                      const m = METHODS.find(m => m.value === watchedMethod);
+                      return m ? (
+                        <p className="text-xs mb-3 mt-1" style={{ color: "var(--t3)", lineHeight: 1.55 }}>
+                          <span style={{ color: "var(--orange)", fontWeight: 600 }}>{m.label}: </span>
+                          {m.fullDesc}
+                        </p>
+                      ) : null;
+                    })()}
+
                     {plan === "free" && (
                       <p className="text-xs mb-4" style={{ color: "var(--t3)" }}>
                         Free plan — only Equal Weights is available.{" "}
@@ -660,6 +828,7 @@ export default function PortfolioPage() {
             </div>
           )}
         </div>
+        )}
 
         {/* ── Tab bar ── */}
         <div className="flex gap-0 mt-6 border-b" style={{ borderColor: "var(--border)" }}>
@@ -1049,8 +1218,8 @@ export default function PortfolioPage() {
                     >
                       {[
                         { label: "Expected Final Value", value: formatCurrency(mcResult.risk_metrics.expected_final_value), color: "var(--green)" },
-                        { label: "VaR 95% (1Y)",         value: `-${formatCurrency(mcResult.risk_metrics.var_95)}`,         color: "var(--red)" },
-                        { label: "CVaR 95% (1Y)",        value: `-${formatCurrency(mcResult.risk_metrics.cvar_95)}`,        color: "var(--red)" },
+                        { label: "VaR 95% (1Y)",         value: mcResult.risk_metrics.var_95 > 0 ? `-${formatCurrency(mcResult.risk_metrics.var_95)}` : "—",         color: "var(--red)" },
+                        { label: "CVaR 95% (1Y)",        value: mcResult.risk_metrics.cvar_95 > 0 ? `-${formatCurrency(mcResult.risk_metrics.cvar_95)}` : "—",        color: "var(--red)" },
                         { label: "Worst Case P5",        value: formatCurrency(mcResult.risk_metrics.worst_case_p5),        color: "var(--yellow)" },
                       ].map((m, i) => (
                         <div
@@ -1672,4 +1841,131 @@ function buildMcChartData(mc: MonteCarloResult) {
       hoverinfo: "skip" as const,
     },
   ];
+}
+
+// ─── 1-Click Portfolio Templates ─────────────────────────────────────────────
+interface PortfolioTemplate {
+  id:          string;
+  name:        string;
+  description: string;
+  theme:       string;
+  tickers:     string[];
+  method:      string;
+  color:       string;
+}
+
+const PORTFOLIO_TEMPLATES: PortfolioTemplate[] = [
+  {
+    id:          "ai_titans",
+    name:        "AI Titans",
+    description: "Semiconductor & AI infrastructure — the picks-and-shovels of the AI revolution",
+    theme:       "Technology · High Growth",
+    tickers:     ["NVDA", "MSFT", "GOOGL", "AMZN", "AMD", "TSM", "AVGO", "META"],
+    method:      "MeanVar",
+    color:       "#7AA7E8",
+  },
+  {
+    id:          "energy_transition",
+    name:        "Energy Transition",
+    description: "Renewables, EV infrastructure and grid — beneficiaries of the clean-energy shift",
+    theme:       "Clean Energy · Thematic",
+    tickers:     ["ENPH", "FSLR", "NEE", "TSLA", "RUN", "SEDG", "BEP", "CEG"],
+    method:      "HRP",
+    color:       "#86B38A",
+  },
+  {
+    id:          "defensive_inflation",
+    name:        "Defensive Anti-Inflation",
+    description: "Real assets, dividend payers and commodities — stores of value in inflationary cycles",
+    theme:       "Value · Defensive · Income",
+    tickers:     ["XOM", "CVX", "GLD", "MCD", "KO", "PG", "WMT", "BRK-B"],
+    method:      "MinVol",
+    color:       "#C9B178",
+  },
+  {
+    id:          "healthcare_innovation",
+    name:        "Healthcare Innovation",
+    description: "Biotech leaders, medical devices and pharma — secular growth driven by aging demographics",
+    theme:       "Healthcare · Innovation",
+    tickers:     ["JNJ", "PFE", "AMGN", "ABBV", "ISRG", "DXCM", "LLY", "TMO"],
+    method:      "HRP",
+    color:       "#D48585",
+  },
+];
+
+function PortfolioTemplates({ onSelect }: { onSelect: (t: PortfolioTemplate) => void }) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div className="mt-4">
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        className="flex items-center gap-2 text-xs transition-opacity hover:opacity-80"
+        style={{ color: "var(--orange)" }}
+      >
+        <Sparkles size={11} />
+        <span style={{ fontFamily: "'JetBrains Mono', monospace", letterSpacing: "0.06em" }}>
+          1-CLICK TEMPLATES
+        </span>
+        <span style={{ color: "var(--t3)", fontSize: 10 }}>
+          {open ? "▲" : "▼"}
+        </span>
+      </button>
+
+      {open && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mt-3">
+          {PORTFOLIO_TEMPLATES.map((tmpl) => (
+            <button
+              key={tmpl.id}
+              type="button"
+              onClick={() => { onSelect(tmpl); setOpen(false); }}
+              className="text-left p-4 rounded-lg border transition-all group"
+              style={{
+                background: "var(--bg-card)",
+                borderColor: "var(--border)",
+                borderTop: `2px solid ${tmpl.color}`,
+              }}
+              onMouseEnter={e => {
+                (e.currentTarget as HTMLElement).style.background = "var(--bg-hover)";
+                (e.currentTarget as HTMLElement).style.borderColor = tmpl.color + "66";
+              }}
+              onMouseLeave={e => {
+                (e.currentTarget as HTMLElement).style.background = "var(--bg-card)";
+                (e.currentTarget as HTMLElement).style.borderColor = "var(--border)";
+              }}
+            >
+              <div className="font-semibold mb-1" style={{ color: tmpl.color, fontSize: "0.82rem", fontFamily: "'JetBrains Mono', monospace" }}>
+                {tmpl.name}
+              </div>
+              <div className="text-xs mb-2" style={{ color: "var(--t3)", fontSize: "0.65rem", letterSpacing: "0.04em" }}>
+                {tmpl.theme}
+              </div>
+              <p className="text-xs mb-3 leading-relaxed" style={{ color: "var(--t2)", fontSize: "0.72rem", lineHeight: 1.5 }}>
+                {tmpl.description}
+              </p>
+              <div className="flex flex-wrap gap-1 mb-2">
+                {tmpl.tickers.slice(0, 5).map(t => (
+                  <span key={t} className="px-1.5 py-0.5 rounded text-xs" style={{ background: "var(--bg-hover)", color: "var(--t3)", fontSize: "0.6rem", border: "1px solid var(--border)", fontFamily: "'JetBrains Mono', monospace" }}>
+                    {t}
+                  </span>
+                ))}
+                {tmpl.tickers.length > 5 && (
+                  <span className="px-1.5 py-0.5 rounded text-xs" style={{ color: "var(--t3)", fontSize: "0.6rem" }}>
+                    +{tmpl.tickers.length - 5}
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-xs" style={{ color: "var(--t3)", fontSize: "0.6rem" }}>{tmpl.method}</span>
+                <span className="text-xs opacity-0 group-hover:opacity-100 transition-opacity" style={{ color: tmpl.color, fontSize: "0.65rem" }}>
+                  Use →
+                </span>
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }

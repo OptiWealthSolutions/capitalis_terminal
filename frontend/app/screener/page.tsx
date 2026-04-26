@@ -10,10 +10,13 @@ import { QueryError } from "@/components/ui/ErrorBoundary";
 import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 import { formatPercent, formatNumber, formatLargeNumber } from "@/lib/utils";
 import { cn } from "@/lib/utils";
-import { Play, Save, Trash2, Plus, ChevronDown, ChevronUp, SlidersHorizontal } from "lucide-react";
+import { Play, Save, Trash2, Plus, ChevronDown, ChevronUp, SlidersHorizontal, Download } from "lucide-react";
+import MetricTooltip from "@/components/ui/MetricTooltip";
 import toast from "react-hot-toast";
 import { useTheme } from "@/lib/theme";
 import { useI18n } from "@/lib/i18n";
+import { useInvestorMode } from "@/lib/investorMode";
+import { Sparkles, Sliders } from "lucide-react";
 
 // ---------------------------------------------------------------------------
 // Metric catalogue
@@ -38,17 +41,26 @@ const OPS = [">=", "<=", ">", "<"];
 
 interface CriterionRow { id: string; metric: string; op: string; val: string }
 
-const RESULT_COLS = [
+const RESULT_COLS: { key: string; label: string; fmt?: (v: number) => string; tip?: string }[] = [
   { key: "Ticker",         label: "TICKER" },
-  { key: "Name",           label: "COMPANY" },
   { key: "Sector",         label: "SECTOR" },
   { key: "currentPrice",   label: "PRICE",      fmt: (v: number) => formatNumber(v, 2) },
   { key: "marketCap",      label: "MKT CAP",    fmt: formatLargeNumber },
-  { key: "forwardPE",      label: "FWD P/E",    fmt: (v: number) => formatNumber(v, 2) },
-  { key: "returnOnEquity", label: "ROE",        fmt: formatPercent },
-  { key: "earningsGrowth", label: "EPS GR.",    fmt: formatPercent },
-  { key: "dividendYield",  label: "DIV. YIELD", fmt: formatPercent },
+  { key: "forwardPE",      label: "FWD P/E",    fmt: (v: number) => formatNumber(v, 2), tip: "P/E using next-year earnings estimate. Lower = cheaper relative to expected growth." },
+  { key: "returnOnEquity", label: "ROE",        fmt: formatPercent, tip: "Return on Equity: profit as % of shareholder equity. > 15% = good. > 25% = exceptional." },
+  { key: "earningsGrowth", label: "EPS GR.",    fmt: formatPercent, tip: "Year-over-year diluted EPS growth. > 20% = strong momentum." },
+  { key: "dividendYield",  label: "DIV. YIELD", fmt: formatPercent, tip: "Annual dividend as % of share price. > 3% = income stock." },
 ];
+
+function downloadCSV(filename: string, data: Record<string, unknown>[]) {
+  if (!data.length) return;
+  const keys = Object.keys(data[0]);
+  const rows = [keys.join(","), ...data.map(r => keys.map(k => JSON.stringify(r[k] ?? "")).join(","))];
+  const blob = new Blob([rows.join("\n")], { type: "text/csv" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a"); a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
+}
 
 // ---------------------------------------------------------------------------
 // Quick-filter presets (built-in suggestions)
@@ -126,6 +138,8 @@ const QUICK_PRESETS: QuickPreset[] = [
 export default function ScreenerPage() {
   const { theme } = useTheme();
   const { t } = useI18n();
+  const { mode, recommendations, openProfileModal } = useInvestorMode();
+  const isSimple = mode === "simple";
   const isDark = theme === "dark";
   const qc = useQueryClient();
 
@@ -257,6 +271,7 @@ export default function ScreenerPage() {
               {t.screener.subtitle}
             </p>
           </div>
+          {!isSimple && (
           <button
             onClick={() => runScreen.mutate()}
             disabled={runScreen.isPending}
@@ -266,9 +281,82 @@ export default function ScreenerPage() {
             {runScreen.isPending ? <LoadingSpinner size="sm" /> : <Play size={12} />}
             {runScreen.isPending ? "Screening…" : "Run Screen"}
           </button>
+          )}
         </div>
 
-        {/* ── Quick presets grid ── */}
+        {/* ── SIMPLE MODE: strategy cards ── */}
+        {isSimple && (
+          <div className="mt-6">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <p className="text-xs font-semibold tracking-widest uppercase mb-0.5" style={{ color: "var(--t3)" }}>
+                  Choose a Strategy
+                </p>
+                <p className="text-xs" style={{ color: "var(--t3)" }}>
+                  Select a pre-built strategy to screen the market instantly.
+                </p>
+              </div>
+              <button
+                onClick={openProfileModal}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded border text-xs transition-all"
+                style={{ borderColor: "var(--border)", color: "var(--t3)", background: "var(--bg-hover)" }}
+                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = "var(--orange)"; (e.currentTarget as HTMLElement).style.color = "var(--orange)"; }}
+                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = "var(--border)"; (e.currentTarget as HTMLElement).style.color = "var(--t3)"; }}
+              >
+                <Sparkles size={11} /> Update profile
+              </button>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {QUICK_PRESETS.map((qp) => {
+                const isRecommended = recommendations?.screenerPreset === qp.id;
+                const isActive = activeQuick === qp.id;
+                return (
+                  <button
+                    key={qp.id}
+                    onClick={() => { applyQuickPreset(qp); runScreen.mutate(); }}
+                    className="text-left p-4 rounded-xl border transition-all relative"
+                    style={{
+                      background: isActive ? "var(--orange-dim)" : isRecommended ? "rgba(249,115,22,0.04)" : "var(--surface)",
+                      borderColor: isActive ? "var(--orange)" : isRecommended ? "rgba(249,115,22,0.3)" : "var(--border)",
+                      boxShadow: isActive ? "0 0 0 1px var(--orange)" : "none",
+                    }}
+                  >
+                    {isRecommended && (
+                      <span
+                        className="absolute top-3 right-3 flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold"
+                        style={{ background: "var(--orange)", color: "#fff", fontSize: 9, letterSpacing: "0.06em" }}
+                      >
+                        <Sparkles size={8} /> FOR YOU
+                      </span>
+                    )}
+                    <p className="text-sm font-bold mb-1 pr-16" style={{ color: isActive ? "var(--orange)" : "var(--t1)", fontFamily: "'JetBrains Mono', monospace" }}>
+                      {qp.label}
+                    </p>
+                    <p className="text-xs leading-relaxed" style={{ color: "var(--t3)" }}>
+                      {qp.description}
+                    </p>
+                    <div className="mt-3 flex flex-wrap gap-1">
+                      {qp.criteria.map((c, i) => (
+                        <span key={i} className="text-xs px-1.5 py-0.5 rounded" style={{ background: "var(--bg-hover)", color: "var(--t3)", fontFamily: "'JetBrains Mono', monospace", fontSize: 10 }}>
+                          {c.metric} {c.op} {c.val}
+                        </span>
+                      ))}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+            <p className="mt-4 text-xs text-center" style={{ color: "var(--t3)" }}>
+              <button onClick={() => {}} className="underline underline-offset-2 hover:opacity-70 transition-opacity" style={{ color: "var(--t3)" }}>
+                Switch to Advanced mode
+              </button>{" "}
+              to build custom filter criteria.
+            </p>
+          </div>
+        )}
+
+        {/* ── ADVANCED MODE: Quick presets grid ── */}
+        {!isSimple && (
         <div className="mt-5">
           <p className="text-xs font-semibold tracking-widest uppercase mb-3" style={{ color: "var(--t3)" }}>
             Quick Filters
@@ -303,9 +391,10 @@ export default function ScreenerPage() {
             })}
           </div>
         </div>
+        )}
 
-        {/* ── Saved presets from API ── */}
-        {!savedPresets.isLoading && !savedPresets.error && Object.keys(savedPresets.data ?? {}).length > 0 && (
+        {/* ── Saved presets from API (advanced only) ── */}
+        {!isSimple && !savedPresets.isLoading && !savedPresets.error && Object.keys(savedPresets.data ?? {}).length > 0 && (
           <div className="mt-4">
             <p className="text-xs font-semibold tracking-widest uppercase mb-3" style={{ color: "var(--t3)" }}>
               Saved Presets
@@ -342,10 +431,11 @@ export default function ScreenerPage() {
             </div>
           </div>
         )}
-        {savedPresets.isLoading && <SkeletonBlock className="h-8 mt-4" />}
-        {savedPresets.error && <QueryError error={savedPresets.error as Error} />}
+        {!isSimple && savedPresets.isLoading && <SkeletonBlock className="h-8 mt-4" />}
+        {!isSimple && savedPresets.error && <QueryError error={savedPresets.error as Error} />}
 
-        {/* ── Criteria builder (collapsible) ── */}
+        {/* ── Criteria builder (collapsible, advanced only) ── */}
+        {!isSimple && (
         <div className="mt-5 rounded border overflow-hidden" style={{ borderColor: "var(--border)", background: "var(--bg-card)" }}>
           <button
             type="button"
@@ -496,6 +586,7 @@ export default function ScreenerPage() {
             </div>
           )}
         </div>
+        )}
 
         {/* ── Results ── */}
         <div className="mt-5">
@@ -529,6 +620,16 @@ export default function ScreenerPage() {
                     {metricLabel(c.metric)} {c.op} {c.val}
                   </span>
                 ))}
+                <button
+                  onClick={() => downloadCSV("screener_results.csv", sortedAssets)}
+                  className="ml-auto flex items-center gap-1.5 px-2.5 py-1 rounded border text-xs transition-all"
+                  style={{ borderColor: "var(--border)", color: "var(--t3)", background: "var(--bg-hover)" }}
+                  title="Export to CSV"
+                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = "var(--t1)"; (e.currentTarget as HTMLElement).style.borderColor = "var(--orange-border)"; }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = "var(--t3)"; (e.currentTarget as HTMLElement).style.borderColor = "var(--border)"; }}
+                >
+                  <Download size={11} /> CSV
+                </button>
               </div>
 
               {availableSectors.length > 1 && (
@@ -562,7 +663,9 @@ export default function ScreenerPage() {
                             style={{ padding: "10px 20px", textAlign: "left", color: "var(--t3)", fontSize: 10, fontWeight: 600, letterSpacing: "0.08em" }}
                           >
                             <span className="flex items-center gap-1">
-                              {col.label}
+                              {col.tip
+                                ? <MetricTooltip label={col.label} tip={col.tip} />
+                                : col.label}
                               {sortKey === col.key && (
                                 sortDir === "desc" ? <ChevronDown size={9} /> : <ChevronUp size={9} />
                               )}
@@ -595,15 +698,24 @@ export default function ScreenerPage() {
                             {col.key === "Ticker" ? (
                               <Link
                                 href={`/equity?ticker=${encodeURIComponent(String(asset[col.key] ?? ""))}`}
-                                style={{
-                                  color: "var(--orange)", fontWeight: 600,
-                                  textDecoration: "none",
-                                  transition: "opacity 0.15s",
-                                }}
+                                style={{ textDecoration: "none" }}
                                 onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.opacity = "0.7")}
                                 onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.opacity = "1")}
                               >
-                                {String(asset[col.key] ?? "N/A")}
+                                <span style={{ display: "block", color: "var(--orange)", fontWeight: 700, fontFamily: "JetBrains Mono, monospace", fontSize: "0.82rem" }}>
+                                  {String(asset[col.key] ?? "N/A")}
+                                </span>
+                                {(() => {
+                                  const ticker = String(asset["Ticker"] ?? "");
+                                  const desc = asset["Description"] != null ? String(asset["Description"]) : "";
+                                  const name = asset["Name"] != null ? String(asset["Name"]) : "";
+                                  const display = (desc.length > 0 && desc !== ticker) ? desc : (name.length > 0 && name !== ticker) ? name : "";
+                                  return display ? (
+                                    <span style={{ display: "block", color: "var(--t2)", fontFamily: "inherit", fontWeight: 400, fontSize: "0.68rem", marginTop: 2, maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                      {display}
+                                    </span>
+                                  ) : null;
+                                })()}
                               </Link>
                             ) : col.fmt
                               ? col.fmt(asset[col.key] as number)
@@ -615,6 +727,26 @@ export default function ScreenerPage() {
                   </tbody>
                 </table>
               </div>
+            </div>
+          )}
+
+          {result && result.count === 0 && !runScreen.isPending && (
+            <div
+              className="flex flex-col items-center justify-center h-48 rounded border text-center space-y-3"
+              style={{ borderColor: "var(--border)", background: "var(--bg-card)" }}
+            >
+              <Play size={20} style={{ color: "var(--t3)" }} />
+              <p className="text-sm font-medium" style={{ color: "var(--t1)" }}>No stocks matched your criteria</p>
+              <p className="text-xs max-w-sm" style={{ color: "var(--t3)" }}>
+                Try relaxing the most restrictive filter, lowering a threshold, or switching to a Quick Filter preset.
+              </p>
+              <button
+                onClick={() => { setCriteria([{ id: crypto.randomUUID(), metric: "returnOnEquity", op: ">=", val: "0.10" }]); setResult(null); }}
+                className="px-3 py-1.5 rounded text-xs border transition-all"
+                style={{ borderColor: "var(--orange-border)", color: "var(--orange)", background: "var(--orange-dim)" }}
+              >
+                Reset to single filter
+              </button>
             </div>
           )}
 

@@ -9,10 +9,12 @@ import PlotlyChart from "@/components/charts/PlotlyChart";
 import { LoadingSpinner, SkeletonBlock, SkeletonChart } from "@/components/ui/LoadingSpinner";
 import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 import { formatNumber, formatPercent } from "@/lib/utils";
-import { Play, RotateCcw, ChevronRight, Sliders } from "lucide-react";
+import { Play, RotateCcw, ChevronRight, Sliders, Download } from "lucide-react";
 import toast from "react-hot-toast";
 import { useTheme } from "@/lib/theme";
 import { useI18n } from "@/lib/i18n";
+import { useInvestorMode } from "@/lib/investorMode";
+import { Sparkles } from "lucide-react";
 
 // ---------------------------------------------------------------------------
 // Weight definitions
@@ -98,7 +100,6 @@ const RADAR_FACTORS = [
 
 const RESULT_COLS = [
   { key: "ticker",         label: "TICKER" },
-  { key: "name",           label: "COMPANY" },
   { key: "sector",         label: "SECTOR" },
   { key: "TOTAL_SCORE",    label: "SCORE",   fmt: (v: number) => formatNumber(v, 4) },
   { key: "F_Score",        label: "F-SCORE", fmt: (v: number) => formatNumber(v, 0) },
@@ -107,6 +108,16 @@ const RESULT_COLS = [
   { key: "CAGR",           label: "CAGR",    fmt: formatPercent },
   { key: "Vol_Ann",        label: "VOL",     fmt: formatPercent },
 ];
+
+function downloadCSV(filename: string, data: Record<string, unknown>[]) {
+  if (!data.length) return;
+  const keys = Object.keys(data[0]);
+  const rows = [keys.join(","), ...data.map(r => keys.map(k => JSON.stringify(r[k] ?? "")).join(","))];
+  const blob = new Blob([rows.join("\n")], { type: "text/csv" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a"); a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
+}
 
 function getSafeValue(obj: Record<string, unknown>, key: string): unknown {
   if (!obj) return undefined;
@@ -122,6 +133,8 @@ function getSafeValue(obj: Record<string, unknown>, key: string): unknown {
 export default function ScorerPage() {
   const { theme } = useTheme();
   const { t } = useI18n();
+  const { mode, recommendations, openProfileModal } = useInvestorMode();
+  const isSimple = mode === "simple";
   const isDark = theme === "dark";
 
   const [weights, setWeights] = useState<Record<string, number>>(
@@ -256,6 +269,7 @@ export default function ScorerPage() {
                 {t.scorer.subtitle}
               </p>
             </div>
+            {!isSimple && (
             <button
               onClick={() => runScorer.mutate()}
               disabled={runScorer.isPending || !totalOk}
@@ -264,10 +278,71 @@ export default function ScorerPage() {
               {runScorer.isPending ? <LoadingSpinner size="sm" /> : <Play size={13} />}
               {runScorer.isPending ? "SCORING…" : "RUN SCORER"}
             </button>
+            )}
           </div>
         </div>
 
-        {/* ── Scoring strategy selector ── */}
+        {/* ── SIMPLE MODE: strategy cards ── */}
+        {isSimple && (
+          <div className="mt-2 mb-5">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <p className="text-xs font-semibold tracking-widest uppercase mb-0.5" style={{ color: "var(--t3)" }}>
+                  Choose a Scoring Strategy
+                </p>
+                <p className="text-xs" style={{ color: "var(--t3)" }}>
+                  Pick a strategy — we'll rank stocks automatically for you.
+                </p>
+              </div>
+              <button
+                onClick={openProfileModal}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded border text-xs transition-all"
+                style={{ borderColor: "var(--border)", color: "var(--t3)", background: "var(--bg-hover)" }}
+                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = "var(--orange)"; (e.currentTarget as HTMLElement).style.color = "var(--orange)"; }}
+                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = "var(--border)"; (e.currentTarget as HTMLElement).style.color = "var(--t3)"; }}
+              >
+                <Sparkles size={11} /> Update profile
+              </button>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {SCORING_PRESETS.map((preset) => {
+                const isRecommended = recommendations?.scorerPreset === preset.id;
+                const isActive = activePreset === preset.id;
+                return (
+                  <button
+                    key={preset.id}
+                    onClick={() => { applyPreset(preset); runScorer.mutate(); }}
+                    className="text-left p-4 rounded-xl border transition-all relative"
+                    style={{
+                      background: isActive ? "var(--orange-dim)" : isRecommended ? "rgba(249,115,22,0.04)" : "var(--surface)",
+                      borderColor: isActive ? "var(--orange)" : isRecommended ? "rgba(249,115,22,0.3)" : "var(--border)",
+                      boxShadow: isActive ? "0 0 0 1px var(--orange)" : "none",
+                    }}
+                  >
+                    {isRecommended && (
+                      <span className="absolute top-3 right-3 flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold"
+                        style={{ background: "var(--orange)", color: "#fff", fontSize: 9, letterSpacing: "0.06em" }}>
+                        <Sparkles size={8} /> FOR YOU
+                      </span>
+                    )}
+                    <p className="text-sm font-bold mb-1 pr-14" style={{ color: isActive ? "var(--orange)" : "var(--t1)", fontFamily: "'JetBrains Mono', monospace" }}>
+                      {preset.label}
+                    </p>
+                    <p className="text-xs leading-relaxed" style={{ color: "var(--t3)" }}>
+                      {preset.description}
+                    </p>
+                  </button>
+                );
+              })}
+            </div>
+            <p className="mt-4 text-xs text-center" style={{ color: "var(--t3)" }}>
+              Switch to <strong style={{ color: "var(--t2)" }}>Advanced</strong> mode in the header to customize factor weights.
+            </p>
+          </div>
+        )}
+
+        {/* ── ADVANCED MODE: Scoring strategy selector ── */}
+        {!isSimple && (
         <div style={{
           background: "var(--bg-card)", border: "1px solid var(--border)",
           borderRadius: "var(--r)", padding: "20px 24px", marginBottom: 20,
@@ -411,6 +486,7 @@ export default function ScorerPage() {
             </div>
           )}
         </div>
+        )}
 
         {/* ── Results area ── */}
         {runScorer.isPending && (
@@ -523,7 +599,23 @@ export default function ScorerPage() {
                     </span>
                   )}
                 </p>
-                <span style={{ fontSize: "0.65rem", color: "var(--t3)" }}>Click row to inspect factor profile</span>
+                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  <span style={{ fontSize: "0.65rem", color: "var(--t3)" }}>Click row to inspect factor profile</span>
+                  <button
+                    onClick={() => downloadCSV("scorer_results.csv", assets)}
+                    style={{
+                      display: "flex", alignItems: "center", gap: 5,
+                      padding: "3px 10px", borderRadius: "var(--r-sm)",
+                      border: "1px solid var(--border)", background: "var(--bg-base)",
+                      color: "var(--t3)", fontSize: "0.68rem", cursor: "pointer",
+                    }}
+                    title="Export all results to CSV"
+                    onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = "var(--t1)"; (e.currentTarget as HTMLElement).style.borderColor = "var(--orange-border)"; }}
+                    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = "var(--t3)"; (e.currentTarget as HTMLElement).style.borderColor = "var(--border)"; }}
+                  >
+                    <Download size={10} /> CSV
+                  </button>
+                </div>
               </div>
 
               {availableSectors.length > 1 && (
@@ -582,14 +674,24 @@ export default function ScorerPage() {
                                   <Link
                                     href={`/equity?ticker=${encodeURIComponent(String(val ?? ""))}`}
                                     onClick={(e) => e.stopPropagation()}
-                                    style={{
-                                      color: "var(--orange)", fontWeight: 600,
-                                      textDecoration: "none", transition: "opacity 0.15s",
-                                    }}
+                                    style={{ textDecoration: "none" }}
                                     onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.opacity = "0.7")}
                                     onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.opacity = "1")}
                                   >
-                                    {String(val ?? "N/A")}
+                                    <span style={{ display: "block", color: "var(--orange)", fontWeight: 700, fontFamily: "JetBrains Mono, monospace", fontSize: "0.82rem" }}>
+                                      {String(val ?? "N/A")}
+                                    </span>
+                                    {(() => {
+                                      const ticker = String(getSafeValue(asset, "ticker") ?? "");
+                                      const desc = getSafeValue(asset, "description") != null ? String(getSafeValue(asset, "description")) : "";
+                                      const name = getSafeValue(asset, "name") != null ? String(getSafeValue(asset, "name")) : "";
+                                      const display = (desc.length > 0 && desc !== ticker) ? desc : (name.length > 0 && name !== ticker) ? name : "";
+                                      return display ? (
+                                        <span style={{ display: "block", color: "var(--t2)", fontFamily: "inherit", fontWeight: 400, fontSize: "0.68rem", marginTop: 2, maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                          {display}
+                                        </span>
+                                      ) : null;
+                                    })()}
                                   </Link>
                                 ) : col.fmt && val !== undefined && val !== null
                                   ? (col.fmt as (v: number) => string)(val as number)

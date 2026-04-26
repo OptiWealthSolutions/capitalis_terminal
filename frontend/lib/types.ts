@@ -221,6 +221,7 @@ export interface EquityFundamentals {
   sector?: string;
   industry?: string;
   currentPrice?: number;
+  previousClose?: number;
   marketCap?: number;
   forwardPE?: number;
   trailingPE?: number;
