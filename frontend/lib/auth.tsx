@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState, useCallback } from "react";
-import { post, get } from "./api";
+import apiClient, { post, get } from "./api";
 
 export interface AuthUser {
   id: string;
@@ -64,28 +64,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchMe = useCallback(async () => {
-    const me = await get<AuthUser>("/auth/me");
-    setUser(me);
+  const fetchMe = useCallback(async (timeoutMs = 60_000) => {
+    const res = await apiClient.get<AuthUser>("/auth/me", { timeout: timeoutMs });
+    setUser(res.data);
   }, []);
 
   useEffect(() => {
     const init = async () => {
-      const sessionToken = sessionStorage.getItem("access_token");
-      const refreshToken = localStorage.getItem("refresh_token");
+      let sessionToken: string | null = null;
+      let refreshToken: string | null = null;
+      try {
+        sessionToken = sessionStorage.getItem("access_token");
+        refreshToken = localStorage.getItem("refresh_token");
+      } catch {
+        // sessionStorage/localStorage blocked (private mode, iframe)
+        return;
+      }
+
+      const INIT_TIMEOUT = 8_000; // fast fail on cold start — don't block UI for 60s
 
       if (sessionToken) {
         try {
-          await fetchMe();
+          await fetchMe(INIT_TIMEOUT);
         } catch {
-          // access token expired — try refresh
           if (refreshToken) {
             try {
               const { access_token } = await post<RefreshResponse>("/auth/refresh", {
                 refresh_token: refreshToken,
               });
               sessionStorage.setItem("access_token", access_token);
-              await fetchMe();
+              await fetchMe(INIT_TIMEOUT);
             } catch {
               clearTokens();
             }
@@ -99,16 +107,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             refresh_token: refreshToken,
           });
           sessionStorage.setItem("access_token", access_token);
-          await fetchMe();
+          await fetchMe(INIT_TIMEOUT);
         } catch {
           clearTokens();
         }
       }
-
-      setLoading(false);
     };
 
-    init();
+    init().finally(() => setLoading(false));
   }, [fetchMe]);
 
   const login = async (email: string, password: string) => {
