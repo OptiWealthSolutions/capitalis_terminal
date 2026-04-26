@@ -26,6 +26,7 @@ class OptimizationRequest(BaseModel):
     max_weight: float = Field(default=0.40, ge=0.0, le=1.0)
     risk_aversion: float = Field(default=1.0, ge=0.1, le=10.0)
     max_assets: Optional[int] = Field(default=None, ge=2, le=50)
+    top_scored_pct: int = Field(default=20, ge=1, le=100)
 
     @field_validator("tickers", mode="before")
     @classmethod

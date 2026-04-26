@@ -51,10 +51,28 @@ _DDL_BETA_REDEMPTIONS = """
     )
 """
 
+_DDL_ALERTS = """
+    CREATE TABLE IF NOT EXISTS alerts (
+        id           TEXT PRIMARY KEY,
+        user_id      TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        ticker       TEXT NOT NULL,
+        alert_type   TEXT NOT NULL,
+        price        REAL,
+        days_before  INTEGER,
+        note         TEXT,
+        is_active    INTEGER NOT NULL DEFAULT 1,
+        triggered_at TEXT,
+        created_at   TEXT NOT NULL
+    )
+"""
+
 
 def init_db() -> None:
     with db_context(DB_PATH) as conn:
-        conn.executescript(_DDL_USERS + "; " + _DDL_SUBSCRIPTIONS + "; " + _DDL_BETA_REDEMPTIONS)
+        conn.executescript(
+            _DDL_USERS + "; " + _DDL_SUBSCRIPTIONS + "; " +
+            _DDL_BETA_REDEMPTIONS + "; " + _DDL_ALERTS
+        )
         if USE_PG:
             # ADD COLUMN IF NOT EXISTS supported in PostgreSQL 9.6+
             for col, ddl in (
@@ -269,3 +287,62 @@ def redeem_beta_code(user_id: str, code: str) -> None:
             """,
             (user_id, period_end, period_end),
         )
+
+
+# ---------------------------------------------------------------------------
+# Alerts
+# ---------------------------------------------------------------------------
+
+def create_alert(
+    user_id: str,
+    ticker: str,
+    alert_type: str,
+    price: float | None = None,
+    days_before: int | None = None,
+    note: str | None = None,
+) -> dict:
+    alert_id = str(uuid.uuid4())
+    now = datetime.now(timezone.utc).isoformat()
+    with db_context(DB_PATH) as conn:
+        conn.execute(
+            """INSERT INTO alerts (id, user_id, ticker, alert_type, price, days_before, note, is_active, created_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?)""",
+            (alert_id, user_id, ticker.upper(), alert_type, price, days_before, note, now),
+        )
+    return {"id": alert_id, "ticker": ticker.upper(), "alert_type": alert_type,
+            "price": price, "days_before": days_before, "note": note,
+            "is_active": True, "triggered_at": None, "created_at": now}
+
+
+def get_alerts_for_user(user_id: str) -> list[dict]:
+    with db_context(DB_PATH) as conn:
+        rows = conn.execute(
+            "SELECT * FROM alerts WHERE user_id = ? ORDER BY created_at DESC", (user_id,)
+        ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def get_all_active_alerts() -> list[dict]:
+    with db_context(DB_PATH) as conn:
+        rows = conn.execute(
+            "SELECT a.*, u.email FROM alerts a JOIN users u ON a.user_id = u.id WHERE a.is_active = 1 AND a.triggered_at IS NULL"
+        ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def update_alert(alert_id: str, user_id: str, **kwargs) -> bool:
+    allowed = {"is_active", "price", "days_before", "note", "triggered_at"}
+    sets = {k: v for k, v in kwargs.items() if k in allowed}
+    if not sets:
+        return False
+    cols = ", ".join(f"{k} = ?" for k in sets)
+    vals = list(sets.values()) + [alert_id, user_id]
+    with db_context(DB_PATH) as conn:
+        cur = conn.execute(f"UPDATE alerts SET {cols} WHERE id = ? AND user_id = ?", vals)
+        return (cur.rowcount or 0) > 0
+
+
+def delete_alert(alert_id: str, user_id: str) -> bool:
+    with db_context(DB_PATH) as conn:
+        cur = conn.execute("DELETE FROM alerts WHERE id = ? AND user_id = ?", (alert_id, user_id))
+        return (cur.rowcount or 0) > 0

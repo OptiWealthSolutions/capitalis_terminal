@@ -40,7 +40,8 @@ def _assert_valid_ticker(ticker: str) -> str:
 def search_equity(q: str, limit: int = 10) -> Any:
     """Search tickers by company name or symbol using Yahoo Finance search API."""
     import requests
-    if not q or len(q.strip()) < 1:
+    q = q.strip()[:100]  # cap length, strip whitespace
+    if not q or len(q) < 1:
         return {"results": []}
     try:
         resp = requests.get(

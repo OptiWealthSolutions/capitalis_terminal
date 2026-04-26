@@ -14,17 +14,18 @@ function rangeToStartDate(r: TimeRange): string {
   return d.toISOString().split("T")[0];
 }
 import Link from "next/link";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueries } from "@tanstack/react-query";
 import {
   TrendingUp, TrendingDown, Briefcase, Target, Activity,
   CalendarClock, Coins, ArrowRight, BarChart3, Globe, Gauge,
-  LineChart, RefreshCw, ChevronDown, Wallet,
+  LineChart, RefreshCw, ChevronDown, Wallet, Heart,
 } from "lucide-react";
 import { get, post } from "@/lib/api";
-import type { OptimizationResult, PerformanceResult, TrackerPerfResult } from "@/lib/types";
+import type { OptimizationResult, PerformanceResult, TrackerPerfResult, EquityFundamentals } from "@/lib/types";
 import PlotlyChart from "@/components/charts/PlotlyChart";
 import { useTheme } from "@/lib/theme";
 import { useI18n } from "@/lib/i18n";
+import { useWatchlist } from "@/lib/watchlist";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -89,6 +90,7 @@ function daysUntil(dateStr: string | null): number | null {
 export default function DashboardPage() {
   const { theme } = useTheme();
   const { t } = useI18n();
+  const { watchlist } = useWatchlist();
   const isDark  = theme === "dark";
 
   // Optimizer portfolios
@@ -193,7 +195,7 @@ export default function DashboardPage() {
     staleTime: 15 * 60 * 1000,
   });
 
-  const { data: market, isLoading: marketLoading } = useQuery({
+  const { data: market, isLoading: marketLoading, dataUpdatedAt: marketUpdatedAt } = useQuery({
     queryKey: ["market-overview"],
     queryFn: () => get<MarketOverview>("/market/overview"),
     staleTime: 5 * 60 * 1000,
@@ -429,7 +431,7 @@ export default function DashboardPage() {
           )}
 
           {/* ── Market Pulse ── */}
-          <MarketPulse data={market} loading={marketLoading} />
+          <MarketPulse data={market} loading={marketLoading} updatedAt={marketUpdatedAt} />
 
           {/* ── Optimizer Portfolio Summary ── */}
           {portfolio && (
@@ -499,6 +501,9 @@ export default function DashboardPage() {
               </div>
             </section>
           )}
+
+          {/* ── Watchlist ── */}
+          {watchlist.length > 0 && <WatchlistPanel tickers={watchlist} />}
 
           {/* Footer */}
           <div className="flex items-center gap-3" style={{ color: "var(--t3)", fontSize: "0.72rem" }}>
@@ -695,7 +700,7 @@ function AllocationRow({ ticker, weight, capitalEur, color }: {
   );
 }
 
-function MarketPulse({ data, loading }: { data: MarketOverview | undefined; loading: boolean }) {
+function MarketPulse({ data, loading, updatedAt }: { data: MarketOverview | undefined; loading: boolean; updatedAt?: number }) {
   if (loading) {
     return <section className="card mb-5" style={{ padding: 20 }}><div className="skeleton" style={{ height: 140 }} /></section>;
   }
@@ -705,6 +710,7 @@ function MarketPulse({ data, loading }: { data: MarketOverview | undefined; load
     stress.regime === "Calm"     ? "var(--green)"  :
     stress.regime === "Normal"   ? "var(--orange)" :
     stress.regime === "Elevated" ? "var(--yellow)" : "var(--red)";
+  const minsAgo = updatedAt ? Math.round((Date.now() - updatedAt) / 60_000) : null;
 
   return (
     <section className="mb-5">
@@ -732,9 +738,16 @@ function MarketPulse({ data, loading }: { data: MarketOverview | undefined; load
         </div>
 
         <div className="card lg:col-span-3" style={{ padding: "16px 20px" }}>
-          <div className="flex items-center gap-2 mb-3">
-            <Globe size={14} style={{ color: "var(--orange)" }} />
-            <span style={{ fontSize: "0.66rem", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--t2)" }}>Global Markets</span>
+          <div className="flex items-center justify-between gap-2 mb-3">
+            <div className="flex items-center gap-2">
+              <Globe size={14} style={{ color: "var(--orange)" }} />
+              <span style={{ fontSize: "0.66rem", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--t2)" }}>Global Markets</span>
+            </div>
+            {minsAgo !== null && (
+              <span style={{ fontSize: "0.62rem", color: "var(--t3)" }}>
+                {minsAgo === 0 ? "Updated just now" : `Updated ${minsAgo}m ago`}
+              </span>
+            )}
           </div>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
             {indices.map(i => <IndexCell key={i.symbol} idx={i} />)}
@@ -779,6 +792,154 @@ function Sparkline({ values, up }: { values: number[]; up: boolean }) {
     <svg width={w} height={h} style={{ opacity: 0.8 }}>
       <polyline fill="none" strokeWidth="1.2" stroke={up ? "var(--green)" : "var(--red)"} points={pts} />
     </svg>
+  );
+}
+
+function WatchlistPanel({ tickers }: { tickers: string[] }) {
+  const { toggleWatchlist } = useWatchlist();
+  const queries = useQueries({
+    queries: tickers.map(ticker => ({
+      queryKey: ["fund", ticker],
+      queryFn: () => get<EquityFundamentals>(`/equity/${ticker}/fundamentals`),
+      staleTime: 5 * 60_000,
+      retry: 1,
+    })),
+  });
+
+  return (
+    <section className="mb-5">
+      <div className="rounded border overflow-hidden" style={{ borderColor: "var(--border)", background: "var(--bg-card)" }}>
+        {/* Header */}
+        <div className="px-5 py-3 border-b flex items-center justify-between" style={{ borderColor: "var(--border)" }}>
+          <div className="flex items-center gap-2">
+            <Wallet size={13} style={{ color: "var(--orange)" }} />
+            <span style={{ fontSize: "0.72rem", fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--t2)" }}>
+              Watchlist
+            </span>
+            <span className="badge badge-orange" style={{ fontSize: "0.6rem" }}>{tickers.length}</span>
+          </div>
+          <span style={{ fontSize: "0.62rem", color: "var(--t3)" }}>
+            Click ticker to review · ♥ to remove
+          </span>
+        </div>
+
+        {/* Column headers */}
+        <div style={{
+          display: "grid",
+          gridTemplateColumns: "88px 1fr 110px 110px 36px",
+          padding: "6px 20px",
+          borderBottom: "1px solid var(--border)",
+          fontSize: "0.6rem", fontWeight: 600, letterSpacing: "0.07em",
+          textTransform: "uppercase", color: "var(--t3)",
+        }}>
+          <span>Ticker</span>
+          <span>Company</span>
+          <span style={{ textAlign: "right" }}>Price</span>
+          <span style={{ textAlign: "right" }}>1D Change</span>
+          <span />
+        </div>
+
+        {/* Rows */}
+        {tickers.map((ticker, i) => {
+          const q = queries[i];
+          const data = q.data;
+          const price = data?.currentPrice;
+          const prevClose = data?.previousClose;
+          const changeAbs = price != null && prevClose != null ? price - prevClose : null;
+          const changePct = changeAbs != null && prevClose ? changeAbs / prevClose : null;
+          const up = changePct !== null ? changePct >= 0 : null;
+          const isLast = i === tickers.length - 1;
+
+          return (
+            <div
+              key={ticker}
+              style={{
+                display: "grid",
+                gridTemplateColumns: "88px 1fr 110px 110px 36px",
+                padding: "9px 20px",
+                alignItems: "center",
+                borderBottom: isLast ? "none" : "1px solid var(--border)",
+                transition: "background 0.1s",
+              }}
+              onMouseEnter={e => (e.currentTarget.style.background = "var(--bg-hover)")}
+              onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+            >
+              {/* Ticker */}
+              <Link href={`/equity?ticker=${encodeURIComponent(ticker)}`} style={{ textDecoration: "none" }}>
+                <span className="mono" style={{ fontWeight: 700, color: "var(--orange)", fontSize: "0.88rem" }}>
+                  {ticker}
+                </span>
+              </Link>
+
+              {/* Company name + sector */}
+              <div style={{ overflow: "hidden", paddingRight: 12 }}>
+                {q.isLoading ? (
+                  <div className="skeleton" style={{ height: 11, width: "55%" }} />
+                ) : (
+                  <span style={{
+                    fontSize: "0.72rem", color: "var(--t2)",
+                    overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "block",
+                  }}>
+                    {data?.longName ?? "—"}
+                  </span>
+                )}
+                {data?.sector && (
+                  <span style={{ fontSize: "0.62rem", color: "var(--t3)", display: "block", marginTop: 1 }}>
+                    {data.sector}
+                  </span>
+                )}
+              </div>
+
+              {/* Price */}
+              <div style={{ textAlign: "right" }}>
+                {q.isLoading ? (
+                  <div className="skeleton" style={{ height: 14, width: 58, marginLeft: "auto" }} />
+                ) : price != null ? (
+                  <span className="mono" style={{ fontWeight: 600, color: "var(--t1)", fontSize: "0.92rem" }}>
+                    {price.toFixed(2)}
+                  </span>
+                ) : (
+                  <span style={{ color: "var(--t3)", fontSize: "0.78rem" }}>—</span>
+                )}
+              </div>
+
+              {/* Change % */}
+              <div style={{ textAlign: "right" }}>
+                {q.isLoading ? (
+                  <div className="skeleton" style={{ height: 14, width: 54, marginLeft: "auto" }} />
+                ) : changePct !== null ? (
+                  <span className="mono" style={{
+                    fontWeight: 600, fontSize: "0.84rem",
+                    color: up ? "var(--green)" : "var(--red)",
+                  }}>
+                    {up ? "▲" : "▼"} {Math.abs(changePct * 100).toFixed(2)}%
+                  </span>
+                ) : (
+                  <span style={{ color: "var(--t3)", fontSize: "0.78rem" }}>—</span>
+                )}
+              </div>
+
+              {/* Remove button */}
+              <div style={{ display: "flex", justifyContent: "center" }}>
+                <button
+                  onClick={() => toggleWatchlist(ticker)}
+                  title="Remove from watchlist"
+                  style={{
+                    background: "none", border: "none", cursor: "pointer",
+                    padding: 4, display: "flex", alignItems: "center", justifyContent: "center",
+                    opacity: 0.45, transition: "opacity 0.15s",
+                  }}
+                  onMouseEnter={e => (e.currentTarget.style.opacity = "1")}
+                  onMouseLeave={e => (e.currentTarget.style.opacity = "0.45")}
+                >
+                  <Heart size={11} fill="var(--red)" stroke="var(--red)" />
+                </button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </section>
   );
 }
 

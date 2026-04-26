@@ -3,8 +3,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQueries } from "@tanstack/react-query";
 import {
-  Plus, Trash2, TrendingUp, TrendingDown, Wallet, RefreshCw, X, FolderPlus,
+  Plus, Trash2, TrendingUp, TrendingDown, Wallet, RefreshCw, X, FolderPlus, Upload,
 } from "lucide-react";
+import { useRef } from "react";
 import toast from "react-hot-toast";
 import { useI18n } from "@/lib/i18n";
 import { get, post, del } from "@/lib/api";
@@ -184,6 +185,43 @@ export default function TrackerPage() {
 
   const refetchAll = () => priceQueries.forEach(q => q.refetch());
 
+  const csvInputRef = useRef<HTMLInputElement>(null);
+
+  const handleCSVImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!activePf) { toast.error("Select a portfolio first."); return; }
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const text = ev.target?.result as string;
+        const lines = text.split(/\r?\n/).filter(l => l.trim());
+        if (!lines.length) { toast.error("CSV is empty."); return; }
+        // Detect header: if first row contains letters in numeric columns, skip it
+        const header = lines[0].split(",").map(h => h.trim().toLowerCase().replace(/["']/g, ""));
+        const hasHeader = isNaN(parseFloat(header[1]));
+        const dataLines = hasHeader ? lines.slice(1) : lines;
+
+        const imported: Position[] = [];
+        for (const line of dataLines) {
+          if (!line.trim()) continue;
+          const cols = line.split(",").map(c => c.trim().replace(/^["']|["']$/g, ""));
+          const ticker = (cols[0] ?? "").toUpperCase();
+          const shares = parseFloat(cols[1] ?? "");
+          const entryPrice = parseFloat(cols[2] ?? "");
+          const entryDate = cols[3] ?? new Date().toISOString().slice(0, 10);
+          if (!ticker || isNaN(shares) || isNaN(entryPrice)) continue;
+          imported.push({ id: crypto.randomUUID(), ticker, shares, entry_price: entryPrice, entry_date: entryDate });
+        }
+        if (!imported.length) { toast.error("No valid rows found. Format: Ticker,Shares,EntryPrice,EntryDate"); return; }
+        updatePositions(activePf.id, [...positions, ...imported]);
+        toast.success(`Imported ${imported.length} position${imported.length > 1 ? "s" : ""}.`);
+      } catch { toast.error("Failed to parse CSV."); }
+      finally { if (csvInputRef.current) csvInputRef.current.value = ""; }
+    };
+    reader.readAsText(file);
+  };
+
   // ---------------------------------------------------------------------------
   return (
     <div className="p-4 sm:p-6 max-w-[1400px] mx-auto fade-in">
@@ -211,9 +249,25 @@ export default function TrackerPage() {
             <FolderPlus size={13} /> New portfolio
           </button>
           {activePf && (
-            <button className="btn-primary" onClick={() => setFormOpen(o => !o)}>
-              <Plus size={14} /> Add position
-            </button>
+            <>
+              <input
+                ref={csvInputRef}
+                type="file"
+                accept=".csv,text/csv"
+                style={{ display: "none" }}
+                onChange={handleCSVImport}
+              />
+              <button
+                className="btn-secondary"
+                onClick={() => csvInputRef.current?.click()}
+                title="Import positions from CSV (Ticker,Shares,EntryPrice,EntryDate)"
+              >
+                <Upload size={13} /> Import CSV
+              </button>
+              <button className="btn-primary" onClick={() => setFormOpen(o => !o)}>
+                <Plus size={14} /> Add position
+              </button>
+            </>
           )}
         </div>
       </div>

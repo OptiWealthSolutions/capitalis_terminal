@@ -15,14 +15,18 @@ import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 import {
   formatNumber, formatPercent, formatCurrency, formatLargeNumber,
 } from "@/lib/utils";
-import { Search, TrendingUp, BarChart2, LineChart, Users } from "lucide-react";
+import { Search, TrendingUp, BarChart2, LineChart, Users, ArrowLeftRight, Plus, X as XIcon, Heart } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { useTheme } from "@/lib/theme";
+import { useInvestorMode } from "@/lib/investorMode";
+import { Bell, Shield, TrendingDown } from "lucide-react";
+import MetricTooltip, { ToneDot, getMetricTone, METRIC_TIPS, type MetricTone } from "@/components/ui/MetricTooltip";
+import { useWatchlist } from "@/lib/watchlist";
 
 const PERIODS = ["1mo", "3mo", "6mo", "1y", "2y", "5y"] as const;
 type Period = typeof PERIODS[number];
 type FinView = "annual" | "quarterly";
-type Tab = "overview" | "financials" | "charts" | "ownership";
+type Tab = "overview" | "financials" | "charts" | "ownership" | "comparison";
 
 /* ─── interfaces ─── */
 interface HolderRow {
@@ -75,13 +79,19 @@ function fmtBNull(v: number | null): string {
 export default function EquityPage() {
   const { t } = useI18n();
   const { theme } = useTheme();
+  const { mode } = useInvestorMode();
+  const { isWatched, toggleWatchlist } = useWatchlist();
+  const isSimple = mode === "simple";
   const isDark = theme === "dark";
   const TABS: { id: Tab; label: string; Icon: React.ElementType }[] = [
-    { id: "overview",   label: t.equity.tabs.overview,   Icon: TrendingUp },
-    { id: "financials", label: t.equity.tabs.financials, Icon: BarChart2  },
-    { id: "charts",     label: t.equity.tabs.charts,     Icon: LineChart  },
-    { id: "ownership",  label: t.equity.tabs.ownership,  Icon: Users      },
+    { id: "overview",    label: t.equity.tabs.overview,    Icon: TrendingUp      },
+    { id: "financials",  label: t.equity.tabs.financials,  Icon: BarChart2       },
+    { id: "charts",      label: t.equity.tabs.charts,      Icon: LineChart       },
+    { id: "ownership",   label: t.equity.tabs.ownership,   Icon: Users           },
+    { id: "comparison",  label: "Comparison",              Icon: ArrowLeftRight  },
   ];
+  const [peerTickers, setPeerTickers] = useState<string[]>([]);
+  const [peerInput, setPeerInput]     = useState("");
 
   const searchParams = useSearchParams();
   const [ticker, setTicker] = useState(() => {
@@ -163,6 +173,26 @@ export default function EquityPage() {
         {/* ── Page header ── */}
         <div style={{ marginBottom: 20, display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
           <h1 style={{ fontSize: "1.5rem", fontWeight: 600, color: "var(--t1)" }}>{t.equity.title}</h1>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          {/* Watchlist heart button */}
+          <button
+            onClick={() => toggleWatchlist(ticker)}
+            title={isWatched(ticker) ? `Remove ${ticker} from watchlist` : `Add ${ticker} to watchlist`}
+            style={{
+              display: "flex", alignItems: "center", justifyContent: "center",
+              width: 34, height: 34, borderRadius: "var(--r-sm)",
+              border: "1px solid var(--border)", background: "var(--bg-hover)",
+              cursor: "pointer", transition: "all 0.15s", flexShrink: 0,
+            }}
+            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = "var(--red)"; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = "var(--border)"; }}
+          >
+            <Heart
+              size={14}
+              fill={isWatched(ticker) ? "var(--red)" : "none"}
+              stroke={isWatched(ticker) ? "var(--red)" : "var(--t3)"}
+            />
+          </button>
           <div style={{ position: "relative" }}>
             <div style={{
               display: "flex", border: "1px solid var(--border)",
@@ -230,6 +260,7 @@ export default function EquityPage() {
               </div>
             )}
           </div>
+          </div>
         </div>
 
         {isError && (
@@ -287,33 +318,34 @@ export default function EquityPage() {
           </div>
         ) : null}
 
-        {/* ── Tab bar ── */}
-        <div style={{
-          display: "flex", borderBottom: "1px solid var(--border)",
-          marginBottom: 24, marginTop: 4, overflowX: "auto",
-        }}>
-          {TABS.map(({ id, label, Icon }) => (
-            <button
-              key={id}
-              onClick={() => setTab(id)}
-              style={{
-                display: "flex", alignItems: "center", gap: 7,
-                padding: "11px 20px", background: "none", border: "none",
-                borderBottom: `2px solid ${tab === id ? "var(--orange)" : "transparent"}`,
-                marginBottom: -1, cursor: "pointer",
-                color: tab === id ? "var(--orange)" : "var(--t2)",
-                fontSize: "0.8rem", fontWeight: tab === id ? 600 : 400,
-                letterSpacing: "0.01em", transition: "all 0.12s",
-              }}
-            >
-              <Icon size={13} />
-              {label}
-            </button>
-          ))}
-        </div>
+        {/* ══════════════════════════════════════════════════════════════ */}
+        {/* ── SIMPLE MODE: focused summary ─────────────────────────── */}
+        {isSimple && fund && (
+          <EquitySimpleView
+            ticker={ticker}
+            fund={fund}
+            stats={s ?? null}
+            history={history.data ?? null}
+            currentPrice={currentPrice}
+            dayChange={dayChange}
+            dayChangePct={dayChangePct}
+          />
+        )}
+
+        {/* ── Tab bar (advanced mode only) ── */}
+        {!isSimple && (
+          <div style={{ display: "flex", borderBottom: "1px solid var(--border)", marginBottom: 24, marginTop: 4, overflowX: "auto" }}>
+            {TABS.map(({ id, label, Icon }) => (
+              <button key={id} onClick={() => setTab(id)}
+                style={{ display: "flex", alignItems: "center", gap: 7, padding: "11px 20px", background: "none", border: "none", borderBottom: `2px solid ${tab === id ? "var(--orange)" : "transparent"}`, marginBottom: -1, cursor: "pointer", color: tab === id ? "var(--orange)" : "var(--t2)", fontSize: "0.8rem", fontWeight: tab === id ? 600 : 400, letterSpacing: "0.01em", transition: "all 0.12s" }}>
+                <Icon size={13} />{label}
+              </button>
+            ))}
+          </div>
+        )}
 
         {/* ════ Tab: Overview ════ */}
-        {tab === "overview" && (
+        {!isSimple && tab === "overview" && (
           <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
             {stats.isLoading || fundamentals.isLoading ? (
               <div className="grid grid-cols-5 gap-3">
@@ -414,22 +446,22 @@ export default function EquityPage() {
                   <FundSection title="Valuation" rows={[
                     ["Market Cap",        formatLargeNumber(n(fund?.marketCap))],
                     ["Enterprise Value",  formatLargeNumber(n(fund?.enterpriseValue))],
-                    ["Forward P/E",       formatNumber(n(fund?.forwardPE), 2)],
-                    ["Trailing P/E",      formatNumber(n(fund?.trailingPE), 2)],
-                    ["Price / Book",      formatNumber(n(fund?.priceToBook), 3)],
-                    ["Price / Sales",     formatNumber(n(fund?.priceToSalesTrailing12Months), 3)],
-                    ["EV / EBITDA",       formatNumber(n(fund?.enterpriseToEbitda), 2)],
+                    ["Forward P/E",       formatNumber(n(fund?.forwardPE), 2),   getMetricTone("forwardPE",    n(fund?.forwardPE))],
+                    ["Trailing P/E",      formatNumber(n(fund?.trailingPE), 2),  getMetricTone("trailingPE",   n(fund?.trailingPE))],
+                    ["Price / Book",      formatNumber(n(fund?.priceToBook), 3), getMetricTone("priceToBook",  n(fund?.priceToBook))],
+                    ["Price / Sales",     formatNumber(n(fund?.priceToSalesTrailing12Months), 3), getMetricTone("priceToSalesTrailing12Months", n(fund?.priceToSalesTrailing12Months))],
+                    ["EV / EBITDA",       formatNumber(n(fund?.enterpriseToEbitda), 2), getMetricTone("enterpriseToEbitda", n(fund?.enterpriseToEbitda))],
                     ["EV / Revenue",      formatNumber(n(fund?.enterpriseToRevenue), 2)],
-                    ["PEG Ratio",         formatNumber(n(fund?.pegRatio), 3)],
-                    ["Beta",              formatNumber(n(fund?.beta), 3)],
+                    ["PEG Ratio",         formatNumber(n(fund?.pegRatio), 3),    getMetricTone("pegRatio",     n(fund?.pegRatio))],
+                    ["Beta",              formatNumber(n(fund?.beta), 3),        getMetricTone("beta",         n(fund?.beta))],
                   ]} />
                   <FundSection title="Profitability" rows={[
-                    ["ROE",               formatPercent(n(fund?.returnOnEquity))],
-                    ["ROA",               formatPercent(n(fund?.returnOnAssets))],
-                    ["Gross Margin",      formatPercent(n(fund?.grossMargins))],
-                    ["Operating Margin",  formatPercent(n(fund?.operatingMargins))],
-                    ["Net Margin",        formatPercent(n(fund?.profitMargins))],
-                    ["EBITDA Margin",     formatPercent(n(fund?.ebitdaMargins))],
+                    ["ROE",               formatPercent(n(fund?.returnOnEquity)),   getMetricTone("returnOnEquity",   n(fund?.returnOnEquity))],
+                    ["ROA",               formatPercent(n(fund?.returnOnAssets)),   getMetricTone("returnOnAssets",   n(fund?.returnOnAssets))],
+                    ["Gross Margin",      formatPercent(n(fund?.grossMargins)),     getMetricTone("grossMargins",     n(fund?.grossMargins))],
+                    ["Operating Margin",  formatPercent(n(fund?.operatingMargins)), getMetricTone("operatingMargins", n(fund?.operatingMargins))],
+                    ["Net Margin",        formatPercent(n(fund?.profitMargins)),    getMetricTone("profitMargins",    n(fund?.profitMargins))],
+                    ["EBITDA Margin",     formatPercent(n(fund?.ebitdaMargins)),    getMetricTone("ebitdaMargins",    n(fund?.ebitdaMargins))],
                     ["EBITDA",            formatLargeNumber(n(fund?.ebitda))],
                     ["Operating CF",      formatLargeNumber(n(fund?.operatingCashflow))],
                   ]} />
@@ -484,7 +516,7 @@ export default function EquityPage() {
         )}
 
         {/* ════ Tab: Financials ════ */}
-        {tab === "financials" && (
+        {!isSimple && tab === "financials" && (
           <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
             <div style={{ display: "flex", justifyContent: "flex-end" }}>
               <div style={{
@@ -523,7 +555,7 @@ export default function EquityPage() {
         )}
 
         {/* ════ Tab: Charts ════ */}
-        {tab === "charts" && (
+        {!isSimple && tab === "charts" && (
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
             {/* Key indicators block */}
             {fund && (
@@ -626,11 +658,155 @@ export default function EquityPage() {
         )}
 
         {/* ════ Tab: Ownership ════ */}
-        {tab === "ownership" && (
+        {!isSimple && tab === "ownership" && (
           <HoldersSection data={holders.data} loading={holders.isLoading} />
+        )}
+
+        {/* ════ Tab: Comparison ════ */}
+        {!isSimple && tab === "comparison" && (
+          <PeerComparison
+            mainTicker={ticker}
+            peerTickers={peerTickers}
+            setPeerTickers={setPeerTickers}
+            peerInput={peerInput}
+            setPeerInput={setPeerInput}
+          />
         )}
       </div>
     </ErrorBoundary>
+  );
+}
+
+/* ─── EquitySimpleView ─── */
+interface SimpleViewProps {
+  ticker: string;
+  fund: Record<string, unknown>;
+  stats: { ann_return: number; ann_volatility: number; sharpe_ratio: number; max_drawdown: number; cagr: number } | null;
+  history: { dates: string[]; close: number[] } | null;
+  currentPrice: number | undefined;
+  dayChange: number | null;
+  dayChangePct: number | null;
+}
+
+function EquitySimpleView({ ticker, fund, stats, history, currentPrice, dayChange, dayChangePct }: SimpleViewProps) {
+  const currency = (fund.currency as string) ?? "USD";
+
+  // Compute period returns from history
+  function periodReturn(daysBack: number): number | null {
+    if (!history?.close || history.close.length < 2) return null;
+    const closes = history.close;
+    const idx = Math.max(0, closes.length - 1 - daysBack);
+    const base = closes[idx];
+    const last = closes[closes.length - 1];
+    return base ? (last - base) / base : null;
+  }
+  const r1w  = periodReturn(5);
+  const r1m  = periodReturn(21);
+  const r3m  = periodReturn(63);
+  const r1y  = periodReturn(252);
+
+  const recRaw = fund.recommendationMean as number | undefined;
+  const recLabel = recRaw != null
+    ? recRaw <= 1.5 ? "Strong Buy" : recRaw <= 2.5 ? "Buy" : recRaw <= 3.5 ? "Hold" : recRaw <= 4.5 ? "Sell" : "Strong Sell"
+    : null;
+  const recColor = recLabel === "Strong Buy" || recLabel === "Buy" ? "var(--green)"
+    : recLabel === "Hold" ? "var(--yellow, #f59e0b)"
+    : recLabel ? "var(--red)" : "var(--t3)";
+
+  function KPI({ label, value, tone }: { label: string; value: string; tone?: "up" | "down" | "neutral" }) {
+    const c = tone === "up" ? "var(--green)" : tone === "down" ? "var(--red)" : "var(--t1)";
+    return (
+      <div style={{ padding: "12px 16px", background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 10 }}>
+        <div style={{ fontSize: "0.58rem", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--t3)", marginBottom: 6 }}>{label}</div>
+        <div style={{ fontSize: "0.95rem", fontWeight: 700, color: c, fontFamily: "'JetBrains Mono', monospace" }}>{value}</div>
+      </div>
+    );
+  }
+
+  function ReturnBadge({ label, value }: { label: string; value: number | null }) {
+    if (value == null) return (
+      <div style={{ textAlign: "center" }}>
+        <div style={{ fontSize: "0.58rem", color: "var(--t3)", marginBottom: 4 }}>{label}</div>
+        <div style={{ fontSize: "0.9rem", fontWeight: 700, color: "var(--t3)" }}>—</div>
+      </div>
+    );
+    const pos = value >= 0;
+    return (
+      <div style={{ textAlign: "center" }}>
+        <div style={{ fontSize: "0.58rem", color: "var(--t3)", marginBottom: 4, letterSpacing: "0.07em", textTransform: "uppercase" }}>{label}</div>
+        <div style={{ fontSize: "0.9rem", fontWeight: 700, color: pos ? "var(--green)" : "var(--red)", fontFamily: "'JetBrains Mono', monospace" }}>
+          {pos ? "+" : ""}{formatPercent(value)}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 16, marginBottom: 8 }}>
+      {/* ── Performance strip ── */}
+      <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, padding: "16px 20px" }}>
+        <div style={{ fontSize: "0.6rem", fontWeight: 700, letterSpacing: "0.09em", textTransform: "uppercase", color: "var(--t3)", marginBottom: 12 }}>Performance</div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 8 }}>
+          <ReturnBadge label="1D" value={dayChangePct} />
+          <ReturnBadge label="1W" value={r1w} />
+          <ReturnBadge label="1M" value={r1m} />
+          <ReturnBadge label="3M" value={r3m} />
+          <ReturnBadge label="1Y" value={r1y} />
+        </div>
+      </div>
+
+      {/* ── Key metrics grid ── */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 10 }} className="sm:grid-cols-4">
+        <KPI label="Market Cap" value={fund.marketCap != null ? formatLargeNumber(fund.marketCap as number) : "—"} />
+        <KPI label="P/E (TTM)" value={fund.trailingPE != null ? formatNumber(fund.trailingPE as number, 2) : "—"} />
+        <KPI label="Div. Yield" value={fund.dividendYield != null ? formatPercent(fund.dividendYield as number) : "—"} />
+        <KPI label="52W Range" value={fund.fiftyTwoWeekLow != null && fund.fiftyTwoWeekHigh != null ? `${formatNumber(fund.fiftyTwoWeekLow as number, 0)} – ${formatNumber(fund.fiftyTwoWeekHigh as number, 0)}` : "—"} />
+        {stats && <KPI label="Sharpe (5Y)" value={formatNumber(stats.sharpe_ratio, 2)} tone={stats.sharpe_ratio >= 1 ? "up" : stats.sharpe_ratio < 0 ? "down" : "neutral"} />}
+        {stats && <KPI label="Max Drawdown" value={formatPercent(stats.max_drawdown)} tone="down" />}
+        {stats && <KPI label="CAGR (5Y)" value={formatPercent(stats.cagr)} tone={stats.cagr > 0 ? "up" : "down"} />}
+        <KPI label="ROE" value={fund.returnOnEquity != null ? formatPercent(fund.returnOnEquity as number) : "—"} tone={fund.returnOnEquity != null && (fund.returnOnEquity as number) > 0.10 ? "up" : undefined} />
+      </div>
+
+      {/* ── Analyst consensus ── */}
+      {(recLabel || fund.targetMeanPrice != null) && (
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          {recLabel && (
+            <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, padding: "14px 18px", display: "flex", flexDirection: "column", gap: 4 }}>
+              <div style={{ fontSize: "0.58rem", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--t3)" }}>Analyst Consensus</div>
+              <div style={{ fontSize: "1.05rem", fontWeight: 700, color: recColor, fontFamily: "'JetBrains Mono', monospace" }}>{recLabel}</div>
+              {fund.numberOfAnalystOpinions != null && (
+                <div style={{ fontSize: "0.7rem", color: "var(--t3)" }}>{String(fund.numberOfAnalystOpinions)} analysts</div>
+              )}
+            </div>
+          )}
+          {fund.targetMeanPrice != null && currentPrice != null && (
+            <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, padding: "14px 18px", display: "flex", flexDirection: "column", gap: 4 }}>
+              <div style={{ fontSize: "0.58rem", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--t3)" }}>Price Target</div>
+              <div style={{ fontSize: "1.05rem", fontWeight: 700, color: "var(--t1)", fontFamily: "'JetBrains Mono', monospace" }}>
+                {formatCurrency(fund.targetMeanPrice as number, currency)}
+              </div>
+              <div style={{ fontSize: "0.7rem", color: (fund.targetMeanPrice as number) > currentPrice ? "var(--green)" : "var(--red)" }}>
+                {((((fund.targetMeanPrice as number) - currentPrice) / currentPrice) * 100).toFixed(1)}% upside
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Company description ── */}
+      {!!fund.longBusinessSummary && (
+        <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, padding: "16px 20px" }}>
+          <div style={{ fontSize: "0.6rem", fontWeight: 700, letterSpacing: "0.09em", textTransform: "uppercase", color: "var(--t3)", marginBottom: 10 }}>About</div>
+          <p style={{ fontSize: "0.78rem", color: "var(--t2)", lineHeight: 1.7, display: "-webkit-box", WebkitLineClamp: 5, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+            {String(fund.longBusinessSummary)}
+          </p>
+        </div>
+      )}
+
+      <p style={{ fontSize: "0.72rem", color: "var(--t3)", textAlign: "center" }}>
+        Switch to <strong style={{ color: "var(--t2)" }}>Advanced</strong> mode in the header for full analysis, charts, and financial statements.
+      </p>
+    </div>
   );
 }
 
@@ -647,7 +823,7 @@ function StatKPI({ label, value, tone }: { label: string; value: string; tone?: 
         fontSize: "0.6rem", fontWeight: 600, letterSpacing: "0.08em",
         textTransform: "uppercase", color: "var(--t3)", marginBottom: 8,
       }}>
-        {label}
+        {METRIC_TIPS[label] ? <MetricTooltip label={label} tip={METRIC_TIPS[label]} /> : label}
       </div>
       <div style={{
         fontFamily: "JetBrains Mono, monospace", fontSize: "1.25rem",
@@ -660,7 +836,9 @@ function StatKPI({ label, value, tone }: { label: string; value: string; tone?: 
 }
 
 /* ─── FundSection ─── */
-function FundSection({ title, rows }: { title: string; rows: [string, string][] }) {
+type FundRow = [string, string] | [string, string, MetricTone];
+
+function FundSection({ title, rows }: { title: string; rows: FundRow[] }) {
   return (
     <div style={{
       background: "var(--bg-card)", border: "1px solid var(--border)",
@@ -674,7 +852,7 @@ function FundSection({ title, rows }: { title: string; rows: [string, string][] 
         {title}
       </div>
       <div>
-        {rows.map(([label, value], i) => (
+        {rows.map(([label, value, tone], i) => (
           <div
             key={label}
             style={{
@@ -684,12 +862,19 @@ function FundSection({ title, rows }: { title: string; rows: [string, string][] 
               background: i % 2 === 1 ? "var(--bg-hover)" : "transparent",
             }}
           >
-            <span style={{ fontSize: "0.78rem", color: "var(--t2)" }}>{label}</span>
+            <span style={{ fontSize: "0.78rem", color: "var(--t2)" }}>
+              {METRIC_TIPS[label]
+                ? <MetricTooltip label={label} tip={METRIC_TIPS[label]} />
+                : label
+              }
+            </span>
             <span style={{
+              display: "flex", alignItems: "center",
               fontSize: "0.78rem", fontFamily: "JetBrains Mono, monospace",
               fontWeight: 500, color: "var(--t1)",
             }}>
               {value}
+              <ToneDot tone={tone as MetricTone} />
             </span>
           </div>
         ))}
@@ -1465,6 +1650,202 @@ function HolderTable({
           </table>
         </div>
       )}
+    </div>
+  );
+}
+
+/* ─── PeerComparison ──────────────────────────────────────────────────────── */
+const PEER_METRICS: { key: string; label: string; fmt: (v: unknown) => string; toneKey?: string }[] = [
+  { key: "currentPrice",       label: "Price",           fmt: v => v != null ? `$${Number(v).toFixed(2)}` : "—" },
+  { key: "marketCap",          label: "Market Cap",      fmt: v => v != null ? formatLargeNumber(v as number) : "—" },
+  { key: "trailingPE",         label: "Trailing P/E",    fmt: v => v != null ? formatNumber(v as number, 2) : "—", toneKey: "trailingPE" },
+  { key: "forwardPE",          label: "Forward P/E",     fmt: v => v != null ? formatNumber(v as number, 2) : "—", toneKey: "forwardPE" },
+  { key: "pegRatio",           label: "PEG Ratio",       fmt: v => v != null ? formatNumber(v as number, 2) : "—", toneKey: "pegRatio" },
+  { key: "priceToBook",        label: "P / Book",        fmt: v => v != null ? formatNumber(v as number, 2) : "—", toneKey: "priceToBook" },
+  { key: "returnOnEquity",     label: "ROE",             fmt: v => v != null ? formatPercent(v as number) : "—",   toneKey: "returnOnEquity" },
+  { key: "returnOnAssets",     label: "ROA",             fmt: v => v != null ? formatPercent(v as number) : "—",   toneKey: "returnOnAssets" },
+  { key: "grossMargins",       label: "Gross Margin",    fmt: v => v != null ? formatPercent(v as number) : "—",   toneKey: "grossMargins" },
+  { key: "operatingMargins",   label: "Op. Margin",      fmt: v => v != null ? formatPercent(v as number) : "—",   toneKey: "operatingMargins" },
+  { key: "profitMargins",      label: "Net Margin",      fmt: v => v != null ? formatPercent(v as number) : "—",   toneKey: "profitMargins" },
+  { key: "beta",               label: "Beta",            fmt: v => v != null ? formatNumber(v as number, 2) : "—", toneKey: "beta" },
+  { key: "dividendYield",      label: "Div. Yield",      fmt: v => v != null ? formatPercent(v as number) : "—" },
+  { key: "earningsGrowth",     label: "Earnings Growth", fmt: v => v != null ? formatPercent(v as number) : "—" },
+  { key: "revenueGrowth",      label: "Revenue Growth",  fmt: v => v != null ? formatPercent(v as number) : "—" },
+  { key: "debtToEquity",       label: "Debt / Equity",   fmt: v => v != null ? formatNumber(v as number, 2) : "—", toneKey: "debtToEquity" },
+];
+
+function PeerComparison({
+  mainTicker, peerTickers, setPeerTickers, peerInput, setPeerInput,
+}: {
+  mainTicker:      string;
+  peerTickers:     string[];
+  setPeerTickers:  (t: string[]) => void;
+  peerInput:       string;
+  setPeerInput:    (v: string) => void;
+}) {
+  const allTickers = [mainTicker, ...peerTickers];
+
+  // Fetch fundamentals for all tickers in parallel
+  const queries = allTickers.map(t =>
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    useQuery<EquityFundamentals>({
+      queryKey: ["equity-fundamentals", t],
+      queryFn:  () => get(`/equity/${encodeURIComponent(t)}/fundamentals`),
+      enabled:  !!t,
+      staleTime: 3_600_000,
+    })
+  );
+
+  function addPeer() {
+    const t = peerInput.trim().toUpperCase();
+    if (!t || allTickers.includes(t)) { setPeerInput(""); return; }
+    setPeerTickers([...peerTickers, t]);
+    setPeerInput("");
+  }
+
+  function removePeer(t: string) {
+    setPeerTickers(peerTickers.filter(p => p !== t));
+  }
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      {/* ── Add peers ── */}
+      <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", gap: 6 }}>
+          <input
+            value={peerInput}
+            onChange={e => setPeerInput(e.target.value.toUpperCase())}
+            onKeyDown={e => { if (e.key === "Enter") addPeer(); }}
+            placeholder="Add peer (e.g. AMD)"
+            maxLength={10}
+            style={{
+              background: "var(--bg-hover)", border: "1px solid var(--border)",
+              borderRadius: "var(--r-sm)", padding: "7px 12px",
+              fontSize: "0.78rem", color: "var(--t1)", outline: "none",
+              fontFamily: "JetBrains Mono, monospace", width: 160,
+            }}
+          />
+          <button
+            onClick={addPeer}
+            style={{
+              background: "var(--orange)", border: "none", cursor: "pointer",
+              padding: "7px 12px", borderRadius: "var(--r-sm)",
+              display: "flex", alignItems: "center",
+            }}
+          >
+            <Plus size={13} color="#fff" />
+          </button>
+        </div>
+        {peerTickers.map(t => (
+          <span
+            key={t}
+            style={{
+              display: "inline-flex", alignItems: "center", gap: 6,
+              padding: "4px 10px", borderRadius: "var(--r-sm)",
+              background: "var(--orange-dim)", border: "1px solid var(--orange-border)",
+              fontSize: "0.75rem", fontFamily: "JetBrains Mono, monospace", color: "var(--orange)",
+            }}
+          >
+            {t}
+            <button onClick={() => removePeer(t)} style={{ color: "rgba(245,245,245,0.4)", lineHeight: 0, cursor: "pointer", background: "none", border: "none" }}>
+              <XIcon size={10} />
+            </button>
+          </span>
+        ))}
+        {peerTickers.length === 0 && (
+          <span style={{ fontSize: "0.72rem", color: "var(--t3)" }}>
+            Add tickers to compare (e.g. AMD, INTC, MSFT)
+          </span>
+        )}
+      </div>
+
+      {/* ── Comparison table ── */}
+      <div style={{ overflowX: "auto" }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.8rem" }}>
+          <thead>
+            <tr>
+              <th style={{
+                textAlign: "left", padding: "10px 14px",
+                background: "var(--bg-card)", borderBottom: "1px solid var(--border)",
+                fontSize: "0.6rem", fontWeight: 700, letterSpacing: "0.08em",
+                textTransform: "uppercase", color: "var(--t3)", whiteSpace: "nowrap",
+              }}>
+                Metric
+              </th>
+              {allTickers.map((t, idx) => {
+                const q = queries[idx];
+                const fund = q.data;
+                return (
+                  <th
+                    key={t}
+                    style={{
+                      textAlign: "right", padding: "10px 14px",
+                      background: idx === 0 ? "var(--orange-dim)" : "var(--bg-card)",
+                      borderBottom: "1px solid var(--border)",
+                      borderLeft: "1px solid var(--border)",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    <div style={{ fontFamily: "JetBrains Mono, monospace", fontSize: "0.82rem", fontWeight: 700, color: idx === 0 ? "var(--orange)" : "var(--t1)" }}>
+                      {t}
+                    </div>
+                    {fund && (
+                      <div style={{ fontSize: "0.6rem", color: "var(--t3)", fontWeight: 400, maxWidth: 120, overflow: "hidden", textOverflow: "ellipsis" }}>
+                        {String(fund.longName ?? "")}
+                      </div>
+                    )}
+                    {q.isLoading && (
+                      <div style={{ fontSize: "0.6rem", color: "var(--t3)" }}>Loading…</div>
+                    )}
+                  </th>
+                );
+              })}
+            </tr>
+          </thead>
+          <tbody>
+            {PEER_METRICS.map(({ key, label, fmt, toneKey }, ri) => (
+              <tr
+                key={key}
+                style={{ background: ri % 2 === 1 ? "var(--bg-hover)" : "transparent" }}
+              >
+                <td style={{
+                  padding: "8px 14px", borderBottom: "1px solid var(--border)",
+                  color: "var(--t2)", fontSize: "0.78rem", whiteSpace: "nowrap",
+                }}>
+                  {METRIC_TIPS[label]
+                    ? <MetricTooltip label={label} tip={METRIC_TIPS[label]} />
+                    : label
+                  }
+                </td>
+                {allTickers.map((t, idx) => {
+                  const q = queries[idx];
+                  const raw = q.data ? (q.data as Record<string, unknown>)[key] : undefined;
+                  const rawNum = raw != null ? Number(raw) : undefined;
+                  const tone = toneKey ? getMetricTone(toneKey, rawNum) : undefined;
+                  const toneColor = tone === "pos" ? "var(--green)" : tone === "warn" ? "var(--yellow, #c9b178)" : tone === "neg" ? "var(--red)" : "var(--t1)";
+                  return (
+                    <td
+                      key={t}
+                      style={{
+                        textAlign: "right", padding: "8px 14px",
+                        borderBottom: "1px solid var(--border)",
+                        borderLeft: "1px solid var(--border)",
+                        fontFamily: "JetBrains Mono, monospace",
+                        fontSize: "0.78rem",
+                        fontWeight: idx === 0 ? 600 : 400,
+                        color: toneColor,
+                        background: idx === 0 ? "rgba(122,167,232,0.03)" : "transparent",
+                      }}
+                    >
+                      {q.isLoading ? "…" : fmt(raw)}
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

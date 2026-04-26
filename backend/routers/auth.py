@@ -14,8 +14,10 @@ DELETE /auth/account       — delete account (irreversible)
 import logging
 import os
 import secrets
+import time
+from collections import defaultdict
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from jose import JWTError, jwt
 from pydantic import BaseModel, EmailStr, Field
 
@@ -46,6 +48,29 @@ router = APIRouter()
 
 _SECRET_KEY: str = os.environ.get("JWT_SECRET_KEY", "")
 _ALGORITHM = "HS256"
+
+if not _SECRET_KEY:
+    logger.critical("JWT_SECRET_KEY is not set — auth endpoints will reject all tokens")
+
+# ---------------------------------------------------------------------------
+# In-memory rate limiter for auth endpoints
+# ---------------------------------------------------------------------------
+_auth_attempts: dict[str, list[float]] = defaultdict(list)
+_RATE_WINDOW = 300   # 5-minute sliding window
+_RATE_MAX    = 10    # max 10 attempts per window per IP
+
+def _rate_limit(request: Request) -> None:
+    ip = (request.client.host if request.client else "unknown") or "unknown"
+    now = time.monotonic()
+    window = [t for t in _auth_attempts[ip] if now - t < _RATE_WINDOW]
+    if len(window) >= _RATE_MAX:
+        raise HTTPException(
+            status_code=429,
+            detail=f"Too many attempts. Retry in {_RATE_WINDOW // 60} minutes.",
+            headers={"Retry-After": str(_RATE_WINDOW)},
+        )
+    window.append(now)
+    _auth_attempts[ip] = window
 
 
 # ---------------------------------------------------------------------------
@@ -100,7 +125,8 @@ def _token_pair(user_id: str, email: str) -> dict:
 # ---------------------------------------------------------------------------
 
 @router.post("/register", status_code=status.HTTP_201_CREATED)
-def register(req: RegisterRequest):
+def register(req: RegisterRequest, request: Request):
+    _rate_limit(request)
     if len(req.password) < 8:
         raise HTTPException(status_code=422, detail="Password must be at least 8 characters.")
     if get_user_by_email(req.email):
@@ -110,7 +136,8 @@ def register(req: RegisterRequest):
 
 
 @router.post("/login")
-def login(req: LoginRequest):
+def login(req: LoginRequest, request: Request):
+    _rate_limit(request)
     user = get_user_by_email(req.email)
     if not user or not verify_password(req.password, user["hashed_password"]):
         raise HTTPException(

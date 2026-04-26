@@ -114,6 +114,25 @@ def optimize_portfolio(req: OptimizationRequest, current_user: dict = Depends(ge
     check_optimization_method(current_user["sub"], engine_method)
 
     tickers = _sanitize_tickers(req.tickers)
+
+    # Expand TOP20 placeholder using configurable top_scored_pct
+    if "TOP20" in tickers or "TOP_20_SCORED" in tickers:
+        tickers = [t for t in tickers if t not in ("TOP20", "TOP_20_SCORED")]
+        try:
+            import pandas as pd
+            from src.core.config import FINAL_SCORED_PATH
+            df_scored = pd.read_csv(FINAL_SCORED_PATH)
+            if not df_scored.empty and "Ticker" in df_scored.columns:
+                df_scored = df_scored.sort_values(by="Total_Score", ascending=False)
+                n = max(2, int(len(df_scored) * req.top_scored_pct / 100))
+                tickers = tickers + df_scored.head(n)["Ticker"].tolist()
+        except Exception as e:
+            logger.warning("TOP scored expansion failed: %s", e)
+
+    tickers = list(dict.fromkeys(tickers))  # deduplicate, preserve order
+    if len(tickers) < 2:
+        raise HTTPException(status_code=422, detail="Need at least 2 valid tickers after scorer expansion.")
+
     cache_key = f"pf_opt_{'-'.join(sorted(tickers))}_{req.method}_{req.capital}_{req.min_weight}_{req.max_weight}_{req.risk_aversion}_{req.max_assets}"
     cached = cache.get(cache_key)
     if cached is not None:
