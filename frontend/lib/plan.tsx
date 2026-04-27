@@ -6,10 +6,10 @@
  * exposes a React hook + helper components to gate UI consistently.
  */
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useAuth } from "./auth";
 
-export type PlanId = "free" | "pro" | "institutional";
+export type PlanId = "free" | "pro" | "premium" | "institutional";
 
 export interface PlanLimits {
   max_portfolios:          number | null;
@@ -17,12 +17,15 @@ export interface PlanLimits {
   screener_runs_per_day:   number | null;
   pdf_export:              boolean;
   monte_carlo:             boolean;
+  market_map:              boolean;
+  predictions:             boolean;
+  custom_alerts:           boolean;
   ml_alpha:                boolean;
-  api_access:              boolean;
+  ml_alpha_conviction:     boolean;
   tracker_portfolios:      number | null;
 }
 
-const PLAN_ORDER: PlanId[] = ["free", "pro", "institutional"];
+const PLAN_ORDER: PlanId[] = ["free", "pro", "premium", "institutional"];
 
 /**
  * Local mirror of backend PLAN_LIMITS — used as instant fallback while /me
@@ -31,32 +34,55 @@ const PLAN_ORDER: PlanId[] = ["free", "pro", "institutional"];
 const LOCAL_LIMITS: Record<PlanId, PlanLimits> = {
   free: {
     max_portfolios: 1,
-    optimization_methods: ["EqualWeights"],
+    optimization_methods: ["EqualWeights", "MinVol"],
     screener_runs_per_day: 3,
     pdf_export: false,
     monte_carlo: false,
+    market_map: false,
+    predictions: false,
+    custom_alerts: false,
     ml_alpha: false,
-    api_access: false,
+    ml_alpha_conviction: false,
     tracker_portfolios: 1,
   },
   pro: {
-    max_portfolios: 3,
-    optimization_methods: ["EqualWeights", "MeanVar", "MinVol"],
+    max_portfolios: 5,
+    optimization_methods: ["EqualWeights", "MinVol", "MeanVar", "HRP"],
     screener_runs_per_day: null,
     pdf_export: true,
     monte_carlo: true,
-    ml_alpha: true,
-    api_access: false,
-    tracker_portfolios: 3,
+    market_map: true,
+    predictions: false,
+    custom_alerts: false,
+    ml_alpha: false,
+    ml_alpha_conviction: false,
+    tracker_portfolios: null,
   },
+  premium: {
+    max_portfolios: null,
+    optimization_methods: ["EqualWeights", "MinVol", "MeanVar", "HRP", "Max_Sharpe"],
+    screener_runs_per_day: null,
+    pdf_export: true,
+    monte_carlo: true,
+    market_map: true,
+    predictions: true,
+    custom_alerts: true,
+    ml_alpha: true,
+    ml_alpha_conviction: true,
+    tracker_portfolios: null,
+  },
+  // Legacy alias — same as premium
   institutional: {
     max_portfolios: null,
-    optimization_methods: ["EqualWeights", "MeanVar", "MinVol", "HRP", "Max_Sharpe"],
+    optimization_methods: ["EqualWeights", "MinVol", "MeanVar", "HRP", "Max_Sharpe"],
     screener_runs_per_day: null,
     pdf_export: true,
     monte_carlo: true,
+    market_map: true,
+    predictions: true,
+    custom_alerts: true,
     ml_alpha: true,
-    api_access: true,
+    ml_alpha_conviction: true,
     tracker_portfolios: null,
   },
 };
@@ -69,20 +95,25 @@ export function planRank(p: PlanId): number {
 
 export function usePlan() {
   const { user } = useAuth();
-  const plan = ((user?.subscription?.plan ?? "free") as PlanId);
+  const rawPlan = (user?.subscription?.plan ?? "free") as PlanId;
+  // Normalize legacy "institutional" → "premium" for display
+  const plan: PlanId = rawPlan === "institutional" ? "premium" : rawPlan;
 
   // Prefer backend-provided plan_limits if present (AuthUser typed loosely)
   const serverLimits = (user as any)?.plan_limits as PlanLimits | undefined;
-  const limits = useMemo<PlanLimits>(() => serverLimits ?? LOCAL_LIMITS[plan], [serverLimits, plan]);
+  const limits = useMemo<PlanLimits>(
+    () => serverLimits ?? LOCAL_LIMITS[rawPlan] ?? LOCAL_LIMITS.free,
+    [serverLimits, rawPlan],
+  );
 
-  const canUseMethod  = (m: string) => limits.optimization_methods.includes(m);
+  const canUseMethod    = (m: string) => limits.optimization_methods.includes(m);
   const canAddPortfolio = (currentCount: number) =>
     limits.max_portfolios === null || currentCount < limits.max_portfolios;
   const has = (feature: keyof PlanLimits): boolean => {
     const v = limits[feature];
     return typeof v === "boolean" ? v : v !== null;
   };
-  const isAtLeast = (p: PlanId) => planRank(plan) >= planRank(p);
+  const isAtLeast = (p: PlanId) => planRank(rawPlan) >= planRank(p);
 
   return { plan, limits, canUseMethod, canAddPortfolio, has, isAtLeast };
 }

@@ -36,45 +36,44 @@ STRIPE_SECRET_KEY: str | None = os.environ.get("STRIPE_SECRET_KEY")
 STRIPE_WEBHOOK_SECRET: str | None = os.environ.get("STRIPE_WEBHOOK_SECRET")
 FRONTEND_URL: str = os.environ.get("FRONTEND_URL", "http://localhost:3000")
 
-STRIPE_PRICE_PRO                      = os.environ.get("STRIPE_PRICE_PRO",                      "price_1TOY7jDTTquLlx6jY7Co5scP")
-STRIPE_PRICE_INSTITUTIONAL            = os.environ.get("STRIPE_PRICE_INSTITUTIONAL",            "price_1TOY7jDTTquLlx6jbrXY6dBh")
-STRIPE_PRICE_PRO_ANNUAL               = os.environ.get("STRIPE_PRICE_PRO_ANNUAL",               "price_1TOdDDDTTquLlx6jTg3NWvWP")
-STRIPE_PRICE_INSTITUTIONAL_ANNUAL     = os.environ.get("STRIPE_PRICE_INSTITUTIONAL_ANNUAL",     "price_1TOdDEDTTquLlx6jbuPtbt1t")
-STRIPE_PAYMENT_LINK_PRO               = os.environ.get("STRIPE_PAYMENT_LINK_PRO",               "https://buy.stripe.com/test_3cIbJ1aO84W73ZG8qa9MY00")
-STRIPE_PAYMENT_LINK_INSTITUTIONAL     = os.environ.get("STRIPE_PAYMENT_LINK_INSTITUTIONAL",     "https://buy.stripe.com/test_eVq5kDg8s4W77bS49U9MY01")
-STRIPE_PAYMENT_LINK_PRO_ANNUAL        = os.environ.get("STRIPE_PAYMENT_LINK_PRO_ANNUAL",        "https://buy.stripe.com/test_9B614n2hC74f3ZG6i29MY02")
-STRIPE_PAYMENT_LINK_INSTITUTIONAL_ANNUAL = os.environ.get("STRIPE_PAYMENT_LINK_INSTITUTIONAL_ANNUAL", "https://buy.stripe.com/test_14AcN56xSgEPao46i29MY03")
+STRIPE_PRICE_PRO_MONTHLY        = os.environ.get("STRIPE_PRICE_PRO_MONTHLY",     "price_1TQwJ3DTTquLlx6jeYRnjKGu")
+STRIPE_PRICE_PREMIUM_MONTHLY    = os.environ.get("STRIPE_PRICE_PREMIUM_MONTHLY", "price_1TQwJ4DTTquLlx6jkcRv4orV")
+STRIPE_PRICE_PRO_ANNUAL         = os.environ.get("STRIPE_PRICE_PRO_ANNUAL",      "price_1TQwJ3DTTquLlx6jHdH8sN9W")
+STRIPE_PRICE_PREMIUM_ANNUAL     = os.environ.get("STRIPE_PRICE_PREMIUM_ANNUAL",  "price_1TQwJ5DTTquLlx6jh1FQED6f")
+STRIPE_PAYMENT_LINK_PRO         = os.environ.get("STRIPE_PAYMENT_LINK_PRO",         "")
+STRIPE_PAYMENT_LINK_PREMIUM     = os.environ.get("STRIPE_PAYMENT_LINK_PREMIUM",     "")
+STRIPE_PAYMENT_LINK_PRO_ANNUAL  = os.environ.get("STRIPE_PAYMENT_LINK_PRO_ANNUAL",  "")
+STRIPE_PAYMENT_LINK_PREMIUM_ANNUAL = os.environ.get("STRIPE_PAYMENT_LINK_PREMIUM_ANNUAL", "")
 
 # price_id → plan name mapping (webhook: any price → plan tier)
 _PRICE_TO_PLAN: dict[str, str] = {
-    STRIPE_PRICE_PRO:                  "pro",
-    STRIPE_PRICE_PRO_ANNUAL:           "pro",
-    STRIPE_PRICE_INSTITUTIONAL:        "institutional",
-    STRIPE_PRICE_INSTITUTIONAL_ANNUAL: "institutional",
+    STRIPE_PRICE_PRO_MONTHLY:    "pro",
+    STRIPE_PRICE_PRO_ANNUAL:     "pro",
+    STRIPE_PRICE_PREMIUM_MONTHLY: "premium",
+    STRIPE_PRICE_PREMIUM_ANNUAL:  "premium",
 }
 
 _FREE_FEATURES = [
-    "Macro dashboard (read-only)",
-    "1 portfolio max",
+    "1 portfolio",
     "Equal Weight & Min Variance",
     "1 tracker portfolio",
     "3 screener runs / day",
 ]
 _PRO_FEATURES = [
-    "Up to 3 portfolios",
-    "Equal Weight, Min Variance & Markowitz",
+    "Up to 5 portfolios",
+    "All optimizers incl. HRP",
     "Unlimited screener + scorer",
     "Monte Carlo & VaR/CVaR",
-    "ML Alpha signals",
+    "Market Map",
     "PDF export",
 ]
-_INSTITUTIONAL_FEATURES = [
+_PREMIUM_FEATURES = [
     "Unlimited portfolios",
-    "All 5 methods: HRP, Max Sharpe, Markowitz, Min Variance, Equal Weight",
-    "Unlimited screener + scorer",
-    "White-label PDF reports",
-    "ML Conviction (coming soon)",
+    "All 5 optimizers incl. Max Sharpe",
+    "Predictions engine + backtesting",
+    "Custom alerts",
     "Priority support",
+    "Early access to new features",
 ]
 
 PLANS = [
@@ -93,26 +92,26 @@ PLANS = [
     {
         "id": "pro",
         "name": "PRO",
-        "price_eur": 7,
-        "price_eur_annual": 75.60,   # €6.30/mo billed annually (10% off)
+        "price_eur": 6.99,
+        "price_eur_annual": 75.49,   # €6.29/mo billed annually (~10% off)
         "billing_interval": "month",
-        "stripe_price_id": STRIPE_PRICE_PRO,
+        "stripe_price_id": STRIPE_PRICE_PRO_MONTHLY,
         "stripe_price_id_annual": STRIPE_PRICE_PRO_ANNUAL,
-        "payment_link": STRIPE_PAYMENT_LINK_PRO,
-        "payment_link_annual": STRIPE_PAYMENT_LINK_PRO_ANNUAL,
+        "payment_link": STRIPE_PAYMENT_LINK_PRO or None,
+        "payment_link_annual": STRIPE_PAYMENT_LINK_PRO_ANNUAL or None,
         "features": _PRO_FEATURES,
     },
     {
-        "id": "institutional",
-        "name": "INSTITUTIONAL",
-        "price_eur": 20,
-        "price_eur_annual": 199.20,  # €16.60/mo billed annually (17% off)
+        "id": "premium",
+        "name": "PREMIUM",
+        "price_eur": 19.99,
+        "price_eur_annual": 215.89,  # €17.99/mo billed annually (~10% off)
         "billing_interval": "month",
-        "stripe_price_id": STRIPE_PRICE_INSTITUTIONAL,
-        "stripe_price_id_annual": STRIPE_PRICE_INSTITUTIONAL_ANNUAL,
-        "payment_link": STRIPE_PAYMENT_LINK_INSTITUTIONAL,
-        "payment_link_annual": STRIPE_PAYMENT_LINK_INSTITUTIONAL_ANNUAL,
-        "features": _INSTITUTIONAL_FEATURES,
+        "stripe_price_id": STRIPE_PRICE_PREMIUM_MONTHLY,
+        "stripe_price_id_annual": STRIPE_PRICE_PREMIUM_ANNUAL,
+        "payment_link": STRIPE_PAYMENT_LINK_PREMIUM or None,
+        "payment_link_annual": STRIPE_PAYMENT_LINK_PREMIUM_ANNUAL or None,
+        "features": _PREMIUM_FEATURES,
     },
 ]
 

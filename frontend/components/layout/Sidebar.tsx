@@ -236,8 +236,8 @@ export default function Sidebar({ isOpen, onClose, isCollapsed, onToggleCollapse
           </div>
           <div className="flex-1 min-w-0">
             <div className="font-medium truncate leading-tight" style={{ color: "var(--t1)", fontSize: "0.75rem" }}>{user?.email ?? ""}</div>
-            <span className={cn("badge mt-1", plan === "institutional" ? "badge-green" : "badge-orange")}>
-              {plan === "institutional" ? t.user.plan.institutional : t.user.plan.free}
+            <span className={cn("badge mt-1", (plan === "premium" || plan === "institutional") ? "badge-green" : plan === "pro" ? "badge-orange" : "")}>
+              {(plan === "premium" || plan === "institutional") ? t.user.plan.institutional : plan === "pro" ? "Pro" : t.user.plan.free}
             </span>
           </div>
           <button onClick={toggle} title={theme === "dark" ? "Switch to light" : "Switch to dark"}

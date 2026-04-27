@@ -17,7 +17,7 @@ import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
-type PlanId = "free" | "pro" | "institutional";
+type PlanId = "free" | "pro" | "premium" | "institutional";
 type Tab    = "overview" | "billing" | "security";
 
 // ---------------------------------------------------------------------------
@@ -90,11 +90,11 @@ const PLANS: Plan[] = [
       { label: "Market map",        value: "Full access" },
       { label: "Conviction scorer", value: "Yes" },
     ],
-    paymentLinkMonthly: "https://buy.stripe.com/test_3cIbJ1aO84W73ZG8qa9MY00",
-    paymentLinkAnnual:  "https://buy.stripe.com/test_9B614n2hC74f3ZG6i29MY02",
+    paymentLinkMonthly: null,
+    paymentLinkAnnual:  null,
   },
   {
-    id: "institutional", name: "Premium",
+    id: "premium", name: "Premium",
     monthlyPrice: "€19.99", annualPrice: "€215.89", annualMonthly: "€17.99",
     discount: "–10%",
     billing: "/ month",
@@ -116,8 +116,8 @@ const PLANS: Plan[] = [
       { label: "ML Predictions",    value: "Yes" },
       { label: "Custom alerts",     value: "Unlimited" },
     ],
-    paymentLinkMonthly: "https://buy.stripe.com/test_eVq5kDg8s4W77bS49U9MY01",
-    paymentLinkAnnual:  "https://buy.stripe.com/test_14AcN56xSgEPao46i29MY03",
+    paymentLinkMonthly: null,
+    paymentLinkAnnual:  null,
   },
 ];
 
@@ -180,7 +180,7 @@ function ProfileCard({ user, onSaved }: { user: any; onSaved: () => Promise<void
 
   const planColor =
     user?.subscription?.plan === "pro" ? "var(--orange)" :
-    user?.subscription?.plan === "institutional" ? "#A97CC0" : "var(--t3)";
+    (user?.subscription?.plan === "premium" || user?.subscription?.plan === "institutional") ? "#A97CC0" : "var(--t3)";
 
   return (
     <Card>

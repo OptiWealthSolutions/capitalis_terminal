@@ -46,7 +46,7 @@ const translations = {
       signOut: "Sign out",
       plan: {
         free:          "free",
-        institutional: "institutional",
+        institutional: "premium",
       },
     },
     auth: {
@@ -338,7 +338,7 @@ const translations = {
       signOut: "Déconnexion",
       plan: {
         free:          "gratuit",
-        institutional: "institutionnel",
+        institutional: "premium",
       },
     },
     auth: {

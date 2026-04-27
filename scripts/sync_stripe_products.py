@@ -61,10 +61,18 @@ LEGACY_NAME_PATTERNS = [
 ]
 
 
+def _meta_get(obj: Any, key: str) -> Any:
+    """Compat shim: StripeObject lost .get() in SDK v7+."""
+    try:
+        return obj[key]
+    except (KeyError, TypeError):
+        return None
+
+
 def find_product_by_slug(slug: str) -> Any:
     """Find existing Capitalis product by metadata.slug."""
     for p in stripe.Product.list(limit=100, active=True).auto_paging_iter():
-        if p.metadata.get("slug") == slug:
+        if _meta_get(p.metadata, "slug") == slug:
             return p
     return None
 
