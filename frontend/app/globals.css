@@ -15,7 +15,7 @@
   --bg-base:    #0A0A0A;
   --bg-surface: #111111;
   --bg-card:    #161616;
-  --bg-hover:   #1C1C1C;
+  --bg-hover:   #1E1E1E;
   --bg-pop:     #222222;
 
   --border:     rgba(255,255,255,0.07);
@@ -25,27 +25,23 @@
   --t2: rgba(245,245,245,0.60);
   --t3: rgba(245,245,245,0.32);
 
-  /* Primary accent — soft blue nuance */
-  --orange:        #7AA7E8;
-  --orange-dim:    rgba(122,167,232,0.10);
-  --orange-border: rgba(122,167,232,0.28);
-  --green:         #86B38A;
-  --green-dim:     rgba(134,179,138,0.10);
-  --red:           #D48585;
-  --red-dim:       rgba(212,133,133,0.10);
-  --yellow:        #C9B178;
-  --yellow-dim:    rgba(201,177,120,0.10);
+  /* Vivid accent colors */
+  --orange:        #60A5FA;
+  --orange-dim:    rgba(96,165,250,0.12);
+  --orange-border: rgba(96,165,250,0.28);
+  --green:         #4ADE80;
+  --green-dim:     rgba(74,222,128,0.12);
+  --red:           #F87171;
+  --red-dim:       rgba(248,113,113,0.12);
+  --yellow:        #FBBF24;
+  --yellow-dim:    rgba(251,191,36,0.12);
 
-  /* ── Radius system (redesign.md) ──
-     Major containers (charts, sidebar zones): 24px
-     Data cards (metrics, watchlist):          16px
-     Buttons, inputs, small elements:           8px
-     Badges, tags:                              4px     */
-  --r-2xl: 8px;
-  --r-xl:  6px;
-  --r:     6px;
-  --r-sm:   4px;
-  --r-xs:   2px;
+  /* ── Radius system — unified 12px for all cards ── */
+  --r-2xl: 12px;
+  --r-xl:  12px;
+  --r:     12px;
+  --r-sm:   8px;
+  --r-xs:   4px;
 
   /* ── Elevation — inner glow ONLY, no drop shadows ── */
   --card-shadow:
@@ -87,17 +83,17 @@
   --accent-orange-dim:  var(--orange-dim);
   --accent-orange-border: var(--orange-border);
   --accent-orange-strong: rgba(59,130,246,0.14);
-  --orange-hover:       #9DBFEF;
+  --orange-hover:       #93C5FD;
   --r-md:               var(--r-sm);
   --r-lg:               var(--r);
-  --glow-orange:        0 0 12px rgba(122,167,232,0.18);
+  --glow-orange:        0 0 12px rgba(96,165,250,0.22);
 }
 
 :root[data-theme="light"] {
   --bg-base:    #ECEEF2;
   --bg-surface: #F4F5F8;
   --bg-card:    #FFFFFF;
-  --bg-hover:   #E6E8EC;
+  --bg-hover:   #EAECF0;
   --bg-pop:     #FFFFFF;
 
   --border:     rgba(15,15,15,0.10);
@@ -107,15 +103,15 @@
   --t2: rgba(17,17,17,0.62);
   --t3: rgba(17,17,17,0.38);
 
-  --orange:        #3E6FB7;
-  --orange-dim:    rgba(62,111,183,0.08);
-  --orange-border: rgba(62,111,183,0.22);
-  --green:         #3E8E4C;
-  --green-dim:     rgba(62,142,76,0.08);
-  --red:           #B84646;
-  --red-dim:       rgba(184,70,70,0.08);
-  --yellow:        #A8892C;
-  --yellow-dim:    rgba(168,137,44,0.08);
+  --orange:        #2563EB;
+  --orange-dim:    rgba(37,99,235,0.08);
+  --orange-border: rgba(37,99,235,0.22);
+  --green:         #16A34A;
+  --green-dim:     rgba(22,163,74,0.08);
+  --red:           #DC2626;
+  --red-dim:       rgba(220,38,38,0.08);
+  --yellow:        #D97706;
+  --yellow-dim:    rgba(217,119,6,0.08);
 
   --card-shadow:
     inset 0 1px 0 rgba(255,255,255,1),
@@ -126,8 +122,8 @@
     0 2px 8px rgba(15,15,15,0.10),
     0 0 0 1px rgba(15,15,15,0.08);
 
-  --orange-hover: #1E4A8C;
-  --glow-orange:  0 0 10px rgba(62,111,183,0.14);
+  --orange-hover: #1D4ED8;
+  --glow-orange:  0 0 10px rgba(37,99,235,0.16);
 }
 
 /* ═══════════════════════════════════════════════════
@@ -197,6 +193,13 @@ body::before {
   background: var(--bg-hover);
   border-top-color: rgba(255,255,255,0.12);
   box-shadow: var(--card-shadow-hover);
+}
+
+/* Light theme — suppress aggressive hover background shift */
+:root[data-theme="light"] .card:hover,
+:root[data-theme="light"] .card-float:hover {
+  background: var(--bg-card);
+  border-color: rgba(15,15,15,0.14);
 }
 
 /* ═══════════════════════════════════════════════════

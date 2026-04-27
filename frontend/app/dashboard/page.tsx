@@ -20,7 +20,8 @@ import { useQuery, useMutation, useQueries } from "@tanstack/react-query";
 import {
   TrendingUp, TrendingDown, Briefcase, Target, Activity,
   CalendarClock, Coins, ArrowRight, BarChart3, Globe, Gauge,
-  LineChart, RefreshCw, ChevronDown, Wallet, Heart,
+  LineChart, RefreshCw, ChevronDown, ChevronUp, Wallet, Heart,
+  Newspaper, ExternalLink, Clock,
 } from "lucide-react";
 import { get, post } from "@/lib/api";
 import type { OptimizationResult, PerformanceResult, TrackerPerfResult, EquityFundamentals } from "@/lib/types";
@@ -444,17 +445,18 @@ export default function DashboardPage() {
           )}
         </div>
 
-        {/* ── RIGHT: Watchlist ── */}
+        {/* ── RIGHT: Watchlist + Community feed ── */}
         {watchlist.length > 0 && (
           <div className="w-full lg:w-[320px] lg:flex-shrink-0">
             <WatchlistPanel tickers={watchlist} />
+            <CommunityFeedWidget limit={5} />
           </div>
         )}
       </div>
 
-      {/* ── Bottom 2-col: Community feed + Optimizer Portfolio Summary ── */}
+      {/* ── Bottom 2-col: News feed + Optimizer Portfolio Summary ── */}
       <div className={`grid grid-cols-1 gap-5 mb-5${portfolio ? " lg:grid-cols-2" : ""}`}>
-        <CommunityFeedWidget limit={8} />
+        <NewsPanel />
 
         {portfolio && (
           <section className="card" style={{ borderRadius: "var(--r-2xl)", padding: "18px 20px" }}>
@@ -802,8 +804,146 @@ function Sparkline({ values, up }: { values: number[]; up: boolean }) {
   );
 }
 
+// ---------------------------------------------------------------------------
+// News helpers
+// ---------------------------------------------------------------------------
+interface NewsItem {
+  title: string; publisher: string; link: string;
+  published: number; tickers: string[]; thumbnail: string;
+}
+
+function newsTimeAgo(ts: number): string {
+  const diff = Math.floor((Date.now() / 1000 - ts));
+  if (diff < 3600)  return `${Math.floor(diff / 60)}m ago`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+  return `${Math.floor(diff / 86400)}d ago`;
+}
+
+// ---------------------------------------------------------------------------
+// News Panel
+// ---------------------------------------------------------------------------
+function NewsPanel() {
+  const { data, isLoading } = useQuery<{ news: NewsItem[] }>({
+    queryKey: ["market-news"],
+    queryFn:  () => get<{ news: NewsItem[] }>("/market/news"),
+    staleTime: 10 * 60_000,
+  });
+
+  const news = data?.news ?? [];
+
+  return (
+    <div className="rounded border overflow-hidden" style={{ borderColor: "var(--border)", background: "var(--bg-card)", boxShadow: "var(--card-shadow)" }}>
+      {/* Header */}
+      <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", gap: 8 }}>
+        <Newspaper size={13} style={{ color: "var(--orange)" }} />
+        <span style={{ fontSize: "0.68rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--t2)" }}>
+          Market News
+        </span>
+        <span style={{ marginLeft: "auto", fontSize: "0.6rem", color: "var(--t3)" }}>Live · yfinance</span>
+      </div>
+
+      {/* Items */}
+      {isLoading ? (
+        <div style={{ padding: 16, display: "flex", flexDirection: "column", gap: 12 }}>
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} style={{ display: "flex", gap: 10 }}>
+              <div className="skeleton" style={{ width: 64, height: 48, flexShrink: 0, borderRadius: "var(--r-sm)" }} />
+              <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 6 }}>
+                <div className="skeleton" style={{ height: 10, width: "90%" }} />
+                <div className="skeleton" style={{ height: 10, width: "65%" }} />
+                <div className="skeleton" style={{ height: 8, width: "40%" }} />
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : news.length === 0 ? (
+        <div style={{ padding: "32px 16px", textAlign: "center", color: "var(--t3)", fontSize: "0.8rem" }}>
+          No news available.
+        </div>
+      ) : (
+        <div>
+          {news.slice(0, 8).map((item, i) => {
+            const isLast = i === Math.min(7, news.length - 1);
+            return (
+              <a
+                key={i}
+                href={item.link}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ textDecoration: "none", display: "block" }}
+              >
+                <div
+                  style={{
+                    display: "flex", gap: 12, padding: "12px 16px",
+                    borderBottom: isLast ? "none" : "1px solid var(--border)",
+                    transition: "background 0.12s",
+                  }}
+                  onMouseEnter={e => (e.currentTarget.style.background = "var(--bg-hover)")}
+                  onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+                >
+                  {/* Thumbnail */}
+                  {item.thumbnail ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={item.thumbnail}
+                      alt=""
+                      style={{ width: 68, height: 52, objectFit: "cover", borderRadius: "var(--r-sm)", flexShrink: 0, background: "var(--bg-hover)" }}
+                      onError={e => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+                    />
+                  ) : (
+                    <div style={{ width: 68, height: 52, flexShrink: 0, borderRadius: "var(--r-sm)", background: "var(--bg-hover)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <Newspaper size={18} style={{ color: "var(--t3)" }} />
+                    </div>
+                  )}
+
+                  {/* Content */}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    {/* Meta row */}
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 5, flexWrap: "wrap" }}>
+                      <span style={{ fontSize: "0.6rem", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--orange)", background: "var(--orange-dim)", border: "1px solid var(--orange-border)", borderRadius: "var(--r-xs)", padding: "1px 5px" }}>
+                        {item.publisher || "News"}
+                      </span>
+                      <span style={{ display: "flex", alignItems: "center", gap: 3, fontSize: "0.58rem", color: "var(--t3)" }}>
+                        <Clock size={9} />
+                        {newsTimeAgo(item.published)}
+                      </span>
+                      {item.tickers?.slice(0, 3).map(t => (
+                        <span key={t} style={{ fontSize: "0.56rem", fontWeight: 700, fontFamily: "JetBrains Mono, monospace", color: "var(--t3)", padding: "1px 4px", border: "1px solid var(--border)", borderRadius: "var(--r-xs)" }}>
+                          {t}
+                        </span>
+                      ))}
+                      <ExternalLink size={9} style={{ color: "var(--t3)", marginLeft: "auto", flexShrink: 0 }} />
+                    </div>
+
+                    {/* Title */}
+                    <p style={{
+                      fontSize: "0.77rem", fontWeight: 500, color: "var(--t1)", lineHeight: 1.4,
+                      overflow: "hidden", display: "-webkit-box",
+                      WebkitLineClamp: 2, WebkitBoxOrient: "vertical",
+                    }}>
+                      {item.title}
+                    </p>
+                  </div>
+                </div>
+              </a>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Watchlist Panel
+// ---------------------------------------------------------------------------
 function WatchlistPanel({ tickers }: { tickers: string[] }) {
   const { toggleWatchlist } = useWatchlist();
+  const [expanded, setExpanded] = useState(false);
+  const MAX_VISIBLE = 10;
+  const visibleTickers = expanded ? tickers : tickers.slice(0, MAX_VISIBLE);
+  const hasMore = tickers.length > MAX_VISIBLE;
+
   const queries = useQueries({
     queries: tickers.map(ticker => ({
       queryKey: ["fund", ticker],
@@ -855,15 +995,16 @@ function WatchlistPanel({ tickers }: { tickers: string[] }) {
 
         {/* Rows */}
         <div style={{ overflowX: "auto" }}>
-          {tickers.map((ticker, i) => {
-            const q = queries[i];
+          {visibleTickers.map((ticker, i) => {
+            const originalIdx = tickers.indexOf(ticker);
+            const q = queries[originalIdx];
             const data = q.data;
             const price = data?.currentPrice;
             const prevClose = data?.previousClose;
             const changeAbs = price != null && prevClose != null ? price - prevClose : null;
             const changePct = changeAbs != null && prevClose ? changeAbs / prevClose : null;
             const up = changePct !== null ? changePct >= 0 : null;
-            const isLast = i === tickers.length - 1;
+            const isLast = i === visibleTickers.length - 1 && !hasMore;
 
             return (
               <div
@@ -943,6 +1084,24 @@ function WatchlistPanel({ tickers }: { tickers: string[] }) {
             );
           })}
         </div>
+
+        {/* Voir plus / Voir moins */}
+        {hasMore && (
+          <button
+            onClick={() => setExpanded(v => !v)}
+            style={{
+              width: "100%", padding: "8px", borderTop: "1px solid var(--border)",
+              background: "none", border: "none", cursor: "pointer", display: "flex",
+              alignItems: "center", justifyContent: "center", gap: 5,
+              fontSize: "0.65rem", fontWeight: 600, letterSpacing: "0.05em",
+              color: "var(--orange)", transition: "background 0.1s",
+            }}
+            onMouseEnter={e => (e.currentTarget.style.background = "var(--bg-hover)")}
+            onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+          >
+            {expanded ? <><ChevronUp size={12} /> Voir moins</> : <><ChevronDown size={12} /> Voir plus ({tickers.length - MAX_VISIBLE})</>}
+          </button>
+        )}
       </div>
     </section>
   );
