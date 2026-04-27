@@ -203,20 +203,34 @@ def get_sector_data() -> Any:
             ma50  = float(close.tail(50).mean())
             ma200 = float(close.tail(200).mean()) if len(close) >= 200 else float(close.mean())
 
+            high_52w = float(close.max())
+            low_52w  = float(close.min())
+            pos_52w  = round((price - low_52w) / (high_52w - low_52w) * 100, 1) if high_52w > low_52w else 50.0
+            from_hi  = round((price / high_52w - 1) * 100, 2)
+
+            vol = df["Volume"].dropna() if "Volume" in df.columns else pd.Series(dtype=float)
+            vol_ratio = None
+            if len(vol) >= 20:
+                vol_20d = float(vol.tail(20).mean())
+                vol_ratio = round(float(vol.iloc[-1]) / vol_20d, 2) if vol_20d > 0 else None
+
             sectors.append({
-                "etf":          etf,
-                "sector":       name,
-                "price":        round(price, 2),
-                "change_1d_pct": round((price - prev) / prev * 100, 2),
-                "change_1m_pct": round((price - m1)   / m1   * 100, 2),
-                "change_3m_pct": round((price - m3)   / m3   * 100, 2),
-                "change_1y_pct": round((price - y1)   / y1   * 100, 2),
-                "rsi_14":       round(rsi, 1),
-                "above_50ma":   bool(price > ma50),
-                "above_200ma":  bool(price > ma200),
-                "spark_30d":    [round(float(v), 2) for v in close.tail(30).tolist()],
-                "spark_1y":     [round(float(v), 2) for v in close.tolist()],
-                "dates_1y":     [str(d)[:10] for d in close.index.tolist()],
+                "etf":              etf,
+                "sector":           name,
+                "price":            round(price, 2),
+                "change_1d_pct":    round((price - prev) / prev * 100, 2),
+                "change_1m_pct":    round((price - m1)   / m1   * 100, 2),
+                "change_3m_pct":    round((price - m3)   / m3   * 100, 2),
+                "change_1y_pct":    round((price - y1)   / y1   * 100, 2),
+                "rsi_14":           round(rsi, 1),
+                "above_50ma":       bool(price > ma50),
+                "above_200ma":      bool(price > ma200),
+                "position_52w_pct": pos_52w,
+                "from_52w_high_pct": from_hi,
+                "vol_ratio":        vol_ratio,
+                "spark_30d":        [round(float(v), 2) for v in close.tail(30).tolist()],
+                "spark_1y":         [round(float(v), 2) for v in close.tolist()],
+                "dates_1y":         [str(d)[:10] for d in close.index.tolist()],
             })
         except Exception as exc:
             logger.warning("Sector parse %s: %s", etf, exc)
@@ -291,13 +305,162 @@ def get_market_breadth() -> Any:
     above_50  = sum(1 for s in sectors if s.get("above_50ma"))
     avg_rsi   = round(sum(s.get("rsi_14", 50) for s in sectors) / total, 1) if total else 50.0
 
+    # ── Fear & Greed (0 = extreme fear, 100 = extreme greed) ──
+    fear_greed = 50.0
+    fg_label   = "Neutral"
+    try:
+        fg_raw = yf.download(
+            ["^VIX", "^GSPC", "TLT", "^IRX"], period="6mo", interval="1d",
+            progress=False, auto_adjust=True, group_by="ticker", threads=True,
+        )
+        comps: list[float] = []
+
+        def _series(sym: str) -> pd.Series | None:
+            if isinstance(fg_raw.columns, pd.MultiIndex):
+                return fg_raw[sym]["Close"].dropna() if sym in fg_raw.columns.get_level_values(0) else None
+            return fg_raw["Close"].dropna() if len([s for s, _ in [("^VIX", "")]] ) == 1 else None
+
+        vix_c = _series("^VIX")
+        spx_c = _series("^GSPC")
+        tlt_c = _series("TLT")
+        irx_c = _series("^IRX")
+
+        if vix_c is not None and len(vix_c) > 0:
+            v = float(vix_c.iloc[-1])
+            comps.append(float(np.clip(100 - (v - 10) / 30 * 100, 0, 100)))
+
+        if spx_c is not None and len(spx_c) >= 20:
+            ma125 = float(spx_c.tail(min(125, len(spx_c))).mean())
+            ratio = float(spx_c.iloc[-1]) / ma125
+            comps.append(float(np.clip((ratio - 0.9) / 0.2 * 100, 0, 100)))
+
+        if total > 0:
+            comps.append(above_200 / total * 100.0)
+
+        comps.append(float(np.clip((avg_rsi - 30) / 40 * 100, 0, 100)))
+
+        if tlt_c is not None and spx_c is not None and len(tlt_c) >= 22 and len(spx_c) >= 22:
+            tlt_1m = float((tlt_c.iloc[-1] / tlt_c.iloc[-22] - 1) * 100)
+            spx_1m = float((spx_c.iloc[-1] / spx_c.iloc[-22] - 1) * 100)
+            sh = float(np.clip((spx_1m - tlt_1m + 10) / 20 * 100, 0, 100))
+            comps.append(sh)
+
+        if comps:
+            fear_greed = round(float(np.mean(comps)), 1)
+
+        fg_label = (
+            "Extreme Fear" if fear_greed < 25 else
+            "Fear"         if fear_greed < 45 else
+            "Neutral"      if fear_greed < 55 else
+            "Greed"        if fear_greed < 75 else
+            "Extreme Greed"
+        )
+
+        # Yield curve spread (10Y - 3M) in bps
+        yield_spread = None
+        if irx_c is not None and len(irx_c) > 0 and vix_c is not None:
+            tnx_data = yf.download("^TNX", period="5d", interval="1d", progress=False, auto_adjust=True)
+            if not tnx_data.empty:
+                tnx_val = float(tnx_data["Close"].dropna().iloc[-1])
+                irx_val = float(irx_c.iloc[-1])
+                yield_spread = round(tnx_val - irx_val, 2)
+    except Exception as exc:
+        logger.warning("Fear & Greed calc error: %s", exc)
+
     result = {
-        "total":              total,
+        "total":               total,
         "sectors_above_200ma": above_200,
         "sectors_above_50ma":  above_50,
-        "avg_rsi":            avg_rsi,
+        "avg_rsi":             avg_rsi,
         "bullish":  sum(1 for s in sectors if s.get("above_200ma") and s.get("change_1m_pct", 0) > 0),
         "bearish":  sum(1 for s in sectors if not s.get("above_200ma") and s.get("change_1m_pct", 0) < 0),
+        "fear_greed":       fear_greed,
+        "fear_greed_label": fg_label,
+        "yield_spread":     yield_spread,
     }
     cache.set("market_breadth", result, ttl=300)
+    return result
+
+
+# ---------------------------------------------------------------------------
+# GET /market/macro
+# ---------------------------------------------------------------------------
+MACRO_TICKERS = [
+    ("^GSPC",   "S&P 500",  "equity"),
+    ("^NDX",    "Nasdaq 100","equity"),
+    ("^VIX",    "VIX",      "volatility"),
+    ("^TNX",    "US 10Y",   "rates"),
+    ("^TYX",    "US 30Y",   "rates"),
+    ("^IRX",    "US 3M",    "rates"),
+    ("UUP",     "DXY",      "currency"),
+    ("GC=F",    "Gold",     "commodities"),
+    ("CL=F",    "Crude Oil","commodities"),
+    ("TLT",     "TLT 20Y",  "bonds"),
+    ("HYG",     "HY Bonds", "bonds"),
+    ("BTC-USD", "Bitcoin",  "crypto"),
+]
+
+
+@router.get("/macro")
+def get_macro_data() -> Any:
+    cached = cache.get("market_macro")
+    if cached is not None:
+        return cached
+
+    tickers = [t for t, _, _ in MACRO_TICKERS]
+    try:
+        raw = yf.download(
+            tickers, period="3mo", interval="1d",
+            progress=False, auto_adjust=True, group_by="ticker", threads=True,
+        )
+    except Exception as exc:
+        logger.error("Macro fetch error: %s", exc)
+        raise HTTPException(status_code=503, detail="Macro data unavailable.")
+
+    items: list[dict] = []
+    for sym, label, category in MACRO_TICKERS:
+        try:
+            if isinstance(raw.columns, pd.MultiIndex):
+                df = raw[sym] if sym in raw.columns.get_level_values(0) else pd.DataFrame()
+            else:
+                df = raw
+            if df is None or df.empty or "Close" not in df.columns:
+                continue
+            close = df["Close"].dropna()
+            if len(close) < 2:
+                continue
+
+            price = float(close.iloc[-1])
+            prev  = float(close.iloc[-2])
+            w1    = float(close.iloc[-6])  if len(close) >= 6  else float(close.iloc[0])
+            m1    = float(close.iloc[-22]) if len(close) >= 22 else float(close.iloc[0])
+            m3    = float(close.iloc[0])
+
+            items.append({
+                "symbol":       sym,
+                "label":        label,
+                "category":     category,
+                "price":        round(price, 4),
+                "change_1d_pct": round((price / prev - 1) * 100, 2),
+                "change_1w_pct": round((price / w1  - 1) * 100, 2),
+                "change_1m_pct": round((price / m1  - 1) * 100, 2),
+                "change_3m_pct": round((price / m3  - 1) * 100, 2),
+                "spark": [round(float(v), 4) for v in close.tail(30).tolist()],
+            })
+        except Exception as exc:
+            logger.warning("Macro parse %s: %s", sym, exc)
+
+    # Yield curve spread (10Y - 3M)
+    tnx = next((i for i in items if i["symbol"] == "^TNX"), None)
+    irx = next((i for i in items if i["symbol"] == "^IRX"), None)
+    curve_spread = None
+    if tnx and irx:
+        curve_spread = round(tnx["price"] - irx["price"], 2)
+
+    result = {
+        "macro": items,
+        "curve_spread": curve_spread,
+        "inverted": bool(curve_spread is not None and curve_spread < 0),
+    }
+    cache.set("market_macro", result, ttl=300)
     return result
