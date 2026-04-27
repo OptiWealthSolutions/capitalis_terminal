@@ -9,6 +9,11 @@ const nextConfig = {
   // All 17 routes are already prerendered static (○)
   ...(isProd ? { output: "export" } : {}),
 
+  // next/image optimizer endpoint (`_next/image`) doesn't exist on static
+  // hosting (Cloudflare Pages). Disable optimization → images served as-is
+  // from /public.
+  images: { unoptimized: true },
+
   // Rewrites only in dev — proxy /api/* to local backend
   // In prod: NEXT_PUBLIC_API_URL points directly to Railway (no proxy needed)
   ...(!isProd ? {

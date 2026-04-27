@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Sparkles, Briefcase, TrendingUp, Target, Sun, Moon, Menu, UserCircle, Sliders } from "lucide-react";
+import { Sparkles, Briefcase, TrendingUp, Target, Sun, Moon, UserCircle, Sliders } from "lucide-react";
 import { useTheme } from "@/lib/theme";
 import { useI18n } from "@/lib/i18n";
 import { useInvestorMode } from "@/lib/investorMode";
@@ -16,10 +16,10 @@ interface SavedPortfolio {
 const STORAGE_KEY = "capitalis_portfolios_v2";
 
 interface TopBarProps {
-  onMenuToggle: () => void;
+  onMenuToggle?: () => void;
 }
 
-export default function TopBar({ onMenuToggle }: TopBarProps) {
+export default function TopBar({ onMenuToggle: _onMenuToggle }: TopBarProps) {
   const { theme, toggle } = useTheme();
   const { t, locale, setLocale } = useI18n();
   const { mode, toggleMode, openProfileModal } = useInvestorMode();
@@ -38,14 +38,16 @@ export default function TopBar({ onMenuToggle }: TopBarProps) {
 
   return (
     <div className="ticker-tape sticky top-0 z-30">
-      {/* Hamburger — mobile only */}
-      <button
-        className="hidden flex-shrink-0 mr-2 p-1 rounded"
-        onClick={onMenuToggle}
-        style={{ color: "var(--t3)" }}
-      >
-        <Menu size={15} />
-      </button>
+      {/* Mobile-only brand chip (no sidebar on mobile, BottomNav handles it) */}
+      <div className="flex sm:hidden items-center gap-2 mr-auto">
+        <span style={{
+          fontFamily: "'JetBrains Mono', monospace",
+          fontSize: 12, fontWeight: 700, letterSpacing: "0.04em",
+          color: "var(--t1)",
+        }}>
+          CAPITALIS
+        </span>
+      </div>
 
       <div className="hidden sm:flex items-center overflow-x-auto flex-1 min-w-0">
         {pf ? (
@@ -88,66 +90,37 @@ export default function TopBar({ onMenuToggle }: TopBarProps) {
       </div>
 
       <div
-        className="ml-auto pl-3 sm:pl-5 flex items-center gap-2 sm:gap-3 flex-shrink-0"
+        className="ml-auto pl-3 sm:pl-4 flex items-center gap-2 flex-shrink-0"
         style={{ borderLeft: "1px solid rgba(148,163,184,0.12)" }}
       >
-        {/* Mode toggle: pill segmented control with sliding indicator */}
-        <div
-          className="hidden sm:flex relative items-center"
+        {/* Mode toggle: single uniform button toggling Simple ↔ Advanced */}
+        <button
+          onClick={toggleMode}
+          title={mode === "simple" ? "Switch to Advanced" : "Switch to Simple"}
+          className="hidden sm:flex items-center justify-center gap-1.5 transition-all"
           style={{
+            height: 28, padding: "0 12px", borderRadius: 999,
+            background: "transparent",
             border: "1px solid var(--border)",
-            background: "var(--bg-hover)",
-            borderRadius: 999,
-            padding: 3,
-            height: 28,
+            color: "var(--t2)",
+            fontSize: 11, fontWeight: 600, letterSpacing: "0.02em",
+          }}
+          onMouseEnter={e => {
+            (e.currentTarget as HTMLElement).style.borderColor = "var(--orange-border)";
+            (e.currentTarget as HTMLElement).style.background = "var(--orange-dim)";
+            (e.currentTarget as HTMLElement).style.color = "var(--orange)";
+          }}
+          onMouseLeave={e => {
+            (e.currentTarget as HTMLElement).style.borderColor = "var(--border)";
+            (e.currentTarget as HTMLElement).style.background = "transparent";
+            (e.currentTarget as HTMLElement).style.color = "var(--t2)";
           }}
         >
-          {/* Sliding pill indicator */}
-          <span
-            aria-hidden
-            style={{
-              position: "absolute",
-              top: 3,
-              bottom: 3,
-              left: mode === "simple" ? 3 : "calc(50% + 0px)",
-              width: "calc(50% - 3px)",
-              borderRadius: 999,
-              background: "var(--orange)",
-              boxShadow: "0 1px 2px rgba(0,0,0,0.18), 0 0 0 1px rgba(255,255,255,0.06) inset",
-              transition: "left 0.22s cubic-bezier(.4,.0,.2,1), background 0.18s",
-            }}
-          />
-          {(["simple", "advanced"] as const).map((m) => {
-            const active = mode === m;
-            return (
-              <button
-                key={m}
-                onClick={() => { if (mode !== m) toggleMode(); }}
-                className="relative flex items-center justify-center gap-1.5 transition-colors"
-                style={{
-                  zIndex: 1,
-                  padding: "0 12px",
-                  height: 22,
-                  minWidth: 76,
-                  fontSize: 10.5,
-                  fontWeight: 600,
-                  letterSpacing: "0.04em",
-                  fontFamily: "Inter, system-ui, sans-serif",
-                  textTransform: "none",
-                  background: "transparent",
-                  border: "none",
-                  cursor: "pointer",
-                  color: active ? "#fff" : "var(--t2)",
-                }}
-                onMouseEnter={e => { if (!active) (e.currentTarget as HTMLElement).style.color = "var(--t1)"; }}
-                onMouseLeave={e => { if (!active) (e.currentTarget as HTMLElement).style.color = "var(--t2)"; }}
-              >
-                {m === "simple" ? <Sparkles size={11} /> : <Sliders size={11} />}
-                {m === "simple" ? "Simple" : "Advanced"}
-              </button>
-            );
-          })}
-        </div>
+          {mode === "simple"
+            ? <><Sparkles size={12} /> Simple</>
+            : <><Sliders size={12} /> Advanced</>
+          }
+        </button>
 
         {/* Profile setup button */}
         <button

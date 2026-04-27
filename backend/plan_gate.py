@@ -19,7 +19,7 @@ from .db import get_subscription
 # Limits per plan — single source of truth
 # ---------------------------------------------------------------------------
 
-PLAN_ORDER = ["free", "pro", "institutional"]
+PLAN_ORDER = ["free", "pro", "premium", "institutional"]
 
 PLAN_LIMITS: dict[str, dict[str, Any]] = {
     "free": {
@@ -28,28 +28,52 @@ PLAN_LIMITS: dict[str, dict[str, Any]] = {
         "screener_runs_per_day": 3,
         "pdf_export":           False,
         "monte_carlo":          False,
+        "market_map":           False,
+        "predictions":          False,
+        "custom_alerts":        False,
         "ml_alpha":             False,
         "ml_alpha_conviction":  False,
         "tracker_portfolios":   1,
     },
     "pro": {
-        "max_portfolios":       3,
-        "optimization_methods": ["EqualWeights", "MinVol", "MeanVar"],
+        "max_portfolios":       5,
+        "optimization_methods": ["EqualWeights", "MinVol", "MeanVar", "HRP"],
         "screener_runs_per_day": None,   # unlimited
         "pdf_export":           True,
         "monte_carlo":          True,
-        "ml_alpha":             True,
+        "market_map":           True,
+        "predictions":          False,
+        "custom_alerts":        False,
+        "ml_alpha":             False,
         "ml_alpha_conviction":  False,
-        "tracker_portfolios":   3,
+        "tracker_portfolios":   None,    # unlimited
     },
-    "institutional": {
+    "premium": {
         "max_portfolios":       None,    # unlimited
         "optimization_methods": ["EqualWeights", "MinVol", "MeanVar", "HRP", "Max_Sharpe"],
         "screener_runs_per_day": None,
         "pdf_export":           True,
         "monte_carlo":          True,
+        "market_map":           True,
+        "predictions":          True,
+        "custom_alerts":        True,
         "ml_alpha":             True,
-        "ml_alpha_conviction":  True,   # coming soon
+        "ml_alpha_conviction":  True,
+        "tracker_portfolios":   None,
+    },
+    # Legacy alias — existing subs stored as "institutional" still resolve
+    # to the new Premium tier.
+    "institutional": {
+        "max_portfolios":       None,
+        "optimization_methods": ["EqualWeights", "MinVol", "MeanVar", "HRP", "Max_Sharpe"],
+        "screener_runs_per_day": None,
+        "pdf_export":           True,
+        "monte_carlo":          True,
+        "market_map":           True,
+        "predictions":          True,
+        "custom_alerts":        True,
+        "ml_alpha":             True,
+        "ml_alpha_conviction":  True,
         "tracker_portfolios":   None,
     },
 }

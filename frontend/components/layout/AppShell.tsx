@@ -41,14 +41,35 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     if (!loading && user && isPublic)   router.replace("/dashboard");
   }, [user, loading, isPublic, router]);
 
-  // Show profile onboarding once on first login (no profile set yet)
+  // Show profile onboarding once on first login — but ONLY after the tour
+  // has been seen/dismissed. The OnboardingTour writes
+  // `capitalis_tour_seen_v1` on close; we gate the profile modal on it.
   useEffect(() => {
-    if (!loading && user && !isPublic && !profile) {
+    if (loading || !user || isPublic || profile) return;
+    const tourSeen = (() => { try { return localStorage.getItem("capitalis_tour_seen_v1") === "1"; } catch { return false; } })();
+    if (!tourSeen) return; // wait until tour is done
+    const dismissed = sessionStorage.getItem("capitalis_profile_modal_dismissed");
+    if (!dismissed) openProfileModal();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, user, isPublic, profile]);
+
+  // Re-check when the tour closes — listen to storage event + custom flag
+  useEffect(() => {
+    function recheck() {
+      if (loading || !user || isPublic || profile) return;
+      const tourSeen = (() => { try { return localStorage.getItem("capitalis_tour_seen_v1") === "1"; } catch { return false; } })();
+      if (!tourSeen) return;
       const dismissed = sessionStorage.getItem("capitalis_profile_modal_dismissed");
       if (!dismissed) openProfileModal();
     }
+    window.addEventListener("capitalis:tour-closed", recheck);
+    window.addEventListener("storage", recheck);
+    return () => {
+      window.removeEventListener("capitalis:tour-closed", recheck);
+      window.removeEventListener("storage", recheck);
+    };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loading, user, isPublic]);
+  }, [loading, user, isPublic, profile]);
 
   // Close sidebar on route change (mobile nav)
   useEffect(() => { setSidebarOpen(false); }, [pathname]);

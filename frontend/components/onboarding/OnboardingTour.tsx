@@ -51,6 +51,8 @@ export default function OnboardingTour() {
       try { localStorage.setItem(STORAGE_KEY, "1"); } catch { /* ignore */ }
     }
     setOpen(false);
+    // Notify AppShell so it can show the profile modal next
+    try { window.dispatchEvent(new CustomEvent("capitalis:tour-closed")); } catch { /* ignore */ }
   }
 
   if (!open) return null;

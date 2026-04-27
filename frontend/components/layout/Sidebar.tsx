@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect, useRef } from "react";
 import { get } from "@/lib/api";
@@ -20,16 +19,16 @@ import { useTheme } from "@/lib/theme";
 type LucideIcon = ForwardRefExoticComponent<Omit<LucideProps, "ref"> & RefAttributes<SVGSVGElement>>;
 interface NavItem { href: string; label: string; icon: LucideIcon; badge?: string; section?: string; }
 
-// ─── Logo mark — uses the app favicon (same as browser tab) ─────────────────
+// ─── Logo mark — plain img to avoid next/image optimizer (broken on static export) ──
 function CapitalisLogo({ size = 28 }: { size?: number }) {
   return (
-    <Image
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
       src="/android-chrome-192x192.png"
       alt="Capitalis"
       width={size}
       height={size}
-      style={{ borderRadius: 6, flexShrink: 0 }}
-      priority
+      style={{ borderRadius: 6, flexShrink: 0, display: "block", objectFit: "cover" }}
     />
   );
 }
