@@ -14,6 +14,7 @@ function rangeToStartDate(r: TimeRange): string {
   return d.toISOString().split("T")[0];
 }
 import Link from "next/link";
+import PollWidget from "@/components/community/PollWidget";
 import { useQuery, useMutation, useQueries } from "@tanstack/react-query";
 import {
   TrendingUp, TrendingDown, Briefcase, Target, Activity,
@@ -248,6 +249,8 @@ export default function DashboardPage() {
           </Link>
         </div>
       </div>
+
+      <PollWidget />
 
       {optPortfolios.length === 0 && trackerPortfolios.length === 0 ? (
         <EmptyState />

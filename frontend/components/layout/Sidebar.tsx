@@ -11,7 +11,7 @@ import { useI18n } from "@/lib/i18n";
 import {
   LayoutDashboard, Filter, Star, Briefcase, Wallet,
   TrendingUp, FileText, Settings, UserCircle, LogOut, BookOpen,
-  Search, Sun, Moon, Bell, ChevronLeft, ChevronRight, Network,
+  Search, Sun, Moon, Bell, ChevronLeft, ChevronRight, Network, Users,
   type LucideProps,
 } from "lucide-react";
 import type { ForwardRefExoticComponent, RefAttributes } from "react";
@@ -122,6 +122,7 @@ export default function Sidebar({ isOpen, onClose, isCollapsed, onToggleCollapse
     { href: "/tracker",      label: t.nav.tracker,     icon: Wallet },
     { href: "/equity",       label: t.nav.equity,      icon: TrendingUp,      section: t.sections.deepDive },
     { href: "/alerts",       label: t.nav.alerts,      icon: Bell },
+    { href: "/community",    label: t.nav.community,   icon: Users,       section: "Community" },
     { href: "/reporting",    label: t.nav.reporting,   icon: FileText },
     { href: "/docs",         label: t.nav.docs,        icon: BookOpen },
   ];

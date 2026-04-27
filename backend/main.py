@@ -64,6 +64,7 @@ from .routers import portfolio, screener, scorer, equity, ml_predictions, report
 from .routers import auth as auth_router
 from .routers import alerts as alerts_router
 from .routers import value_chain as value_chain_router
+from .routers import community as community_router
 from .routers.settings_router import router as settings_router
 from .cache.memory_cache import cache
 from .db import init_db
@@ -180,6 +181,7 @@ app.include_router(billing.router, prefix="/api/billing", tags=["Billing"])
 app.include_router(market.router,  prefix="/api/market",  tags=["Market"])
 app.include_router(alerts_router.router, prefix="/api/alerts", tags=["Alerts"])
 app.include_router(value_chain_router.router, prefix="/api/value-chain", tags=["Value Chain"])
+app.include_router(community_router.router, prefix="/api/community", tags=["Community"])
 
 
 # ---------------------------------------------------------------------------

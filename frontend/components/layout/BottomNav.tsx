@@ -6,7 +6,7 @@ import { useState } from "react";
 import {
   LayoutDashboard, Filter, TrendingUp, Briefcase,
   MoreHorizontal, Star, Network, Wallet, Bell,
-  FileText, BookOpen, Settings, UserCircle, X,
+  FileText, BookOpen, Settings, UserCircle, X, Users,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 
@@ -30,6 +30,7 @@ export default function BottomNav() {
     { href: "/value-chain", label: t.nav.valueChain, icon: Network    },
     { href: "/tracker",     label: t.nav.tracker,    icon: Wallet     },
     { href: "/alerts",      label: t.nav.alerts,     icon: Bell       },
+    { href: "/community",   label: t.nav.community,  icon: Users      },
     { href: "/reporting",   label: t.nav.reporting,  icon: FileText   },
     { href: "/docs",        label: t.nav.docs,       icon: BookOpen   },
     { href: "/settings",    label: t.nav.settings,   icon: Settings   },
