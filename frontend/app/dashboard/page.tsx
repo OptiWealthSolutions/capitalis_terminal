@@ -15,6 +15,7 @@ function rangeToStartDate(r: TimeRange): string {
 }
 import Link from "next/link";
 import PollWidget from "@/components/community/PollWidget";
+import CommunityFeedWidget from "@/components/community/CommunityFeedWidget";
 import { useQuery, useMutation, useQueries } from "@tanstack/react-query";
 import {
   TrendingUp, TrendingDown, Briefcase, Target, Activity,
@@ -250,276 +251,281 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      <PollWidget />
-
-      {optPortfolios.length === 0 && trackerPortfolios.length === 0 ? (
-        <EmptyState />
-      ) : (
-        <>
-          {/* ── Optimizer Equity Curve ── */}
-          {optPortfolios.length > 0 && (
-            <section className="mb-5">
-              <EquityCurveCard
-                title="Optimizer Portfolio"
-                badgeLabel={portfolio?.method}
-                subtitle={`since ${rangeToStartDate(optTimeRange)}${perfResult ? ` · ${perfResult.n_days} trading days` : ""}`}
-                selector={
-                  <PortfolioSelect
-                    options={optPortfolios.map(p => ({ id: p.id, label: p.name }))}
-                    value={selectedOptId ?? ""}
-                    onChange={id => { setSelectedOptId(id); setPerfResult(null); }}
-                  />
-                }
-                onRefresh={() => portfolio && perfMutation.mutate({ pf: portfolio, range: optTimeRange })}
-                refreshing={perfMutation.isPending}
-                timeRange={optTimeRange}
-                onTimeRangeChange={r => { setOptTimeRange(r); setPerfResult(null); }}
-              >
-                {perfMutation.isPending && !perfResult && (
-                  <div className="px-5 py-3"><div className="skeleton" style={{ height: 200 }} /></div>
-                )}
-                {perfResult && (
-                  <>
-                    <KpiStrip items={[
-                      { label: "Total Return",   value: fmtPct(perfResult.metrics.total_return),    color: perfResult.metrics.total_return >= 0 ? "var(--green)" : "var(--red)" },
-                      { label: "Current Value",  value: fmtEur(perfResult.metrics.current_value),   color: "var(--orange)" },
-                      { label: "Ann. Return",    value: fmtPct(perfResult.metrics.ann_return),       color: (perfResult.metrics.ann_return ?? 0) >= 0 ? "var(--green)" : "var(--red)" },
-                      { label: "Volatility",     value: fmtPct(perfResult.metrics.ann_volatility),   color: "var(--yellow)" },
-                      { label: "Sharpe Ratio",   value: fmtNum(perfResult.metrics.sharpe_ratio, 3),  color: "var(--orange)" },
-                      { label: "Max Drawdown",   value: fmtPct(perfResult.metrics.max_drawdown),     color: "var(--red)" },
-                    ]} />
-                    <PlotlyChart
-                      data={[
-                        {
-                          type: "scatter", mode: "lines",
-                          x: perfResult.dates, y: perfResult.portfolio_values,
-                          name: portfolio?.name ?? "Portfolio",
-                          line: { color: "#7AA7E8", width: 2 },
-                          fill: "tozeroy",
-                          fillcolor: isDark ? "rgba(122,167,232,0.06)" : "rgba(62,111,183,0.05)",
-                          hovertemplate: "%{x}: €%{y:,.0f}<extra></extra>",
-                        },
-                        {
-                          type: "scatter", mode: "lines",
-                          x: perfResult.dates, y: perfResult.benchmark_values,
-                          name: "SPY",
-                          line: { color: "#94A3B8", width: 1.5, dash: "dot" },
-                          hovertemplate: "%{x}: €%{y:,.0f}<extra></extra>",
-                        },
-                      ]}
-                      layout={chartLayout("€")}
-                      height={240}
-                      card={false}
-                    />
-                  </>
-                )}
-                {!perfResult && !perfMutation.isPending && (
-                  <EmptyCurve label={
-                    !portfolio || !portfolio.tickers.length
-                      ? "Select a portfolio or run an optimization in Allocation."
-                      : perfMutation.isError
-                      ? "Failed to load equity curve. Try refreshing."
-                      : "Loading…"
-                  } />
-                )}
-              </EquityCurveCard>
-            </section>
-          )}
-
-          {/* ── Tracker Equity Curve ── */}
-          {trackerPortfolios.length > 0 && (
-            <section className="mb-5">
-              <EquityCurveCard
-                title="Tracker Portfolio"
-                badgeLabel={trackerPf ? `${trackerPf.positions.length} positions` : undefined}
-                subtitle={trackerResult ? `${trackerResult.n_days} trading days` : "live positions tracking"}
-                selector={
-                  <PortfolioSelect
-                    options={trackerPortfolios.map(p => ({ id: p.id, label: p.name }))}
-                    value={selectedTrkId ?? ""}
-                    onChange={id => { setSelectedTrkId(id); setTrackerResult(null); }}
-                  />
-                }
-                onRefresh={() => trackerPf && trackerMutation.mutate(trackerPf)}
-                refreshing={trackerMutation.isPending}
-                accent="#86B38A"
-              >
-                {trackerMutation.isPending && !trackerResult && (
-                  <div className="px-5 py-3"><div className="skeleton" style={{ height: 200 }} /></div>
-                )}
-                {trackerResult && (
-                  <>
-                    <KpiStrip items={[
-                      { label: "Current Value",   value: fmtEur(trackerResult.metrics.current_value),   color: "var(--orange)" },
-                      { label: "Cost Basis",      value: fmtEur(trackerResult.metrics.cost_basis),       color: "var(--t2)" },
-                      { label: "Unrealized P&L",  value: fmtPnl(trackerResult.metrics.unrealized_pnl),   color: trackerResult.metrics.unrealized_pnl >= 0 ? "var(--green)" : "var(--red)" },
-                      { label: "Total Return",    value: fmtPct(trackerResult.metrics.total_return),     color: trackerResult.metrics.total_return >= 0 ? "var(--green)" : "var(--red)" },
-                      { label: "Max Drawdown",    value: fmtPct(trackerResult.metrics.max_drawdown),     color: "var(--red)" },
-                      { label: "Positions",       value: String(trackerPf?.positions.length ?? 0),       color: "var(--t1)" },
-                    ]} />
-                    <PlotlyChart
-                      data={[
-                        {
-                          type: "scatter", mode: "lines",
-                          x: trackerResult.dates, y: trackerResult.portfolio_values,
-                          name: trackerPf?.name ?? "Portfolio",
-                          line: { color: "#86B38A", width: 2 },
-                          fill: "tozeroy",
-                          fillcolor: isDark ? "rgba(134,179,138,0.07)" : "rgba(86,147,91,0.05)",
-                          hovertemplate: "%{x}: €%{y:,.0f}<extra></extra>",
-                        },
-                        {
-                          type: "scatter", mode: "lines",
-                          x: trackerResult.dates, y: trackerResult.cost_basis,
-                          name: "Cost basis",
-                          line: { color: "#94A3B8", width: 1.5, dash: "dot" },
-                          hovertemplate: "%{x}: €%{y:,.0f}<extra></extra>",
-                        },
-                      ]}
-                      layout={chartLayout("€")}
-                      height={240}
-                      card={false}
-                    />
-
-                    {/* Per-position table */}
-                    <div className="px-5 pb-4 mt-2 overflow-x-auto">
-                      <table className="w-full text-xs" style={{ borderCollapse: "collapse" }}>
-                        <thead>
-                          <tr style={{ borderBottom: "1px solid var(--border)" }}>
-                            {["Ticker", "Shares", "Entry", "Current", "Value", "P&L", "Return"].map(h => (
-                              <th key={h} className="pb-2 text-left font-semibold tracking-widest pr-4"
-                                style={{ color: "var(--t3)", fontSize: 10 }}>{h.toUpperCase()}</th>
-                            ))}
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {trackerResult.positions.map(pos => {
-                            const up = (pos.return_pct ?? 0) >= 0;
-                            return (
-                              <tr key={pos.ticker} style={{ borderBottom: "1px solid var(--border)" }}>
-                                <td className="py-2 pr-4 font-mono font-semibold" style={{ color: "var(--orange)" }}>{pos.ticker}</td>
-                                <td className="py-2 pr-4 font-mono" style={{ color: "var(--t2)" }}>{pos.shares}</td>
-                                <td className="py-2 pr-4 font-mono" style={{ color: "var(--t3)" }}>€{pos.entry_price.toFixed(2)}</td>
-                                <td className="py-2 pr-4 font-mono" style={{ color: "var(--t1)" }}>
-                                  {pos.current_price != null ? `€${pos.current_price.toFixed(2)}` : "—"}
-                                </td>
-                                <td className="py-2 pr-4 font-mono" style={{ color: "var(--t1)" }}>
-                                  {pos.current_value != null ? fmtEur(pos.current_value) : "—"}
-                                </td>
-                                <td className="py-2 pr-4 font-mono" style={{ color: up ? "var(--green)" : "var(--red)" }}>
-                                  {pos.unrealized_pnl != null ? fmtPnl(pos.unrealized_pnl) : "—"}
-                                </td>
-                                <td className="py-2 font-mono font-semibold" style={{ color: up ? "var(--green)" : "var(--red)" }}>
-                                  {pos.return_pct != null ? fmtPct(pos.return_pct) : "—"}
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-                  </>
-                )}
-                {!trackerResult && !trackerMutation.isPending && (
-                  <EmptyCurve label={
-                    !trackerPf || trackerPf.positions.length === 0
-                      ? "Add positions in Portfolio Tracker to see your equity curve."
-                      : trackerMutation.isError
-                      ? "Failed to load equity curve. Check positions and try refreshing."
-                      : "Loading…"
-                  } />
-                )}
-              </EquityCurveCard>
-            </section>
-          )}
-
-          {/* ── Market Pulse ── */}
-          <MarketPulse data={market} loading={marketLoading} updatedAt={marketUpdatedAt} />
-
-          {/* ── Optimizer Portfolio Summary ── */}
-          {portfolio && (
-            <section className="card mb-5" style={{ borderRadius: "var(--r-2xl)", padding: "24px 28px" }}>
-              <div className="flex items-start justify-between flex-wrap gap-4 mb-5">
-                <div>
-                  <div className="flex items-center gap-2 mb-1.5">
-                    <span className="badge badge-orange">{portfolio.method ?? "—"}</span>
-                    <span style={{ color: "var(--t3)", fontSize: "0.68rem" }}>
-                      saved {new Date(portfolio.savedAt).toLocaleDateString()} · {portfolio.tickers.length} assets · {fmtEur(portfolio.capital)}
-                    </span>
-                  </div>
-                  <h2 style={{ fontSize: "1.4rem", fontWeight: 600, color: "var(--t1)", lineHeight: 1.2 }}>
-                    {portfolio.name}
-                  </h2>
-                </div>
-                <Link href="/portfolio" className="btn-secondary" style={{ borderRadius: "var(--r)" }}>
-                  Open in Allocation <ArrowRight size={13} />
-                </Link>
-              </div>
-
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
-                <StatTile label="Ann. Return"  value={fmtPct(perfResult?.metrics?.ann_return)}        icon={<TrendingUp size={14} />}   tone={(perfResult?.metrics?.ann_return ?? 0) >= 0 ? "up" : "down"} />
-                <StatTile label="Volatility"   value={fmtPct(perfResult?.metrics?.ann_volatility)}     icon={<Activity size={14} />} />
-                <StatTile label="Sharpe Ratio" value={fmtNum(perfResult?.metrics?.sharpe_ratio)}       icon={<Target size={14} />}       tone={(perfResult?.metrics?.sharpe_ratio ?? 0) >= 1 ? "up" : undefined} />
-                <StatTile label="Max Drawdown" value={fmtPct(perfResult?.metrics?.max_drawdown)}       icon={<TrendingDown size={14} />}  tone="down" />
-              </div>
-
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-                <div className="lg:col-span-2">
-                  <div className="flex items-center gap-2 mb-3">
-                    <BarChart3 size={13} style={{ color: "var(--orange)" }} />
-                    <span style={{ fontSize: "0.72rem", fontWeight: 600, color: "var(--t2)", letterSpacing: "0.06em", textTransform: "uppercase" }}>
-                      Allocation — {Object.keys(weights).length} positions
-                    </span>
-                  </div>
-                  <div className="space-y-1.5">
-                    {Object.entries(weights)
-                      .sort((a, b) => b[1] - a[1])
-                      .map(([tkr, w], i) => (
-                        <AllocationRow key={tkr} ticker={tkr} weight={w}
-                          capitalEur={portfolio.capital * w}
-                          color={CHART_COLORS[i % CHART_COLORS.length]} />
-                      ))}
-                  </div>
-                </div>
-
-                <div>
-                  <div className="flex items-center gap-2 mb-3">
-                    <CalendarClock size={13} style={{ color: "var(--orange)" }} />
-                    <span style={{ fontSize: "0.72rem", fontWeight: 600, color: "var(--t2)", letterSpacing: "0.06em", textTransform: "uppercase" }}>
-                      Upcoming Events
-                    </span>
-                  </div>
-                  {eventsLoading ? (
-                    <div className="space-y-2">
-                      {Array.from({ length: 4 }).map((_, i) => <div key={i} className="skeleton" style={{ height: 40 }} />)}
-                    </div>
-                  ) : upcoming.length === 0 ? (
-                    <p style={{ color: "var(--t3)", fontSize: "0.78rem" }}>No earnings or dividends in the next 180 days.</p>
-                  ) : (
-                    <div className="space-y-1">
-                      {upcoming.map((ev, idx) => <EventRow key={`${ev.ticker}-${ev.type}-${idx}`} event={ev} />)}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </section>
-          )}
-
-          {/* ── Watchlist ── */}
+      {/* ── 2-column layout ── */}
+      <div className="flex flex-col lg:flex-row lg:items-start gap-5 mb-5">
+        {/* ── LEFT column: Watchlist + Community feed ── */}
+        <div className="w-full lg:w-[340px] lg:flex-shrink-0">
           {watchlist.length > 0 && <WatchlistPanel tickers={watchlist} />}
+          <CommunityFeedWidget />
+        </div>
 
-          {/* Footer */}
-          <div className="flex items-center gap-3" style={{ color: "var(--t3)", fontSize: "0.72rem" }}>
-            <span>{optPortfolios.length} optimizer portfolio{optPortfolios.length !== 1 ? "s" : ""}</span>
-            <span>·</span>
-            <span>{trackerPortfolios.length} tracker portfolio{trackerPortfolios.length !== 1 ? "s" : ""}</span>
-            <span>·</span>
-            <Link href="/screener" style={{ color: "var(--orange)" }}>Find new ideas →</Link>
-            <span>·</span>
-            <Link href="/scorer" style={{ color: "var(--orange)" }}>Score conviction →</Link>
+        {/* ── RIGHT column: main content ── */}
+        <div className="flex-1 min-w-0">
+          <PollWidget />
+
+          {optPortfolios.length === 0 && trackerPortfolios.length === 0 ? (
+            <EmptyState />
+          ) : (
+            <>
+              {/* ── Optimizer Equity Curve ── */}
+              {optPortfolios.length > 0 && (
+                <section className="mb-5">
+                  <EquityCurveCard
+                    title="Optimizer Portfolio"
+                    badgeLabel={portfolio?.method}
+                    subtitle={`since ${rangeToStartDate(optTimeRange)}${perfResult ? ` · ${perfResult.n_days} trading days` : ""}`}
+                    selector={
+                      <PortfolioSelect
+                        options={optPortfolios.map(p => ({ id: p.id, label: p.name }))}
+                        value={selectedOptId ?? ""}
+                        onChange={id => { setSelectedOptId(id); setPerfResult(null); }}
+                      />
+                    }
+                    onRefresh={() => portfolio && perfMutation.mutate({ pf: portfolio, range: optTimeRange })}
+                    refreshing={perfMutation.isPending}
+                    timeRange={optTimeRange}
+                    onTimeRangeChange={r => { setOptTimeRange(r); setPerfResult(null); }}
+                  >
+                    {perfMutation.isPending && !perfResult && (
+                      <div className="px-5 py-3"><div className="skeleton" style={{ height: 200 }} /></div>
+                    )}
+                    {perfResult && (
+                      <>
+                        <KpiStrip items={[
+                          { label: "Total Return",   value: fmtPct(perfResult.metrics.total_return),    color: perfResult.metrics.total_return >= 0 ? "var(--green)" : "var(--red)" },
+                          { label: "Current Value",  value: fmtEur(perfResult.metrics.current_value),   color: "var(--orange)" },
+                          { label: "Ann. Return",    value: fmtPct(perfResult.metrics.ann_return),       color: (perfResult.metrics.ann_return ?? 0) >= 0 ? "var(--green)" : "var(--red)" },
+                          { label: "Volatility",     value: fmtPct(perfResult.metrics.ann_volatility),   color: "var(--yellow)" },
+                          { label: "Sharpe Ratio",   value: fmtNum(perfResult.metrics.sharpe_ratio, 3),  color: "var(--orange)" },
+                          { label: "Max Drawdown",   value: fmtPct(perfResult.metrics.max_drawdown),     color: "var(--red)" },
+                        ]} />
+                        <PlotlyChart
+                          data={[
+                            {
+                              type: "scatter", mode: "lines",
+                              x: perfResult.dates, y: perfResult.portfolio_values,
+                              name: portfolio?.name ?? "Portfolio",
+                              line: { color: "#7AA7E8", width: 2 },
+                              fill: "tozeroy",
+                              fillcolor: isDark ? "rgba(122,167,232,0.06)" : "rgba(62,111,183,0.05)",
+                              hovertemplate: "%{x}: €%{y:,.0f}<extra></extra>",
+                            },
+                            {
+                              type: "scatter", mode: "lines",
+                              x: perfResult.dates, y: perfResult.benchmark_values,
+                              name: "SPY",
+                              line: { color: "#94A3B8", width: 1.5, dash: "dot" },
+                              hovertemplate: "%{x}: €%{y:,.0f}<extra></extra>",
+                            },
+                          ]}
+                          layout={chartLayout("€")}
+                          height={240}
+                          card={false}
+                        />
+                      </>
+                    )}
+                    {!perfResult && !perfMutation.isPending && (
+                      <EmptyCurve label={
+                        !portfolio || !portfolio.tickers.length
+                          ? "Select a portfolio or run an optimization in Allocation."
+                          : perfMutation.isError
+                          ? "Failed to load equity curve. Try refreshing."
+                          : "Loading…"
+                      } />
+                    )}
+                  </EquityCurveCard>
+                </section>
+              )}
+
+              {/* ── Tracker Equity Curve ── */}
+              {trackerPortfolios.length > 0 && (
+                <section className="mb-5">
+                  <EquityCurveCard
+                    title="Tracker Portfolio"
+                    badgeLabel={trackerPf ? `${trackerPf.positions.length} positions` : undefined}
+                    subtitle={trackerResult ? `${trackerResult.n_days} trading days` : "live positions tracking"}
+                    selector={
+                      <PortfolioSelect
+                        options={trackerPortfolios.map(p => ({ id: p.id, label: p.name }))}
+                        value={selectedTrkId ?? ""}
+                        onChange={id => { setSelectedTrkId(id); setTrackerResult(null); }}
+                      />
+                    }
+                    onRefresh={() => trackerPf && trackerMutation.mutate(trackerPf)}
+                    refreshing={trackerMutation.isPending}
+                    accent="#86B38A"
+                  >
+                    {trackerMutation.isPending && !trackerResult && (
+                      <div className="px-5 py-3"><div className="skeleton" style={{ height: 200 }} /></div>
+                    )}
+                    {trackerResult && (
+                      <>
+                        <KpiStrip items={[
+                          { label: "Current Value",   value: fmtEur(trackerResult.metrics.current_value),   color: "var(--orange)" },
+                          { label: "Cost Basis",      value: fmtEur(trackerResult.metrics.cost_basis),       color: "var(--t2)" },
+                          { label: "Unrealized P&L",  value: fmtPnl(trackerResult.metrics.unrealized_pnl),   color: trackerResult.metrics.unrealized_pnl >= 0 ? "var(--green)" : "var(--red)" },
+                          { label: "Total Return",    value: fmtPct(trackerResult.metrics.total_return),     color: trackerResult.metrics.total_return >= 0 ? "var(--green)" : "var(--red)" },
+                          { label: "Max Drawdown",    value: fmtPct(trackerResult.metrics.max_drawdown),     color: "var(--red)" },
+                          { label: "Positions",       value: String(trackerPf?.positions.length ?? 0),       color: "var(--t1)" },
+                        ]} />
+                        <PlotlyChart
+                          data={[
+                            {
+                              type: "scatter", mode: "lines",
+                              x: trackerResult.dates, y: trackerResult.portfolio_values,
+                              name: trackerPf?.name ?? "Portfolio",
+                              line: { color: "#86B38A", width: 2 },
+                              fill: "tozeroy",
+                              fillcolor: isDark ? "rgba(134,179,138,0.07)" : "rgba(86,147,91,0.05)",
+                              hovertemplate: "%{x}: €%{y:,.0f}<extra></extra>",
+                            },
+                            {
+                              type: "scatter", mode: "lines",
+                              x: trackerResult.dates, y: trackerResult.cost_basis,
+                              name: "Cost basis",
+                              line: { color: "#94A3B8", width: 1.5, dash: "dot" },
+                              hovertemplate: "%{x}: €%{y:,.0f}<extra></extra>",
+                            },
+                          ]}
+                          layout={chartLayout("€")}
+                          height={240}
+                          card={false}
+                        />
+
+                        {/* Per-position table */}
+                        <div className="px-5 pb-4 mt-2 overflow-x-auto">
+                          <table className="w-full text-xs" style={{ borderCollapse: "collapse" }}>
+                            <thead>
+                              <tr style={{ borderBottom: "1px solid var(--border)" }}>
+                                {["Ticker", "Shares", "Entry", "Current", "Value", "P&L", "Return"].map(h => (
+                                  <th key={h} className="pb-2 text-left font-semibold tracking-widest pr-4"
+                                    style={{ color: "var(--t3)", fontSize: 10 }}>{h.toUpperCase()}</th>
+                                ))}
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {trackerResult.positions.map(pos => {
+                                const up = (pos.return_pct ?? 0) >= 0;
+                                return (
+                                  <tr key={pos.ticker} style={{ borderBottom: "1px solid var(--border)" }}>
+                                    <td className="py-2 pr-4 font-mono font-semibold" style={{ color: "var(--orange)" }}>{pos.ticker}</td>
+                                    <td className="py-2 pr-4 font-mono" style={{ color: "var(--t2)" }}>{pos.shares}</td>
+                                    <td className="py-2 pr-4 font-mono" style={{ color: "var(--t3)" }}>€{pos.entry_price.toFixed(2)}</td>
+                                    <td className="py-2 pr-4 font-mono" style={{ color: "var(--t1)" }}>
+                                      {pos.current_price != null ? `€${pos.current_price.toFixed(2)}` : "—"}
+                                    </td>
+                                    <td className="py-2 pr-4 font-mono" style={{ color: "var(--t1)" }}>
+                                      {pos.current_value != null ? fmtEur(pos.current_value) : "—"}
+                                    </td>
+                                    <td className="py-2 pr-4 font-mono" style={{ color: up ? "var(--green)" : "var(--red)" }}>
+                                      {pos.unrealized_pnl != null ? fmtPnl(pos.unrealized_pnl) : "—"}
+                                    </td>
+                                    <td className="py-2 font-mono font-semibold" style={{ color: up ? "var(--green)" : "var(--red)" }}>
+                                      {pos.return_pct != null ? fmtPct(pos.return_pct) : "—"}
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      </>
+                    )}
+                    {!trackerResult && !trackerMutation.isPending && (
+                      <EmptyCurve label={
+                        !trackerPf || trackerPf.positions.length === 0
+                          ? "Add positions in Portfolio Tracker to see your equity curve."
+                          : trackerMutation.isError
+                          ? "Failed to load equity curve. Check positions and try refreshing."
+                          : "Loading…"
+                      } />
+                    )}
+                  </EquityCurveCard>
+                </section>
+              )}
+
+              {/* ── Market Pulse ── */}
+              <MarketPulse data={market} loading={marketLoading} updatedAt={marketUpdatedAt} />
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* ── Optimizer Portfolio Summary (last, compact) ── */}
+      {portfolio && (
+        <section className="card mb-5" style={{ borderRadius: "var(--r-2xl)", padding: "20px 24px" }}>
+          <div className="flex items-center justify-between flex-wrap gap-3 mb-4">
+            <div className="flex items-center gap-3 flex-wrap">
+              <span className="badge badge-orange">{portfolio.method ?? "—"}</span>
+              <span style={{ fontSize: "1rem", fontWeight: 600, color: "var(--t1)" }}>{portfolio.name}</span>
+              <span style={{ color: "var(--t3)", fontSize: "0.65rem" }}>
+                {portfolio.tickers.length} assets · {fmtEur(portfolio.capital)} · saved {new Date(portfolio.savedAt).toLocaleDateString()}
+              </span>
+            </div>
+            <Link href="/portfolio" className="btn-secondary" style={{ borderRadius: "var(--r)" }}>
+              Open in Allocation <ArrowRight size={13} />
+            </Link>
           </div>
-        </>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+            <StatTile label="Ann. Return"  value={fmtPct(perfResult?.metrics?.ann_return)}        icon={<TrendingUp size={14} />}   tone={(perfResult?.metrics?.ann_return ?? 0) >= 0 ? "up" : "down"} />
+            <StatTile label="Volatility"   value={fmtPct(perfResult?.metrics?.ann_volatility)}     icon={<Activity size={14} />} />
+            <StatTile label="Sharpe Ratio" value={fmtNum(perfResult?.metrics?.sharpe_ratio)}       icon={<Target size={14} />}       tone={(perfResult?.metrics?.sharpe_ratio ?? 0) >= 1 ? "up" : undefined} />
+            <StatTile label="Max Drawdown" value={fmtPct(perfResult?.metrics?.max_drawdown)}       icon={<TrendingDown size={14} />}  tone="down" />
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+            <div className="lg:col-span-2">
+              <div className="flex items-center gap-2 mb-2">
+                <BarChart3 size={13} style={{ color: "var(--orange)" }} />
+                <span style={{ fontSize: "0.68rem", fontWeight: 600, color: "var(--t2)", letterSpacing: "0.06em", textTransform: "uppercase" }}>
+                  Allocation — {Object.keys(weights).length} positions
+                </span>
+              </div>
+              <div className="space-y-1">
+                {Object.entries(weights)
+                  .sort((a, b) => b[1] - a[1])
+                  .map(([tkr, w], i) => (
+                    <AllocationRow key={tkr} ticker={tkr} weight={w}
+                      capitalEur={portfolio.capital * w}
+                      color={CHART_COLORS[i % CHART_COLORS.length]} />
+                  ))}
+              </div>
+            </div>
+
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <CalendarClock size={13} style={{ color: "var(--orange)" }} />
+                <span style={{ fontSize: "0.68rem", fontWeight: 600, color: "var(--t2)", letterSpacing: "0.06em", textTransform: "uppercase" }}>
+                  Upcoming Events
+                </span>
+              </div>
+              {eventsLoading ? (
+                <div className="space-y-1.5">
+                  {Array.from({ length: 3 }).map((_, i) => <div key={i} className="skeleton" style={{ height: 34 }} />)}
+                </div>
+              ) : upcoming.length === 0 ? (
+                <p style={{ color: "var(--t3)", fontSize: "0.75rem" }}>No earnings or dividends in the next 180 days.</p>
+              ) : (
+                <div className="space-y-1">
+                  {upcoming.map((ev, idx) => <EventRow key={`${ev.ticker}-${ev.type}-${idx}`} event={ev} />)}
+                </div>
+              )}
+            </div>
+          </div>
+        </section>
       )}
+
+      {/* Footer */}
+      <div className="flex items-center gap-3" style={{ color: "var(--t3)", fontSize: "0.72rem" }}>
+        <span>{optPortfolios.length} optimizer portfolio{optPortfolios.length !== 1 ? "s" : ""}</span>
+        <span>·</span>
+        <span>{trackerPortfolios.length} tracker portfolio{trackerPortfolios.length !== 1 ? "s" : ""}</span>
+        <span>·</span>
+        <Link href="/screener" style={{ color: "var(--orange)" }}>Find new ideas →</Link>
+        <span>·</span>
+        <Link href="/scorer" style={{ color: "var(--orange)" }}>Score conviction →</Link>
+      </div>
     </div>
   );
 }
