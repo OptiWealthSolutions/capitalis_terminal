@@ -269,7 +269,7 @@ export default function ReportingPage() {
                       >
                         {generatePdf.isPending
                           ? <><LoadingSpinner size="sm" /> Generating PDF… (MC running)</>
-                          : <><FileText size={14} /> Generate Institutional Report — {selected.name}</>
+                          : <><FileText size={14} /> Generate PDF Report — {selected.name}</>
                         }
                       </button>
                     </div>

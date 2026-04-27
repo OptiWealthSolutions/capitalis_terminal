@@ -504,7 +504,8 @@ export default function CommunityPage() {
   const currentUserEmail = user?.email ?? "";
 
   return (
-    <div className="p-4 sm:p-6 max-w-[900px] mx-auto fade-in">
+    <div className="p-4 sm:p-6 xl:px-8 max-w-[2000px] mx-auto fade-in">
+      <div className="max-w-[920px] mx-auto">
 
       {/* Header */}
       <div className="mb-6 flex items-center gap-3">
@@ -561,6 +562,7 @@ export default function CommunityPage() {
           )}
         </div>
       )}
+      </div>
     </div>
   );
 }

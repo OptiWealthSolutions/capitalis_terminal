@@ -165,7 +165,7 @@ export default function LoginPage() {
         </div>
 
         <p className="mt-6 text-center text-xxs" style={{ color: "var(--ink-3)" }}>
-          Capitalis v2.0 — Institutional use only
+          Capitalis · Smarter investing for everyone
         </p>
       </div>
     </div>

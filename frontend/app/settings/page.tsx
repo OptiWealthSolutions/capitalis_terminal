@@ -367,7 +367,7 @@ function SimulationTab({ prefs, onChange }: { prefs: UserPreferences; onChange: 
             <p className="text-xs" style={{ color: "var(--t3)" }}>
               {prefs.mc_simulations <= 250  && "Fast — suitable for quick previews"}
               {prefs.mc_simulations === 500  && "Standard — recommended for most reports"}
-              {prefs.mc_simulations === 1000 && "High precision — institutional grade"}
+              {prefs.mc_simulations === 1000 && "High precision — best balance"}
               {prefs.mc_simulations >= 2000  && "Maximum precision — slow, use for final reports"}
             </p>
           </div>

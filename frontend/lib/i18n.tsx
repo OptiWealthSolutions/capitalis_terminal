@@ -51,8 +51,8 @@ const translations = {
     },
     auth: {
       login: {
-        title:        "Sign In",
-        subtitle:     "Institutional Quantitative Terminal",
+        title:        "Welcome back",
+        subtitle:     "Smarter investing, made simple",
         email:        "Email",
         password:     "Password",
         showPassword: "Show password",
@@ -62,9 +62,9 @@ const translations = {
         createOne:    "Create one",
       },
       register: {
-        title:            "Create Account",
-        subtitle:         "Institutional Quantitative Terminal",
-        tagline:          "V2 TERMINAL",
+        title:            "Create your account",
+        subtitle:         "Build smarter portfolios in minutes",
+        tagline:          "JOIN CAPITALIS",
         email:            "Email",
         password:         "Password",
         confirmPassword:  "Confirm Password",
@@ -214,7 +214,7 @@ const translations = {
     },
     reporting: {
       title:      "Reporting",
-      pageTitle:  "Institutional Reporting",
+      pageTitle:  "Portfolio Reports",
       breadcrumb: "Capital / Reporting",
       generate:   "Generate Report",
       download:   "Download PDF",
@@ -289,8 +289,8 @@ const translations = {
     },
     auth: {
       login: {
-        title:        "Connexion",
-        subtitle:     "Terminal Quantitatif Institutionnel",
+        title:        "Bon retour",
+        subtitle:     "Investir intelligemment, simplement",
         email:        "E-mail",
         password:     "Mot de passe",
         showPassword: "Afficher le mot de passe",
@@ -300,9 +300,9 @@ const translations = {
         createOne:    "Créer un",
       },
       register: {
-        title:            "Créer un compte",
-        subtitle:         "Terminal Quantitatif Institutionnel",
-        tagline:          "V2 TERMINAL",
+        title:            "Créez votre compte",
+        subtitle:         "Construisez des portefeuilles plus intelligents",
+        tagline:          "REJOINDRE CAPITALIS",
         email:            "E-mail",
         password:         "Mot de passe",
         confirmPassword:  "Confirmer le mot de passe",

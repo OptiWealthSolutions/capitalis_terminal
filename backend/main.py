@@ -80,6 +80,20 @@ ALLOWED_ORIGINS = [
     if o.strip()
 ]
 
+# Regex fallback — accept Cloudflare Pages (*.pages.dev), Vercel (*.vercel.app),
+# Railway preview (*.up.railway.app) and the production custom domain.
+# Keeps preview deploys working without manual env-var updates per branch.
+ALLOWED_ORIGIN_REGEX = (
+    r"^https://("
+    r"capitalis(app|terminal)?\.pages\.dev"
+    r"|[a-z0-9-]+\.capitalisapp\.pages\.dev"
+    r"|[a-z0-9-]+--capitalis[a-z0-9-]*\.pages\.dev"
+    r"|[a-z0-9-]+\.vercel\.app"
+    r"|capitalis\.io"
+    r"|app\.capitalis\.io"
+    r")$"
+)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -93,7 +107,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="CAPITALIS V2 API",
     version=API_VERSION,
-    description="Institutional Quantitative Investment Terminal — REST API",
+    description="Capitalis — portfolio analysis API.",
     # Disable Swagger UI and ReDoc in production to reduce attack surface
     docs_url="/api/docs" if ENV != "production" else None,
     redoc_url="/api/redoc" if ENV != "production" else None,
@@ -108,10 +122,11 @@ app = FastAPI(
 # GZip compression for responses > 1KB
 app.add_middleware(GZipMiddleware, minimum_size=1024)
 
-# CORS — locked to ALLOWED_ORIGINS env var (default: localhost:3000)
+# CORS — env-var allowlist + regex fallback for known prod hosts (Pages, Vercel, custom domain)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
+    allow_origin_regex=ALLOWED_ORIGIN_REGEX,
     allow_credentials=False,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type", "Accept"],

@@ -140,7 +140,7 @@ const CONTENT: Record<string, React.ReactNode> = {
   start: (
     <div>
       <H1>Getting started</H1>
-      <P>CAPITALIS is an institutional-grade quantitative portfolio analysis tool. It helps you research stocks, score conviction, build optimized portfolios, track positions, and generate professional reports — all in one terminal.</P>
+      <P>Capitalis is a portfolio analysis app that puts powerful quant tools in your hands. Research stocks, score conviction, build optimized portfolios, track positions, and generate reports — all in one place.</P>
 
       <Tip>You do not need coding or finance expertise to use CAPITALIS. This guide walks through every feature step by step.</Tip>
 
@@ -214,7 +214,7 @@ const CONTENT: Record<string, React.ReactNode> = {
       </Step>
 
       <Step n={6} title="Track and report">
-        Add your actual purchased positions in Portfolio Tracker (with real entry prices and dates). Generate an institutional PDF report from the Reporting page for documentation or client presentation.
+        Add your actual purchased positions in Portfolio Tracker (with real entry prices and dates). Generate a PDF report from the Reporting page for personal records or sharing with friends and advisors.
       </Step>
 
       <Tip>
@@ -566,7 +566,7 @@ const CONTENT: Record<string, React.ReactNode> = {
   reporting: (
     <div>
       <H1>Reporting</H1>
-      <P>The Reporting page generates institutional-grade PDF reports for any of your saved optimizer portfolios. These are suitable for personal documentation, client presentation, or compliance records.</P>
+      <P>The Reporting page generates polished PDF reports for any of your saved portfolios — perfect for personal records, sharing with friends or advisors, or keeping a paper trail.</P>
 
       <H2>How to generate a report</H2>
 
@@ -582,7 +582,7 @@ const CONTENT: Record<string, React.ReactNode> = {
       </Step>
 
       <Step n={3} title="Generate PDF">
-        Click "Generate Institutional Report". The backend runs the Monte Carlo simulation with live market data and builds the PDF. This takes 15–45 seconds depending on simulation count and market data latency.
+        Click "Generate PDF Report". The backend runs the Monte Carlo simulation with live market data and builds the PDF. This takes 15–45 seconds depending on simulation count and market data latency.
       </Step>
 
       <Step n={4} title="Download">
@@ -782,7 +782,7 @@ export default function DocsPage() {
   const groups = Array.from(new Set(SECTIONS.map(s => s.group)));
 
   return (
-    <div className="p-4 sm:p-6 max-w-[1200px] mx-auto fade-in">
+    <div className="p-4 sm:p-6 xl:px-8 max-w-[2000px] mx-auto fade-in">
 
       {/* Header */}
       <div className="mb-6 border-b pb-5" style={{ borderColor: "var(--border)" }}>
@@ -791,10 +791,10 @@ export default function DocsPage() {
         <p className="text-xs mt-1" style={{ color: "var(--t3)" }}>{t.docs.subtitle}</p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr] xl:grid-cols-[280px_1fr] gap-6">
 
         {/* Sidebar */}
-        <nav className="col-span-1 lg:col-span-3 space-y-4">
+        <nav className="space-y-4">
           {groups.map(group => (
             <div key={group}>
               <p className="text-xs font-semibold tracking-widest uppercase mb-2" style={{ color: "var(--t3)", fontSize: 10 }}>
@@ -823,8 +823,8 @@ export default function DocsPage() {
         </nav>
 
         {/* Content */}
-        <main className="col-span-1 lg:col-span-9" style={{ maxWidth: "100%" }}>
-          <div className="rounded-2xl border p-8" style={{ borderColor: "var(--border)", background: "var(--bg-card)", minHeight: 500 }}>
+        <main style={{ maxWidth: "100%", minWidth: 0 }}>
+          <div className="rounded-2xl border p-8" style={{ borderColor: "var(--border)", background: "var(--bg-card)", minHeight: 500, maxWidth: 980, marginInline: "auto" }}>
             {CONTENT[active]}
           </div>
 

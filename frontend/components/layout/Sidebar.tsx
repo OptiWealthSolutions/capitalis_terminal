@@ -161,7 +161,7 @@ export default function Sidebar({ isOpen, onClose, isCollapsed, onToggleCollapse
               CAPITALIS
             </div>
             <div style={{ fontSize: "0.52rem", color: "var(--t3)", letterSpacing: "0.06em", marginTop: 3, whiteSpace: "nowrap" }}>
-              by Horacle Capital
+              Smarter investing
             </div>
           </div>
         )}

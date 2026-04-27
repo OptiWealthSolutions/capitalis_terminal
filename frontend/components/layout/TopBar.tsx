@@ -91,74 +91,111 @@ export default function TopBar({ onMenuToggle }: TopBarProps) {
         className="ml-auto pl-3 sm:pl-5 flex items-center gap-2 sm:gap-3 flex-shrink-0"
         style={{ borderLeft: "1px solid rgba(148,163,184,0.12)" }}
       >
-        {/* Mode toggle: SIMPLE ↔ ADVANCED */}
+        {/* Mode toggle: pill segmented control with sliding indicator */}
         <div
-          className="hidden sm:flex items-center rounded-lg overflow-hidden"
-          style={{ border: "1px solid var(--border)", background: "var(--bg-hover)" }}
+          className="hidden sm:flex relative items-center"
+          style={{
+            border: "1px solid var(--border)",
+            background: "var(--bg-hover)",
+            borderRadius: 999,
+            padding: 3,
+            height: 28,
+          }}
         >
-          {(["simple", "advanced"] as const).map((m) => (
-            <button
-              key={m}
-              onClick={() => { if (mode !== m) toggleMode(); }}
-              className="flex items-center gap-1.5 px-2.5 py-1 transition-all"
-              style={{
-                fontSize: 10,
-                fontWeight: 700,
-                letterSpacing: "0.08em",
-                fontFamily: "'JetBrains Mono', monospace",
-                background: mode === m ? (m === "simple" ? "var(--orange)" : "var(--bg-base)") : "transparent",
-                color: mode === m ? (m === "simple" ? "#fff" : "var(--t1)") : "var(--t3)",
-              }}
-            >
-              {m === "simple" ? <><Sparkles size={9} /> SIMPLE</> : <><Sliders size={9} /> ADVANCED</>}
-            </button>
-          ))}
+          {/* Sliding pill indicator */}
+          <span
+            aria-hidden
+            style={{
+              position: "absolute",
+              top: 3,
+              bottom: 3,
+              left: mode === "simple" ? 3 : "calc(50% + 0px)",
+              width: "calc(50% - 3px)",
+              borderRadius: 999,
+              background: "var(--orange)",
+              boxShadow: "0 1px 2px rgba(0,0,0,0.18), 0 0 0 1px rgba(255,255,255,0.06) inset",
+              transition: "left 0.22s cubic-bezier(.4,.0,.2,1), background 0.18s",
+            }}
+          />
+          {(["simple", "advanced"] as const).map((m) => {
+            const active = mode === m;
+            return (
+              <button
+                key={m}
+                onClick={() => { if (mode !== m) toggleMode(); }}
+                className="relative flex items-center justify-center gap-1.5 transition-colors"
+                style={{
+                  zIndex: 1,
+                  padding: "0 12px",
+                  height: 22,
+                  minWidth: 76,
+                  fontSize: 10.5,
+                  fontWeight: 600,
+                  letterSpacing: "0.04em",
+                  fontFamily: "Inter, system-ui, sans-serif",
+                  textTransform: "none",
+                  background: "transparent",
+                  border: "none",
+                  cursor: "pointer",
+                  color: active ? "#fff" : "var(--t2)",
+                }}
+                onMouseEnter={e => { if (!active) (e.currentTarget as HTMLElement).style.color = "var(--t1)"; }}
+                onMouseLeave={e => { if (!active) (e.currentTarget as HTMLElement).style.color = "var(--t2)"; }}
+              >
+                {m === "simple" ? <Sparkles size={11} /> : <Sliders size={11} />}
+                {m === "simple" ? "Simple" : "Advanced"}
+              </button>
+            );
+          })}
         </div>
 
         {/* Profile setup button */}
         <button
           onClick={openProfileModal}
           title="Edit investor profile"
-          className="hidden sm:flex items-center justify-center rounded-lg border transition-all"
+          className="hidden sm:flex items-center justify-center transition-all"
           style={{
-            width: 28, height: 28,
-            background: "var(--bg-hover)",
-            borderColor: "var(--border)",
+            width: 28, height: 28, borderRadius: 999,
+            background: "transparent",
+            border: "1px solid var(--border)",
             color: "var(--t3)",
           }}
           onMouseEnter={e => {
-            (e.currentTarget as HTMLElement).style.borderColor = "var(--orange)";
+            (e.currentTarget as HTMLElement).style.borderColor = "var(--orange-border)";
+            (e.currentTarget as HTMLElement).style.background = "var(--orange-dim)";
             (e.currentTarget as HTMLElement).style.color = "var(--orange)";
           }}
           onMouseLeave={e => {
             (e.currentTarget as HTMLElement).style.borderColor = "var(--border)";
+            (e.currentTarget as HTMLElement).style.background = "transparent";
             (e.currentTarget as HTMLElement).style.color = "var(--t3)";
           }}
         >
-          <UserCircle size={13} />
+          <UserCircle size={14} />
         </button>
 
         {/* Language toggle */}
         <button
           onClick={() => setLocale(locale === "en" ? "fr" : "en")}
           title={locale === "en" ? "Switch to French" : "Passer en anglais"}
-          className="flex items-center gap-1.5 px-2.5 py-1 rounded border transition-all"
+          className="flex items-center justify-center transition-all"
           style={{
-            background: "var(--orange-dim)",
-            borderColor: "var(--orange-border)",
-            color: "var(--orange)",
-            fontSize: 10.5,
-            fontWeight: 700,
-            letterSpacing: "0.07em",
+            height: 28, minWidth: 36, padding: "0 10px", borderRadius: 999,
+            background: "transparent",
+            border: "1px solid var(--border)",
+            color: "var(--t2)",
+            fontSize: 10.5, fontWeight: 700, letterSpacing: "0.07em",
             fontFamily: "'JetBrains Mono', monospace",
           }}
           onMouseEnter={e => {
-            (e.currentTarget as HTMLElement).style.background = "var(--orange)";
-            (e.currentTarget as HTMLElement).style.color = "#fff";
-          }}
-          onMouseLeave={e => {
+            (e.currentTarget as HTMLElement).style.borderColor = "var(--orange-border)";
             (e.currentTarget as HTMLElement).style.background = "var(--orange-dim)";
             (e.currentTarget as HTMLElement).style.color = "var(--orange)";
+          }}
+          onMouseLeave={e => {
+            (e.currentTarget as HTMLElement).style.borderColor = "var(--border)";
+            (e.currentTarget as HTMLElement).style.background = "transparent";
+            (e.currentTarget as HTMLElement).style.color = "var(--t2)";
           }}
         >
           {locale.toUpperCase()}
@@ -168,20 +205,22 @@ export default function TopBar({ onMenuToggle }: TopBarProps) {
         <button
           onClick={toggle}
           title={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
-          className="flex items-center gap-1.5 px-2.5 py-1 rounded border transition-all"
+          className="flex items-center gap-1.5 transition-all"
           style={{
-            background: "var(--bg-hover)",
-            borderColor: "var(--border)",
+            height: 28, padding: "0 10px", borderRadius: 999,
+            background: "transparent",
+            border: "1px solid var(--border)",
             color: "var(--t2)",
-            fontSize: 10.5,
-            letterSpacing: "0.07em",
+            fontSize: 10.5, letterSpacing: "0.04em", fontWeight: 600,
           }}
           onMouseEnter={e => {
-            (e.currentTarget as HTMLElement).style.borderColor = "var(--orange)";
+            (e.currentTarget as HTMLElement).style.borderColor = "var(--orange-border)";
+            (e.currentTarget as HTMLElement).style.background = "var(--orange-dim)";
             (e.currentTarget as HTMLElement).style.color = "var(--orange)";
           }}
           onMouseLeave={e => {
             (e.currentTarget as HTMLElement).style.borderColor = "var(--border)";
+            (e.currentTarget as HTMLElement).style.background = "transparent";
             (e.currentTarget as HTMLElement).style.color = "var(--t2)";
           }}
         >

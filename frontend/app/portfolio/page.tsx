@@ -358,8 +358,8 @@ export default function PortfolioPage() {
   return (
     <ErrorBoundary>
       <div
-        className="fade-in p-4 sm:p-6"
-        style={{ maxWidth: 1400, margin: "0 auto" }}
+        className="fade-in p-4 sm:p-6 xl:px-8"
+        style={{ maxWidth: 2000, margin: "0 auto" }}
       >
 
         {/* ── Page header ── */}

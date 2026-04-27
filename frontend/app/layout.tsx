@@ -4,8 +4,8 @@ import Providers from "@/components/Providers";
 import AppShell from "@/components/layout/AppShell";
 
 export const metadata: Metadata = {
-  title: "CAPITALIS — Quantitative Terminal",
-  description: "Institutional portfolio analysis and risk management.",
+  title: "Capitalis — Smarter investing",
+  description: "Build, optimize, and track portfolios with quant tools made simple.",
   robots: { index: false, follow: false },
   icons: {
     icon: [
