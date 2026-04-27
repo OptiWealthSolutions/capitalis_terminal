@@ -134,7 +134,7 @@ def upvote_post(post_id: str, current_user: dict = Depends(get_current_user)):
 
 
 # ---------------------------------------------------------------------------
-# Admin — poll management
+# Polls — creation (any authenticated user)
 # ---------------------------------------------------------------------------
 
 class CreatePollRequest(BaseModel):
@@ -143,19 +143,33 @@ class CreatePollRequest(BaseModel):
     expires_at: str | None = Field(default=None)  # ISO8601
 
 
-@router.post("/admin/polls", status_code=status.HTTP_201_CREATED)
-def admin_create_poll(req: CreatePollRequest, current_user: dict = Depends(get_current_user)):
-    if not _is_admin(current_user):
-        raise HTTPException(status_code=403, detail="Admin access required.")
+def _make_poll(req: CreatePollRequest, user_id: str) -> dict:
     if any(len(o.strip()) == 0 for o in req.options):
         raise HTTPException(status_code=422, detail="Option text cannot be empty.")
     options = [o.strip()[:200] for o in req.options]
     return create_poll(
         question=req.question.strip(),
         options=options,
-        created_by=current_user["sub"],
+        created_by=user_id,
         expires_at=req.expires_at,
     )
+
+
+@router.post("/polls", status_code=status.HTTP_201_CREATED)
+def user_create_poll(req: CreatePollRequest, current_user: dict = Depends(get_current_user)):
+    """Any authenticated user can create a poll."""
+    return _make_poll(req, current_user["sub"])
+
+
+# ---------------------------------------------------------------------------
+# Admin — poll management (legacy + deactivate)
+# ---------------------------------------------------------------------------
+
+@router.post("/admin/polls", status_code=status.HTTP_201_CREATED)
+def admin_create_poll(req: CreatePollRequest, current_user: dict = Depends(get_current_user)):
+    if not _is_admin(current_user):
+        raise HTTPException(status_code=403, detail="Admin access required.")
+    return _make_poll(req, current_user["sub"])
 
 
 @router.patch("/admin/polls/{poll_id}/deactivate", status_code=status.HTTP_204_NO_CONTENT)
