@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import { useInvestorMode } from "@/lib/investorMode";
 import InvestorProfileModal from "@/components/InvestorProfileModal";
+import OnboardingTour from "@/components/onboarding/OnboardingTour";
 import Sidebar from "./Sidebar";
 import TopBar from "./TopBar";
 import BottomNav from "./BottomNav";
@@ -71,6 +72,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex h-screen overflow-hidden" style={{ background: "var(--bg-base)" }}>
       {showProfileModal && <InvestorProfileModal />}
+      <OnboardingTour />
       {/* Mobile backdrop */}
       {sidebarOpen && (
         <div className="fixed inset-0 z-30 bg-black/50 md:hidden" onClick={() => setSidebarOpen(false)} />

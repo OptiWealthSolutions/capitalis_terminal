@@ -167,6 +167,90 @@ def _alloc_chart(tickers: list[str], weights: list[float]) -> bytes:
         return b""
 
 
+def _fetch_meta(tickers: list[str]) -> dict[str, dict[str, str]]:
+    """Bulk fetch sector + country per ticker via yfinance. Cached side-effect: best-effort."""
+    out: dict[str, dict[str, str]] = {}
+    for t in tickers:
+        try:
+            info = yf.Ticker(t).info or {}
+            out[t] = {
+                "sector":  info.get("sector")  or "Unknown",
+                "country": info.get("country") or "Unknown",
+            }
+        except Exception:
+            out[t] = {"sector": "Unknown", "country": "Unknown"}
+    return out
+
+
+def _pie_chart(data: dict[str, float], title: str) -> bytes:
+    """Generic donut chart (sector / geographic) → PNG bytes."""
+    try:
+        import matplotlib
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+
+        if not data or sum(data.values()) <= 0:
+            return b""
+
+        # sort + clip — group small slices into "Other"
+        items = sorted(data.items(), key=lambda x: x[1], reverse=True)
+        if len(items) > 8:
+            head = items[:7]
+            tail_sum = sum(v for _, v in items[7:])
+            items = head + [("Other", tail_sum)]
+
+        labels  = [k for k, _ in items]
+        values  = [v for _, v in items]
+        colors  = [_COLORS[i % len(_COLORS)] for i in range(len(items))]
+
+        fig, ax = plt.subplots(figsize=(9, 5), dpi=150)
+        fig.patch.set_facecolor("white")
+        ax.set_facecolor("white")
+
+        wedges, _texts, autotexts = ax.pie(
+            values, labels=None, colors=colors,
+            autopct=lambda pct: f"{pct:.1f}%" if pct >= 4 else "",
+            pctdistance=0.78, startangle=90,
+            wedgeprops=dict(width=0.42, edgecolor="white", linewidth=2),
+            textprops=dict(color="white", fontsize=9, fontweight="bold"),
+        )
+        ax.set_title(title, fontsize=11, color="#16315F", fontweight="bold", pad=12)
+
+        # Legend on right with weights
+        legend_labels = [f"{l} — {v:.1%}" for l, v in zip(labels, values)]
+        ax.legend(wedges, legend_labels, loc="center left", bbox_to_anchor=(1.02, 0.5),
+                  fontsize=9, frameon=False, labelcolor="#333333")
+
+        ax.set(aspect="equal")
+        plt.tight_layout()
+        buf = io.BytesIO()
+        plt.savefig(buf, format="png", dpi=150, bbox_inches="tight", facecolor="white")
+        plt.close(fig)
+        buf.seek(0)
+        return buf.read()
+    except Exception as e:
+        logger.warning("Pie chart generation failed (%s): %s", title, e)
+        return b""
+
+
+def _sector_chart(tickers: list[str], weights: list[float], meta: dict) -> bytes:
+    """Sector exposure donut → PNG bytes."""
+    agg: dict[str, float] = {}
+    for t, w in zip(tickers, weights):
+        sector = meta.get(t, {}).get("sector", "Unknown")
+        agg[sector] = agg.get(sector, 0.0) + float(w)
+    return _pie_chart(agg, "Sector Allocation")
+
+
+def _geographic_chart(tickers: list[str], weights: list[float], meta: dict) -> bytes:
+    """Country / geographic exposure donut → PNG bytes."""
+    agg: dict[str, float] = {}
+    for t, w in zip(tickers, weights):
+        country = meta.get(t, {}).get("country", "Unknown")
+        agg[country] = agg.get(country, 0.0) + float(w)
+    return _pie_chart(agg, "Geographic Allocation")
+
+
 def _equity_curve_chart(tickers: list[str], weights: list[float], capital: float) -> bytes:
     """Portfolio equity curve vs SPY benchmark → PNG bytes."""
     try:
@@ -238,6 +322,34 @@ def _equity_curve_chart(tickers: list[str], weights: list[float], capital: float
 # ---------------------------------------------------------------------------
 # PDF builder
 # ---------------------------------------------------------------------------
+def _embed_image(pdf, png_bytes: bytes, fallback_msg: str) -> bool:
+    """Robust PNG embed via PIL → bypasses BytesIO format-detection edge cases."""
+    if not png_bytes:
+        pdf.set_font("Helvetica", "I", 9)
+        pdf.set_text_color(120, 120, 120)
+        pdf.cell(0, 8, f"  {fallback_msg}", 0, 1)
+        pdf.set_text_color(30, 30, 30)
+        return False
+    try:
+        from PIL import Image
+        img = Image.open(io.BytesIO(png_bytes))
+        pdf.image(img, x=pdf.l_margin, y=None, w=pdf.w - 2 * pdf.l_margin)
+        return True
+    except Exception as e:
+        logger.warning("PDF image embed failed: %s — falling back to BytesIO", e)
+        try:
+            buf = io.BytesIO(png_bytes)
+            pdf.image(buf, x=pdf.l_margin, y=None, w=pdf.w - 2 * pdf.l_margin)
+            return True
+        except Exception as e2:
+            logger.error("PDF image embed BytesIO fallback also failed: %s", e2)
+            pdf.set_font("Helvetica", "I", 9)
+            pdf.set_text_color(120, 120, 120)
+            pdf.cell(0, 8, f"  {fallback_msg}", 0, 1)
+            pdf.set_text_color(30, 30, 30)
+            return False
+
+
 def _build_pdf(
     req: ReportRequest,
     port_ret: float,
@@ -284,7 +396,7 @@ def _build_pdf(
             self.cell(0, 10, "  CAPITALIS", 0, 0, "L")
             self.set_font("Helvetica", "", 8)
             self.set_text_color(200, 210, 230)
-            self.cell(0, 10, "INSTITUTIONAL PORTFOLIO REPORT  ", 0, 0, "R")
+            self.cell(0, 10, "PORTFOLIO REPORT  ", 0, 0, "R")
             self.set_text_color(*DARK)
             self.ln(20)
 
@@ -292,7 +404,7 @@ def _build_pdf(
             self.set_y(-13)
             self.set_font("Helvetica", "I", 7)
             self.set_text_color(*GRAY)
-            self.cell(0, 6, f"CONFIDENTIAL — FOR INTERNAL USE ONLY  |  Generated {now_str}", 0, 0, "L")
+            self.cell(0, 6, f"Generated by Capitalis  |  {now_str}", 0, 0, "L")
             self.cell(0, 6, f"Page {self.page_no()}", 0, 0, "R")
 
         def section_title(self, title: str):
@@ -337,7 +449,7 @@ def _build_pdf(
     pdf.cell(0, 14, req.portfolio_name.upper(), 0, 1, "C")
     pdf.set_font("Helvetica", "", 11)
     pdf.set_text_color(180, 200, 230)
-    pdf.cell(0, 8, "Institutional Portfolio Analysis Report", 0, 1, "C")
+    pdf.cell(0, 8, "Portfolio Analysis Report", 0, 1, "C")
     pdf.set_font("Helvetica", "", 9)
     pdf.cell(0, 7, date_str, 0, 1, "C")
 
@@ -375,7 +487,7 @@ def _build_pdf(
     pdf.set_font("Helvetica", "I", 7.5)
     pdf.set_text_color(*GRAY)
     pdf.multi_cell(0, 5,
-        "This report is generated by CAPITALIS for internal investment analysis purposes only. "
+        "Generated by Capitalis for personal portfolio analysis. "
         "Past performance does not guarantee future results. Monte Carlo simulations are based on "
         "historical return estimates and do not account for tail risk events beyond the modelled distribution.",
         0, "C"
@@ -451,15 +563,8 @@ def _build_pdf(
     pdf.section_title("HISTORICAL PERFORMANCE — 1Y")
 
     ec_png = _equity_curve_chart(req.tickers, req.weights, req.capital)
-    if ec_png:
-        buf = io.BytesIO(ec_png)
-        pdf.image(buf, x=pdf.l_margin, y=None, w=pdf.w - 2 * pdf.l_margin)
+    if _embed_image(pdf, ec_png, "Chart unavailable — market data could not be fetched."):
         pdf.ln(3)
-    else:
-        pdf.set_font("Helvetica", "I", 9)
-        pdf.set_text_color(120, 120, 120)
-        pdf.cell(0, 8, "  Chart unavailable — market data could not be fetched.", 0, 1)
-        pdf.set_text_color(30, 30, 30)
 
     # ── PAGE 4: MC fan chart + VaR box ── ────────────────────────────────────
     pdf.add_page()
@@ -471,15 +576,9 @@ def _build_pdf(
     pdf.ln(2)
 
     mc_png = _mc_chart(sim_df, req.capital)
-    if mc_png:
-        buf = io.BytesIO(mc_png)
-        pdf.image(buf, x=pdf.l_margin, y=None, w=pdf.w - 2 * pdf.l_margin)
+    if _embed_image(pdf, mc_png, "Monte Carlo chart unavailable."):
         pdf.ln(4)
     else:
-        pdf.set_font("Helvetica", "I", 9)
-        pdf.set_text_color(120, 120, 120)
-        pdf.cell(0, 8, "  Monte Carlo chart unavailable.", 0, 1)
-        pdf.set_text_color(30, 30, 30)
         pdf.ln(4)
 
     # VaR summary box
@@ -505,14 +604,20 @@ def _build_pdf(
     pdf.section_title("ALLOCATION BREAKDOWN")
 
     alloc_png = _alloc_chart(req.tickers, req.weights)
-    if alloc_png:
-        buf = io.BytesIO(alloc_png)
-        pdf.image(buf, x=pdf.l_margin, y=None, w=pdf.w - 2 * pdf.l_margin)
-    else:
-        pdf.set_font("Helvetica", "I", 9)
-        pdf.set_text_color(120, 120, 120)
-        pdf.cell(0, 8, "  Allocation chart unavailable.", 0, 1)
-        pdf.set_text_color(30, 30, 30)
+    _embed_image(pdf, alloc_png, "Allocation chart unavailable.")
+
+    # ── PAGE 6: Sector exposure ── ──────────────────────────────────────────
+    pdf.add_page()
+    pdf.section_title("SECTOR EXPOSURE")
+    meta = _fetch_meta(req.tickers)
+    sector_png = _sector_chart(req.tickers, req.weights, meta)
+    _embed_image(pdf, sector_png, "Sector chart unavailable — yfinance metadata missing.")
+
+    # ── PAGE 7: Geographic exposure ── ──────────────────────────────────────
+    pdf.add_page()
+    pdf.section_title("GEOGRAPHIC EXPOSURE")
+    geo_png = _geographic_chart(req.tickers, req.weights, meta)
+    _embed_image(pdf, geo_png, "Geographic chart unavailable — yfinance metadata missing.")
 
     return bytes(pdf.output())
 
