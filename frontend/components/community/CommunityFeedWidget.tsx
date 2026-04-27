@@ -22,10 +22,10 @@ function timeAgo(iso: string): string {
   return `${Math.floor(diff / 86400)}d`;
 }
 
-export default function CommunityFeedWidget() {
+export default function CommunityFeedWidget({ limit = 5 }: { limit?: number }) {
   const { data, isLoading } = useQuery<{ posts: MiniPost[] }>({
-    queryKey: ["community-posts-widget"],
-    queryFn:  () => get("/community/posts", { limit: 5, offset: 0 }),
+    queryKey: ["community-posts-widget", limit],
+    queryFn:  () => get("/community/posts", { limit, offset: 0 }),
     staleTime: 60_000,
   });
 

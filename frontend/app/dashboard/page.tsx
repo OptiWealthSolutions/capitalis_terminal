@@ -251,15 +251,9 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* ── 2-column layout ── */}
+      {/* ── 2-column layout: main left, watchlist right ── */}
       <div className="flex flex-col lg:flex-row lg:items-start gap-5 mb-5">
-        {/* ── LEFT column: Watchlist + Community feed ── */}
-        <div className="w-full lg:w-[340px] lg:flex-shrink-0">
-          {watchlist.length > 0 && <WatchlistPanel tickers={watchlist} />}
-          <CommunityFeedWidget />
-        </div>
-
-        {/* ── RIGHT column: main content ── */}
+        {/* ── LEFT: main content ── */}
         <div className="flex-1 min-w-0">
           <PollWidget />
 
@@ -449,72 +443,76 @@ export default function DashboardPage() {
             </>
           )}
         </div>
+
+        {/* ── RIGHT: Watchlist ── */}
+        {watchlist.length > 0 && (
+          <div className="w-full lg:w-[320px] lg:flex-shrink-0">
+            <WatchlistPanel tickers={watchlist} />
+          </div>
+        )}
       </div>
 
-      {/* ── Optimizer Portfolio Summary (last, compact) ── */}
-      {portfolio && (
-        <section className="card mb-5" style={{ borderRadius: "var(--r-2xl)", padding: "20px 24px" }}>
-          <div className="flex items-center justify-between flex-wrap gap-3 mb-4">
-            <div className="flex items-center gap-3 flex-wrap">
-              <span className="badge badge-orange">{portfolio.method ?? "—"}</span>
-              <span style={{ fontSize: "1rem", fontWeight: 600, color: "var(--t1)" }}>{portfolio.name}</span>
-              <span style={{ color: "var(--t3)", fontSize: "0.65rem" }}>
-                {portfolio.tickers.length} assets · {fmtEur(portfolio.capital)} · saved {new Date(portfolio.savedAt).toLocaleDateString()}
+      {/* ── Bottom 2-col: Community feed + Optimizer Portfolio Summary ── */}
+      <div className={`grid grid-cols-1 gap-5 mb-5${portfolio ? " lg:grid-cols-2" : ""}`}>
+        <CommunityFeedWidget limit={8} />
+
+        {portfolio && (
+          <section className="card" style={{ borderRadius: "var(--r-2xl)", padding: "18px 20px" }}>
+            <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
+              <div className="flex items-center gap-2 flex-wrap min-w-0">
+                <span className="badge badge-orange">{portfolio.method ?? "—"}</span>
+                <span style={{ fontSize: "0.92rem", fontWeight: 600, color: "var(--t1)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{portfolio.name}</span>
+              </div>
+              <Link href="/portfolio" className="btn-secondary" style={{ borderRadius: "var(--r)", flexShrink: 0 }}>
+                Open <ArrowRight size={12} />
+              </Link>
+            </div>
+
+            <div style={{ color: "var(--t3)", fontSize: "0.62rem", marginBottom: 12 }}>
+              {portfolio.tickers.length} assets · {fmtEur(portfolio.capital)} · saved {new Date(portfolio.savedAt).toLocaleDateString()}
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 mb-4">
+              <StatTile label="Ann. Return"  value={fmtPct(perfResult?.metrics?.ann_return)}       icon={<TrendingUp size={13} />}  tone={(perfResult?.metrics?.ann_return ?? 0) >= 0 ? "up" : "down"} />
+              <StatTile label="Volatility"   value={fmtPct(perfResult?.metrics?.ann_volatility)}    icon={<Activity size={13} />} />
+              <StatTile label="Sharpe"       value={fmtNum(perfResult?.metrics?.sharpe_ratio)}      icon={<Target size={13} />}      tone={(perfResult?.metrics?.sharpe_ratio ?? 0) >= 1 ? "up" : undefined} />
+              <StatTile label="Max DD"       value={fmtPct(perfResult?.metrics?.max_drawdown)}      icon={<TrendingDown size={13} />} tone="down" />
+            </div>
+
+            <div className="flex items-center gap-2 mb-2">
+              <BarChart3 size={12} style={{ color: "var(--orange)" }} />
+              <span style={{ fontSize: "0.65rem", fontWeight: 600, color: "var(--t2)", letterSpacing: "0.06em", textTransform: "uppercase" }}>
+                Allocation
               </span>
             </div>
-            <Link href="/portfolio" className="btn-secondary" style={{ borderRadius: "var(--r)" }}>
-              Open in Allocation <ArrowRight size={13} />
-            </Link>
-          </div>
-
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
-            <StatTile label="Ann. Return"  value={fmtPct(perfResult?.metrics?.ann_return)}        icon={<TrendingUp size={14} />}   tone={(perfResult?.metrics?.ann_return ?? 0) >= 0 ? "up" : "down"} />
-            <StatTile label="Volatility"   value={fmtPct(perfResult?.metrics?.ann_volatility)}     icon={<Activity size={14} />} />
-            <StatTile label="Sharpe Ratio" value={fmtNum(perfResult?.metrics?.sharpe_ratio)}       icon={<Target size={14} />}       tone={(perfResult?.metrics?.sharpe_ratio ?? 0) >= 1 ? "up" : undefined} />
-            <StatTile label="Max Drawdown" value={fmtPct(perfResult?.metrics?.max_drawdown)}       icon={<TrendingDown size={14} />}  tone="down" />
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-            <div className="lg:col-span-2">
-              <div className="flex items-center gap-2 mb-2">
-                <BarChart3 size={13} style={{ color: "var(--orange)" }} />
-                <span style={{ fontSize: "0.68rem", fontWeight: 600, color: "var(--t2)", letterSpacing: "0.06em", textTransform: "uppercase" }}>
-                  Allocation — {Object.keys(weights).length} positions
-                </span>
-              </div>
-              <div className="space-y-1">
-                {Object.entries(weights)
-                  .sort((a, b) => b[1] - a[1])
-                  .map(([tkr, w], i) => (
-                    <AllocationRow key={tkr} ticker={tkr} weight={w}
-                      capitalEur={portfolio.capital * w}
-                      color={CHART_COLORS[i % CHART_COLORS.length]} />
-                  ))}
-              </div>
+            <div className="space-y-1">
+              {Object.entries(weights)
+                .sort((a, b) => b[1] - a[1])
+                .map(([tkr, w], i) => (
+                  <AllocationRow key={tkr} ticker={tkr} weight={w}
+                    capitalEur={portfolio.capital * w}
+                    color={CHART_COLORS[i % CHART_COLORS.length]} />
+                ))}
             </div>
 
-            <div>
-              <div className="flex items-center gap-2 mb-2">
-                <CalendarClock size={13} style={{ color: "var(--orange)" }} />
-                <span style={{ fontSize: "0.68rem", fontWeight: 600, color: "var(--t2)", letterSpacing: "0.06em", textTransform: "uppercase" }}>
-                  Upcoming Events
-                </span>
-              </div>
-              {eventsLoading ? (
-                <div className="space-y-1.5">
-                  {Array.from({ length: 3 }).map((_, i) => <div key={i} className="skeleton" style={{ height: 34 }} />)}
+            {upcoming.length > 0 && (
+              <>
+                <div className="flex items-center gap-2 mt-4 mb-2">
+                  <CalendarClock size={12} style={{ color: "var(--orange)" }} />
+                  <span style={{ fontSize: "0.65rem", fontWeight: 600, color: "var(--t2)", letterSpacing: "0.06em", textTransform: "uppercase" }}>
+                    Upcoming Events
+                  </span>
                 </div>
-              ) : upcoming.length === 0 ? (
-                <p style={{ color: "var(--t3)", fontSize: "0.75rem" }}>No earnings or dividends in the next 180 days.</p>
-              ) : (
                 <div className="space-y-1">
-                  {upcoming.map((ev, idx) => <EventRow key={`${ev.ticker}-${ev.type}-${idx}`} event={ev} />)}
+                  {upcoming.slice(0, 6).map((ev, idx) => (
+                    <EventRow key={`${ev.ticker}-${ev.type}-${idx}`} event={ev} />
+                  ))}
                 </div>
-              )}
-            </div>
-          </div>
-        </section>
-      )}
+              </>
+            )}
+          </section>
+        )}
+      </div>
 
       {/* Footer */}
       <div className="flex items-center gap-3" style={{ color: "var(--t3)", fontSize: "0.72rem" }}>
@@ -816,137 +814,135 @@ function WatchlistPanel({ tickers }: { tickers: string[] }) {
   });
 
   return (
-    <section className="mb-5">
-      <div className="rounded border overflow-hidden" style={{ borderColor: "var(--border)", background: "var(--bg-card)" }}>
+    <section style={{ marginBottom: 20 }}>
+      <div className="rounded border overflow-hidden" style={{ borderColor: "var(--border)", background: "var(--bg-card)", boxShadow: "var(--card-shadow)" }}>
+
         {/* Header */}
-        <div className="px-5 py-3 border-b flex items-center justify-between" style={{ borderColor: "var(--border)" }}>
-          <div className="flex items-center gap-2">
-            <Wallet size={13} style={{ color: "var(--orange)" }} />
-            <span style={{ fontSize: "0.72rem", fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--t2)" }}>
+        <div style={{ padding: "10px 14px 8px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+            <Wallet size={12} style={{ color: "var(--orange)" }} />
+            <span style={{ fontSize: "0.67rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--t2)" }}>
               Watchlist
             </span>
-            <span className="badge badge-orange" style={{ fontSize: "0.6rem" }}>{tickers.length}</span>
+            <span style={{
+              fontSize: "0.58rem", fontWeight: 700,
+              padding: "1px 6px", borderRadius: 3,
+              background: "var(--orange-dim)", border: "1px solid var(--orange-border)", color: "var(--orange)",
+            }}>
+              {tickers.length}
+            </span>
           </div>
-          <span style={{ fontSize: "0.62rem", color: "var(--t3)" }}>
-            Click ticker to review · ♥ to remove
-          </span>
+          <Link href="/screener" style={{ fontSize: "0.6rem", color: "var(--orange)", textDecoration: "none" }}>
+            + Add
+          </Link>
         </div>
 
-        {/* Column headers */}
+        {/* Col headers */}
         <div style={{
           display: "grid",
-          gridTemplateColumns: "88px 1fr 110px 110px 36px",
-          padding: "6px 20px",
+          gridTemplateColumns: "minmax(52px,68px) minmax(0,1fr) 76px 68px 22px",
+          padding: "5px 12px",
           borderBottom: "1px solid var(--border)",
-          fontSize: "0.6rem", fontWeight: 600, letterSpacing: "0.07em",
-          textTransform: "uppercase", color: "var(--t3)",
+          fontSize: "0.56rem", fontWeight: 600, letterSpacing: "0.07em",
+          textTransform: "uppercase", color: "var(--t3)", gap: 4,
         }}>
           <span>Ticker</span>
-          <span>Company</span>
+          <span>Name</span>
           <span style={{ textAlign: "right" }}>Price</span>
-          <span style={{ textAlign: "right" }}>1D Change</span>
+          <span style={{ textAlign: "right" }}>Chg%</span>
           <span />
         </div>
 
         {/* Rows */}
-        {tickers.map((ticker, i) => {
-          const q = queries[i];
-          const data = q.data;
-          const price = data?.currentPrice;
-          const prevClose = data?.previousClose;
-          const changeAbs = price != null && prevClose != null ? price - prevClose : null;
-          const changePct = changeAbs != null && prevClose ? changeAbs / prevClose : null;
-          const up = changePct !== null ? changePct >= 0 : null;
-          const isLast = i === tickers.length - 1;
+        <div style={{ overflowX: "auto" }}>
+          {tickers.map((ticker, i) => {
+            const q = queries[i];
+            const data = q.data;
+            const price = data?.currentPrice;
+            const prevClose = data?.previousClose;
+            const changeAbs = price != null && prevClose != null ? price - prevClose : null;
+            const changePct = changeAbs != null && prevClose ? changeAbs / prevClose : null;
+            const up = changePct !== null ? changePct >= 0 : null;
+            const isLast = i === tickers.length - 1;
 
-          return (
-            <div
-              key={ticker}
-              style={{
-                display: "grid",
-                gridTemplateColumns: "88px 1fr 110px 110px 36px",
-                padding: "9px 20px",
-                alignItems: "center",
-                borderBottom: isLast ? "none" : "1px solid var(--border)",
-                transition: "background 0.1s",
-              }}
-              onMouseEnter={e => (e.currentTarget.style.background = "var(--bg-hover)")}
-              onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
-            >
-              {/* Ticker */}
-              <Link href={`/equity?ticker=${encodeURIComponent(ticker)}`} style={{ textDecoration: "none" }}>
-                <span className="mono" style={{ fontWeight: 700, color: "var(--orange)", fontSize: "0.88rem" }}>
-                  {ticker}
-                </span>
-              </Link>
-
-              {/* Company name + sector */}
-              <div style={{ overflow: "hidden", paddingRight: 12 }}>
-                {q.isLoading ? (
-                  <div className="skeleton" style={{ height: 11, width: "55%" }} />
-                ) : (
-                  <span style={{
-                    fontSize: "0.72rem", color: "var(--t2)",
-                    overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "block",
-                  }}>
-                    {data?.longName ?? "—"}
+            return (
+              <div
+                key={ticker}
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "minmax(52px,68px) minmax(0,1fr) 76px 68px 22px",
+                  padding: "8px 12px",
+                  alignItems: "center",
+                  borderBottom: isLast ? "none" : "1px solid var(--border)",
+                  transition: "background 0.1s",
+                  gap: 4,
+                  minWidth: 280,
+                }}
+                onMouseEnter={e => (e.currentTarget.style.background = "var(--bg-hover)")}
+                onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+              >
+                {/* Ticker */}
+                <Link href={`/equity?ticker=${encodeURIComponent(ticker)}`} style={{ textDecoration: "none" }}>
+                  <span className="mono" style={{ fontWeight: 700, color: "var(--orange)", fontSize: "0.82rem", display: "block", lineHeight: 1.2 }}>
+                    {ticker}
                   </span>
-                )}
-                {data?.sector && (
-                  <span style={{ fontSize: "0.62rem", color: "var(--t3)", display: "block", marginTop: 1 }}>
-                    {data.sector}
-                  </span>
-                )}
-              </div>
+                </Link>
 
-              {/* Price */}
-              <div style={{ textAlign: "right" }}>
-                {q.isLoading ? (
-                  <div className="skeleton" style={{ height: 14, width: 58, marginLeft: "auto" }} />
-                ) : price != null ? (
-                  <span className="mono" style={{ fontWeight: 600, color: "var(--t1)", fontSize: "0.92rem" }}>
-                    {price.toFixed(2)}
-                  </span>
-                ) : (
-                  <span style={{ color: "var(--t3)", fontSize: "0.78rem" }}>—</span>
-                )}
-              </div>
+                {/* Name */}
+                <div style={{ minWidth: 0, overflow: "hidden" }}>
+                  {q.isLoading ? (
+                    <div className="skeleton" style={{ height: 10, width: "70%" }} />
+                  ) : (
+                    <span style={{ fontSize: "0.66rem", color: "var(--t2)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "block" }}>
+                      {data?.longName ?? data?.sector ?? "—"}
+                    </span>
+                  )}
+                </div>
 
-              {/* Change % */}
-              <div style={{ textAlign: "right" }}>
-                {q.isLoading ? (
-                  <div className="skeleton" style={{ height: 14, width: 54, marginLeft: "auto" }} />
-                ) : changePct !== null ? (
-                  <span className="mono" style={{
-                    fontWeight: 600, fontSize: "0.84rem",
-                    color: up ? "var(--green)" : "var(--red)",
-                  }}>
-                    {up ? "▲" : "▼"} {Math.abs(changePct * 100).toFixed(2)}%
-                  </span>
-                ) : (
-                  <span style={{ color: "var(--t3)", fontSize: "0.78rem" }}>—</span>
-                )}
-              </div>
+                {/* Price */}
+                <div style={{ textAlign: "right" }}>
+                  {q.isLoading ? (
+                    <div className="skeleton" style={{ height: 13, width: 48, marginLeft: "auto" }} />
+                  ) : price != null ? (
+                    <span className="mono" style={{ fontWeight: 600, color: "var(--t1)", fontSize: "0.84rem" }}>
+                      {price >= 10000
+                        ? price.toLocaleString(undefined, { maximumFractionDigits: 0 })
+                        : price.toFixed(2)}
+                    </span>
+                  ) : (
+                    <span style={{ color: "var(--t3)", fontSize: "0.72rem" }}>—</span>
+                  )}
+                </div>
 
-              {/* Remove button */}
-              <div style={{ display: "flex", justifyContent: "center" }}>
-                <button
-                  onClick={() => toggleWatchlist(ticker)}
-                  title="Remove from watchlist"
-                  style={{
-                    background: "none", border: "none", cursor: "pointer",
-                    padding: 4, display: "flex", alignItems: "center", justifyContent: "center",
-                    opacity: 0.45, transition: "opacity 0.15s",
-                  }}
-                  onMouseEnter={e => (e.currentTarget.style.opacity = "1")}
-                  onMouseLeave={e => (e.currentTarget.style.opacity = "0.45")}
-                >
-                  <Heart size={11} fill="var(--red)" stroke="var(--red)" />
-                </button>
+                {/* Change% */}
+                <div style={{ textAlign: "right" }}>
+                  {q.isLoading ? (
+                    <div className="skeleton" style={{ height: 13, width: 42, marginLeft: "auto" }} />
+                  ) : changePct !== null ? (
+                    <span className="mono" style={{ fontWeight: 600, fontSize: "0.76rem", color: up ? "var(--green)" : "var(--red)" }}>
+                      {up ? "+" : ""}{(changePct * 100).toFixed(2)}%
+                    </span>
+                  ) : (
+                    <span style={{ color: "var(--t3)", fontSize: "0.72rem" }}>—</span>
+                  )}
+                </div>
+
+                {/* Remove */}
+                <div style={{ display: "flex", justifyContent: "center" }}>
+                  <button
+                    onClick={() => toggleWatchlist(ticker)}
+                    title="Remove"
+                    style={{ background: "none", border: "none", cursor: "pointer", padding: 3, display: "flex", alignItems: "center", opacity: 0.28, transition: "opacity 0.15s" }}
+                    onMouseEnter={e => (e.currentTarget.style.opacity = "1")}
+                    onMouseLeave={e => (e.currentTarget.style.opacity = "0.28")}
+                  >
+                    <Heart size={10} fill="var(--red)" stroke="var(--red)" />
+                  </button>
+                </div>
               </div>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
       </div>
     </section>
   );

@@ -47,12 +47,6 @@ export default function TopBar({ onMenuToggle }: TopBarProps) {
         <Menu size={15} />
       </button>
 
-      <span className="hidden sm:flex items-center gap-2" style={{ color: "var(--t3)", fontSize: 10.5, letterSpacing: "0.07em" }}>
-        <span style={{ fontFamily: "'JetBrains Mono', monospace", fontWeight: 700, color: "var(--t1)", fontSize: 11 }}>Capitalis</span>
-        <span style={{ color: "var(--border)" }}>·</span>
-        <span style={{ fontSize: 10, letterSpacing: "0.06em" }}>by Horacle Capital</span>
-      </span>
-
       <div className="hidden sm:flex items-center overflow-x-auto flex-1 min-w-0">
         {pf ? (
           <>
@@ -97,11 +91,6 @@ export default function TopBar({ onMenuToggle }: TopBarProps) {
         className="ml-auto pl-3 sm:pl-5 flex items-center gap-2 sm:gap-3 flex-shrink-0"
         style={{ borderLeft: "1px solid rgba(148,163,184,0.12)" }}
       >
-        <span className="live-dot" />
-        <span className="hidden sm:inline" style={{ fontSize: 10.5, color: "var(--t3)", letterSpacing: "0.10em" }}>
-          {t.topbar.live}
-        </span>
-
         {/* Mode toggle: SIMPLE ↔ ADVANCED */}
         <div
           className="hidden sm:flex items-center rounded-lg overflow-hidden"
