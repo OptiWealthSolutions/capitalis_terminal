@@ -463,7 +463,7 @@ export default function MarketMapPage() {
   ];
 
   return (
-    <div className="p-4 sm:p-6 max-w-[1400px] mx-auto fade-in">
+    <div className="p-4 sm:p-6 xl:px-8 max-w-[2000px] mx-auto fade-in">
 
       {/* Header */}
       <div className="mb-5 flex items-start justify-between flex-wrap gap-3">
@@ -547,15 +547,19 @@ export default function MarketMapPage() {
       ) : null}
 
       {/* ── Tabs ── */}
-      <div style={{ display: "flex", gap: 4, marginBottom: 16, flexWrap: "wrap" }}>
+      <div className="flex gap-0 border-b mb-5" style={{ borderColor: "var(--border)" }}>
         {TABS.map(({ key, label }) => (
-          <button key={key} onClick={() => setTab(key)} style={{
-            padding: "6px 14px", borderRadius: "var(--r-sm)", border: "1px solid",
-            fontSize: "0.72rem", fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase", cursor: "pointer", transition: "all 0.15s",
-            background:  tab === key ? "var(--orange-dim)" : "var(--bg-hover)",
-            borderColor: tab === key ? "var(--orange-border)" : "var(--border)",
-            color:       tab === key ? "var(--orange)" : "var(--t2)",
-          }}>
+          <button
+            key={key}
+            onClick={() => setTab(key)}
+            className="pb-3 px-1 mr-7 text-xs tracking-widest uppercase border-b-2 -mb-px transition-colors"
+            style={{
+              background: "none", cursor: "pointer",
+              borderBottomColor: tab === key ? "var(--orange)" : "transparent",
+              color: tab === key ? "var(--orange)" : "var(--t3)",
+              fontWeight: tab === key ? 600 : 400,
+            }}
+          >
             {label}
           </button>
         ))}

@@ -255,7 +255,7 @@ export default function ScorerPage() {
 
   return (
     <ErrorBoundary>
-      <div className="fade-in p-4 sm:p-6" style={{ maxWidth: 1400, margin: "0 auto" }}>
+      <div className="fade-in p-4 sm:p-6" style={{ maxWidth: 2000, margin: "0 auto" }}>
 
         {/* ── Header ── */}
         <div style={{ marginBottom: 28 }}>

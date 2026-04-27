@@ -146,6 +146,7 @@ export default function Sidebar({ isOpen, onClose, isCollapsed, onToggleCollapse
         "fixed inset-y-0 left-0 z-40 flex flex-col transition-all duration-200 ease-in-out",
         isOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
       )}
+      data-sidebar-dark
       style={{ width: w, background: "var(--bg-surface)", borderRight: "1px solid var(--border)" }}
     >
       {/* ── Logo ── */}

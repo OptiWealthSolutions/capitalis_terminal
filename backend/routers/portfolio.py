@@ -651,7 +651,8 @@ def portfolio_performance(req: PerformanceRequest) -> Any:
                 var_m = float(np.var(m))
                 metrics["beta"] = round(cov_pm / var_m if var_m > 0 else 0.0, 4)
 
-        if n_days >= 252:
+        if n_days >= 30:
+            # Sharpe / Sortino / Calmar — computed whenever ann_return+vol are available
             sharpe = (ann_return - 0.04) / ann_vol if ann_vol > 0 else 0.0
             downside = port_rets[port_rets < 0].values
             dd_dev = float(np.std(downside) * np.sqrt(252)) if len(downside) > 5 else ann_vol

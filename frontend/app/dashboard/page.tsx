@@ -232,7 +232,7 @@ export default function DashboardPage() {
   });
 
   return (
-    <div className="p-4 sm:p-6 max-w-[1400px] mx-auto fade-in">
+    <div className="p-4 sm:p-6 xl:px-8 max-w-[2000px] mx-auto fade-in">
 
       {/* ── Header ── */}
       <div className="mb-6 flex items-start justify-between flex-wrap gap-3">
@@ -673,7 +673,7 @@ function StatTile({ label, value, icon, tone }: {
   const color = tone === "up" ? "var(--green)" : tone === "down" ? "var(--red)" : "var(--t1)";
   return (
     <div style={{
-      background: "var(--bg-base)", border: "1px solid var(--border)",
+      background: "var(--bg-inner)", border: "1px solid var(--border)",
       borderTopColor: "var(--border-hi)", borderRadius: "var(--r)", padding: "12px 16px",
     }}>
       <div className="flex items-center gap-1.5" style={{
@@ -770,7 +770,7 @@ function MarketPulse({ data, loading, updatedAt }: { data: MarketOverview | unde
 function IndexCell({ idx }: { idx: MarketIndex }) {
   const up = idx.change_1d_pct >= 0;
   return (
-    <div style={{ padding: "10px 12px", borderRadius: "var(--r-sm)", border: "1px solid var(--border)", background: "var(--bg-base)" }}>
+    <div style={{ padding: "10px 12px", borderRadius: "var(--r-sm)", border: "1px solid var(--border)", background: "var(--bg-inner)" }}>
       <div className="flex items-center justify-between">
         <span style={{ fontSize: "0.68rem", color: "var(--t2)", fontWeight: 600 }}>{idx.label}</span>
         <span style={{ fontSize: "0.66rem", fontWeight: 600, color: up ? "var(--green)" : "var(--red)" }}>

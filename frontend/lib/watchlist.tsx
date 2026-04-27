@@ -9,7 +9,7 @@ interface WatchlistCtx {
 }
 
 const WatchlistContext = createContext<WatchlistCtx | null>(null);
-const STORAGE_KEY = "capitalis_watchlist_v1";
+const STORAGE_KEY = "capitalis_watchlist_v2";
 
 const DEFAULT_TICKERS = [
   "AAPL", "MSFT", "NVDA", "GOOGL", "AMZN",
@@ -23,12 +23,16 @@ export function WatchlistProvider({ children }: { children: ReactNode }) {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw === null) {
-        // First visit — seed defaults (don't persist yet, let user own it)
+        // First visit (or key bumped) — seed and persist defaults
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(DEFAULT_TICKERS));
         setWatchlist(DEFAULT_TICKERS);
       } else {
         const stored = JSON.parse(raw);
         if (Array.isArray(stored) && stored.length > 0) setWatchlist(stored);
-        else setWatchlist(DEFAULT_TICKERS);
+        else {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(DEFAULT_TICKERS));
+          setWatchlist(DEFAULT_TICKERS);
+        }
       }
     } catch {
       setWatchlist(DEFAULT_TICKERS);

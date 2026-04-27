@@ -15,6 +15,7 @@
   --bg-base:    #0A0A0A;
   --bg-surface: #111111;
   --bg-card:    #161616;
+  --bg-inner:   #191919;
   --bg-hover:   #1E1E1E;
   --bg-pop:     #222222;
 
@@ -22,8 +23,8 @@
   --border-hi:  rgba(255,255,255,0.12);
 
   --t1: #F5F5F5;
-  --t2: rgba(245,245,245,0.60);
-  --t3: rgba(245,245,245,0.32);
+  --t2: rgba(245,245,245,0.72);
+  --t3: rgba(245,245,245,0.48);
 
   /* Vivid accent colors */
   --orange:        #60A5FA;
@@ -93,6 +94,7 @@
   --bg-base:    #ECEEF2;
   --bg-surface: #F4F5F8;
   --bg-card:    #FFFFFF;
+  --bg-inner:   #F7F8FA;
   --bg-hover:   #EAECF0;
   --bg-pop:     #FFFFFF;
 
@@ -100,8 +102,8 @@
   --border-hi:  rgba(15,15,15,0.16);
 
   --t1: #111111;
-  --t2: rgba(17,17,17,0.62);
-  --t3: rgba(17,17,17,0.38);
+  --t2: rgba(17,17,17,0.76);
+  --t3: rgba(17,17,17,0.54);
 
   --orange:        #2563EB;
   --orange-dim:    rgba(37,99,235,0.08);
@@ -127,6 +129,31 @@
 }
 
 /* ═══════════════════════════════════════════════════
+   SIDEBAR — always dark regardless of app theme
+═══════════════════════════════════════════════════ */
+[data-sidebar-dark] {
+  --bg-surface: #111111;
+  --bg-base:    #0A0A0A;
+  --bg-card:    #161616;
+  --bg-inner:   #191919;
+  --bg-hover:   #1E1E1E;
+  --bg-pop:     #222222;
+  --border:     rgba(255,255,255,0.07);
+  --border-hi:  rgba(255,255,255,0.12);
+  --t1: #F5F5F5;
+  --t2: rgba(245,245,245,0.72);
+  --t3: rgba(245,245,245,0.48);
+  --orange:        #60A5FA;
+  --orange-dim:    rgba(96,165,250,0.12);
+  --orange-border: rgba(96,165,250,0.28);
+  --green:         #4ADE80;
+  --red:           #F87171;
+  --card-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.12),
+    inset 0 0 0 1px rgba(255,255,255,0.015);
+}
+
+/* ═══════════════════════════════════════════════════
    BASE
 ═══════════════════════════════════════════════════ */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -141,7 +168,7 @@ html, body {
   background-attachment: fixed;
   color: var(--t1);
   font-family: "Inter", system-ui, sans-serif;
-  font-size: 13px;
+  font-size: 14px;
   line-height: 1.55;
   letter-spacing: 0.01em;
   -webkit-font-smoothing: antialiased;
@@ -224,7 +251,7 @@ body::before {
 
 /* Label: muted, uppercase, tracked */
 .metric-card .mc-label {
-  font-size: 0.6rem;
+  font-size: 0.68rem;
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -239,7 +266,7 @@ body::before {
 .metric-card .mc-value {
   font-family: "JetBrains Mono", monospace;
   font-variant-numeric: tabular-nums;
-  font-size: 1.75rem;
+  font-size: 1.9rem;
   font-weight: 600;
   letter-spacing: -0.02em;
   line-height: 1.1;
@@ -406,7 +433,7 @@ select.input-field option { background: var(--bg-surface); color: var(--t1); }
 .terminal-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.8rem;
+  font-size: 0.82rem;
 }
 .terminal-table thead { position: sticky; top: 0; z-index: 1; }
 .terminal-table th {
@@ -535,9 +562,9 @@ select.input-field option { background: var(--bg-surface); color: var(--t1); }
    SECTION LABELS / DIVIDERS
 ═══════════════════════════════════════════════════ */
 .section-label {
-  font-size: 0.6rem;
+  font-size: 0.68rem;
   font-weight: 600;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.07em;
   text-transform: uppercase;
   color: var(--t3);
   margin-bottom: 12px;

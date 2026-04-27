@@ -168,7 +168,7 @@ export default function EquityPage() {
 
   return (
     <ErrorBoundary>
-      <div className="p-4 sm:p-6 max-w-[1400px] mx-auto fade-in" style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+      <div className="p-4 sm:p-6 xl:px-8 max-w-[2000px] mx-auto fade-in" style={{ display: "flex", flexDirection: "column", gap: 0 }}>
 
         {/* ── Page header ── */}
         <div style={{ marginBottom: 20, display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>

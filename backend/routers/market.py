@@ -249,6 +249,66 @@ def get_market_news() -> Any:
     if cached is not None:
         return cached
 
+    from datetime import datetime, timezone
+
+    def _parse_ts(pub_date: str) -> int:
+        """ISO-8601 pubDate (e.g. '2026-04-26T15:46:02Z') → unix timestamp."""
+        try:
+            s = pub_date.replace("Z", "+00:00")
+            return int(datetime.fromisoformat(s).timestamp())
+        except Exception:
+            return 0
+
+    def _extract_item(item: dict) -> dict | None:
+        """Support both yfinance v1 (flat) and v2 (nested under 'content')."""
+        content = item.get("content") or {}
+        if content:
+            # yfinance ≥ 0.2.48 — all metadata nested under content
+            link = (content.get("canonicalUrl") or {}).get("url", "") or \
+                   (content.get("clickThroughUrl") or {}).get("url", "")
+            if not link:
+                return None
+            thumb = ""
+            try:
+                resolutions = (content.get("thumbnail") or {}).get("resolutions") or []
+                if resolutions:
+                    # prefer index 1 (170×128) over index 0 (smaller)
+                    r = resolutions[1] if len(resolutions) > 1 else resolutions[0]
+                    thumb = r.get("url", "")
+            except Exception:
+                pass
+            related = content.get("finance", {}).get("stockTickers") or []
+            tickers = [t.get("symbol", "") for t in related if t.get("symbol")]
+            pub_date = content.get("pubDate", "")
+            return {
+                "title":     content.get("title", ""),
+                "publisher": (content.get("provider") or {}).get("displayName", ""),
+                "link":      link,
+                "published": _parse_ts(pub_date),
+                "tickers":   tickers,
+                "thumbnail": thumb,
+            }
+        else:
+            # yfinance v1 legacy flat structure
+            link = item.get("link") or item.get("url") or ""
+            if not link:
+                return None
+            thumb = ""
+            try:
+                resolutions = (item.get("thumbnail") or {}).get("resolutions") or []
+                if resolutions:
+                    thumb = resolutions[0].get("url", "")
+            except Exception:
+                pass
+            return {
+                "title":     item.get("title", ""),
+                "publisher": item.get("publisher", ""),
+                "link":      link,
+                "published": item.get("providerPublishTime", 0),
+                "tickers":   item.get("relatedTickers", []),
+                "thumbnail": thumb,
+            }
+
     source_tickers = ["SPY", "QQQ", "GLD", "TLT", "^TNX"]
     all_news: list[dict] = []
     seen_links: set[str] = set()
@@ -256,26 +316,12 @@ def get_market_news() -> Any:
     for sym in source_tickers:
         try:
             items = yf.Ticker(sym).news or []
-            for item in items[:8]:
-                link = item.get("link") or item.get("url") or ""
-                if not link or link in seen_links:
+            for raw_item in items[:10]:
+                parsed = _extract_item(raw_item)
+                if not parsed or parsed["link"] in seen_links:
                     continue
-                seen_links.add(link)
-                thumb = ""
-                try:
-                    resolutions = (item.get("thumbnail") or {}).get("resolutions") or []
-                    if resolutions:
-                        thumb = resolutions[0].get("url", "")
-                except Exception:
-                    pass
-                all_news.append({
-                    "title":     item.get("title", ""),
-                    "publisher": item.get("publisher", ""),
-                    "link":      link,
-                    "published": item.get("providerPublishTime", 0),
-                    "tickers":   item.get("relatedTickers", []),
-                    "thumbnail": thumb,
-                })
+                seen_links.add(parsed["link"])
+                all_news.append(parsed)
         except Exception as exc:
             logger.warning("News fetch %s: %s", sym, exc)
 

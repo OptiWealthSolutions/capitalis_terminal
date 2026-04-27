@@ -63,7 +63,7 @@ export default function PredictionsPage() {
 
   return (
     <ErrorBoundary>
-      <div className="p-4 sm:p-6 max-w-[1400px] mx-auto fade-in">
+      <div className="p-4 sm:p-6 xl:px-8 max-w-[2000px] mx-auto fade-in">
 
         {/* Header */}
         <div className="mb-6">
