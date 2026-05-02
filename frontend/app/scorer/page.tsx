@@ -3,7 +3,7 @@
 import { useState, useMemo } from "react";
 import Link from "next/link";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { get, post } from "@/lib/api";
+import { get, post, errMsg } from "@/lib/api";
 import type { ScorerResult } from "@/lib/types";
 import PlotlyChart from "@/components/charts/PlotlyChart";
 import { LoadingSpinner, SkeletonBlock, SkeletonChart } from "@/components/ui/LoadingSpinner";
@@ -162,7 +162,8 @@ export default function ScorerPage() {
       toast.success(`Scoring complete — ${data.count} assets ranked.`);
     },
     onError: (err: Error & { response?: { data?: { detail?: string } } }) => {
-      toast.error(`Scorer failed: ${err?.response?.data?.detail ?? err.message}`);
+      console.error("[scorer]", err);
+      toast.error(errMsg(err?.response?.data?.detail ?? err?.message));
     },
   });
 
@@ -273,7 +274,7 @@ export default function ScorerPage() {
             <button
               onClick={() => runScorer.mutate()}
               disabled={runScorer.isPending || !totalOk}
-              className="btn-primary"
+              className="btn-primary hidden sm:inline-flex"
             >
               {runScorer.isPending ? <LoadingSpinner size="sm" /> : <Play size={13} />}
               {runScorer.isPending ? "SCORING…" : "RUN SCORER"}
@@ -281,6 +282,19 @@ export default function ScorerPage() {
             )}
           </div>
         </div>
+
+        {!isSimple && (
+          <button
+            onClick={() => runScorer.mutate()}
+            disabled={runScorer.isPending || !totalOk}
+            className="btn-primary fixed sm:hidden flex items-center gap-2 z-40"
+            style={{ right: 16, bottom: 80, boxShadow: "0 8px 24px rgba(0,0,0,0.4)" }}
+            aria-label="Run scorer"
+          >
+            {runScorer.isPending ? <LoadingSpinner size="sm" /> : <Play size={13} />}
+            {runScorer.isPending ? "Scoring" : "Run"}
+          </button>
+        )}
 
         {/* ── SIMPLE MODE: strategy cards ── */}
         {isSimple && (

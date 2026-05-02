@@ -8,12 +8,16 @@ import logging
 import time
 import warnings
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from io import StringIO
 from pathlib import Path
 import sys
 
 import numpy as np
 import pandas as pd
+import requests
 import yfinance as yf
+
+_WIKI_UA = {"User-Agent": "Mozilla/5.0 (CapitalisTerminal/2.0)"}
 
 ROOT = Path(__file__).resolve().parent.parent.parent.parent
 if str(ROOT) not in sys.path:
@@ -48,31 +52,134 @@ _FIELDS = [
 # Universe helpers
 # ---------------------------------------------------------------------------
 
-def _fetch_sp500() -> list[str]:
+def _fetch_wiki(url: str, symbol_cols: tuple[str, ...], suffix: str = "") -> list[str]:
     try:
-        df = pd.read_html("https://en.wikipedia.org/wiki/List_of_S%26P_500_companies")[0]
-        return [str(t).replace(".", "-") for t in df["Symbol"].tolist()]
-    except Exception as exc:
-        logger.warning("SP500 fetch failed: %s", exc)
+        r = requests.get(url, headers=_WIKI_UA, timeout=15)
+        r.raise_for_status()
+        tables = pd.read_html(StringIO(r.text))
+        for t in tables:
+            for col in symbol_cols:
+                if col in t.columns:
+                    return [f"{str(x).replace('.', '-')}{suffix}" for x in t[col].dropna().tolist()]
         return []
+    except Exception as exc:
+        logger.warning("Wiki fetch failed %s: %s", url, exc)
+        return []
+
+
+def _fetch_sp500() -> list[str]:
+    return _fetch_wiki("https://en.wikipedia.org/wiki/List_of_S%26P_500_companies",
+                       ("Symbol",))
+
+
+def _fetch_sp400() -> list[str]:
+    return _fetch_wiki("https://en.wikipedia.org/wiki/List_of_S%26P_400_companies",
+                       ("Symbol", "Ticker symbol"))
+
+
+def _fetch_sp600() -> list[str]:
+    return _fetch_wiki("https://en.wikipedia.org/wiki/List_of_S%26P_600_companies",
+                       ("Symbol", "Ticker symbol"))
 
 
 def _fetch_nasdaq100() -> list[str]:
-    try:
-        tables = pd.read_html("https://en.wikipedia.org/wiki/Nasdaq-100")
-        for t in tables:
-            if "Ticker" in t.columns:
-                return [str(x) for x in t["Ticker"].tolist()]
-        return []
-    except Exception as exc:
-        logger.warning("NASDAQ100 fetch failed: %s", exc)
-        return []
+    return _fetch_wiki("https://en.wikipedia.org/wiki/Nasdaq-100", ("Ticker", "Symbol"))
+
+
+def _fetch_dow30() -> list[str]:
+    return _fetch_wiki("https://en.wikipedia.org/wiki/Dow_Jones_Industrial_Average",
+                       ("Symbol",))
+
+
+def _fetch_ftse100() -> list[str]:
+    return _fetch_wiki("https://en.wikipedia.org/wiki/FTSE_100_Index",
+                       ("Ticker", "EPIC"), suffix=".L")
+
+
+def _fetch_cac40() -> list[str]:
+    return _fetch_wiki("https://en.wikipedia.org/wiki/CAC_40", ("Ticker",))
+
+
+def _fetch_dax() -> list[str]:
+    return _fetch_wiki("https://en.wikipedia.org/wiki/DAX", ("Ticker",))
+
+
+def _fetch_eurostoxx50() -> list[str]:
+    return _fetch_wiki("https://en.wikipedia.org/wiki/EURO_STOXX_50", ("Ticker",))
+
+
+def _fetch_nikkei225() -> list[str]:
+    return _fetch_wiki("https://en.wikipedia.org/wiki/Nikkei_225",
+                       ("Code", "Ticker"), suffix=".T")
+
+
+def _fetch_tsx60() -> list[str]:
+    return _fetch_wiki("https://en.wikipedia.org/wiki/S%26P/TSX_60",
+                       ("Symbol", "Ticker"), suffix=".TO")
+
+
+_STATIC_FALLBACK = [
+    # Mega-caps US
+    "AAPL","MSFT","NVDA","GOOGL","GOOG","AMZN","META","TSLA","BRK-B","UNH","JPM","V","MA","XOM","JNJ",
+    "WMT","PG","LLY","HD","MRK","COST","ABBV","KO","PEP","BAC","CVX","AVGO","ORCL","CSCO","TMO",
+    "ACN","CRM","ADBE","NFLX","DHR","ABT","MCD","WFC","NKE","TXN","PM","UPS","INTC","NEE","DIS","BMY",
+    "QCOM","AMD","HON","LIN","UNP","RTX","MS","GS","SCHW","BLK","BA","DE","CAT","IBM","SBUX","INTU",
+    "AMGN","PFE","GE","C","T","VZ","CMCSA","NOW","ISRG","BKNG","SPGI","SYK","LMT","GILD","MDT","TJX",
+    "ADI","REGN","CB","MO","ZTS","PYPL","BX","DUK","SO","ELV","CME","CVS","FI","MU","TMUS","ICE",
+    "PNC","USB","SHW","BSX","COF","ADP","EQIX","ITW","WM","ETN","NOC","MMC","KLAC","FCX","APD","HUM",
+    "AON","SLB","D","EOG","PSA","FDX","TGT","MAR","GM","F","HCA","EW","SRE","COP","ANET","LRCX",
+    # ETFs
+    "SPY","QQQ","IWM","DIA","VTI","VOO","VEA","VWO","BND","TLT","GLD","SLV","XLF","XLK","XLE","XLV",
+    "XLI","XLP","XLY","XLU","XLB","XLRE","SMH","SOXX","ARKK","XBI","KRE","XHB","XOP","HYG","LQD",
+    # Tech / growth
+    "PLTR","SNOW","DDOG","NET","CRWD","ZS","SHOP","UBER","LYFT","COIN","HOOD","RBLX","ROKU","SQ",
+    "ABNB","DASH","DOCU","ZM","TWLO","OKTA","MDB","WDAY","TEAM","HUBS","PANW","FTNT","SPLK","NTNX",
+    # Mid-caps + sectors
+    "AMAT","CDNS","SNPS","INTU","ADSK","CTSH","FIS","FISV","ROST","ORLY","AZO","DLTR","KMB","KR",
+    "EL","CL","GIS","HSY","K","CPB","CAG","SJM","MKC","CHD","CLX","PEP","WBA","WBD","PARA","FOX",
+    # Energy
+    "OXY","PSX","HES","DVN","MPC","VLO","WMB","KMI","OKE","ET","EPD","TRGP","HAL","BKR","FANG",
+    # Financials
+    "AXP","TFC","BK","STT","MMC","AJG","TRV","MET","PRU","ALL","PGR","HIG","WRB","CINF","TROW",
+    # Healthcare
+    "VRTX","BIIB","MRNA","BNTX","ALNY","ILMN","IDXX","DXCM","HOLX","RMD","WAT","MTD","A","TFX",
+    # Industrials
+    "EMR","PH","CARR","OTIS","JCI","FAST","PCAR","CHRW","EXPD","ROK","DOV","XYL","CMI","WAB",
+    # Consumer
+    "LOW","BBY","DG","DLTR","ULTA","LULU","RH","TPR","CPRI","BBWI","DECK","CROX","HBI","GPS","ANF",
+    # International ADRs
+    "TSM","BABA","TM","NVO","SHEL","UL","SAP","RIO","BHP","HSBC","TD","RY","SONY","SAN",
+    "BP","HMC","STLA","MUFG","NMR","IBN","INFY","WIT","HDB","TCEHY","JD","BIDU","PDD","NIO","XPEV",
+    # International major (with suffix)
+    "NESN.SW","NOVN.SW","ROG.SW","ASML.AS","MC.PA","OR.PA","RMS.PA","SAN.PA","BNP.PA","AIR.PA",
+    "SHEL.L","HSBA.L","AZN.L","ULVR.L","BP.L","GSK.L","RIO.L","BARC.L","LLOY.L","BATS.L",
+    "SAP.DE","SIE.DE","ALV.DE","BAS.DE","BAYN.DE","BMW.DE","DBK.DE","DTE.DE","MBG.DE","VOW3.DE",
+    "7203.T","6758.T","9984.T","6861.T","8306.T","9432.T","7974.T","6098.T","4063.T","8035.T",
+    "RY.TO","TD.TO","ENB.TO","CNQ.TO","SHOP.TO","BNS.TO","BMO.TO","CNR.TO","SU.TO","ABX.TO",
+]
 
 
 def _get_ticker_universe() -> list[str]:
-    sp = _fetch_sp500()
-    nd = _fetch_nasdaq100()
-    return list(dict.fromkeys(sp + nd))
+    fetchers = [
+        _fetch_sp500, _fetch_sp400, _fetch_sp600,
+        _fetch_nasdaq100, _fetch_dow30,
+        _fetch_ftse100, _fetch_cac40, _fetch_dax, _fetch_eurostoxx50,
+        _fetch_nikkei225, _fetch_tsx60,
+    ]
+    all_t: list[str] = []
+    for fn in fetchers:
+        try:
+            tickers = fn()
+            logger.info("Universe: %s -> %d tickers", fn.__name__, len(tickers))
+            all_t.extend(tickers)
+        except Exception as exc:
+            logger.warning("Universe fetcher %s failed: %s", fn.__name__, exc)
+    if len(all_t) < 200:
+        logger.warning("Universe: live fetch yielded %d (<200), merging static fallback", len(all_t))
+        all_t.extend(_STATIC_FALLBACK)
+    deduped = list(dict.fromkeys(t for t in all_t if t and isinstance(t, str)))
+    logger.info("Universe: %d total unique tickers", len(deduped))
+    return deduped
 
 
 def _universe_is_fresh() -> bool:
@@ -117,7 +224,7 @@ def _fetch_one(ticker: str) -> dict | None:
         return None
 
 
-def _fetch_parallel(tickers: list[str], max_workers: int = 20) -> pd.DataFrame:
+def _fetch_parallel(tickers: list[str], max_workers: int = 40) -> pd.DataFrame:
     results: list[dict] = []
     with ThreadPoolExecutor(max_workers=max_workers) as pool:
         futures = {pool.submit(_fetch_one, t): t for t in tickers}

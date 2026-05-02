@@ -151,7 +151,7 @@ export default function ScreenerPage() {
   const [presetName, setPresetName]   = useState("");
   const [sortKey, setSortKey]         = useState<string | null>(null);
   const [sortDir, setSortDir]         = useState<"asc" | "desc">("desc");
-  const [showBuilder, setShowBuilder] = useState(true);
+  const [showBuilder, setShowBuilder] = useState(false);
   const [activeQuick, setActiveQuick] = useState<string | null>(null);
   const [sectorFilter, setSectorFilter] = useState<string>("All");
 
@@ -275,13 +275,26 @@ export default function ScreenerPage() {
           <button
             onClick={() => runScreen.mutate()}
             disabled={runScreen.isPending}
-            className="btn-primary"
+            className="btn-primary hidden sm:inline-flex"
           >
             {runScreen.isPending ? <LoadingSpinner size="sm" /> : <Play size={12} />}
             {runScreen.isPending ? "Screening…" : "Run Screen"}
           </button>
           )}
         </div>
+
+        {!isSimple && (
+          <button
+            onClick={() => runScreen.mutate()}
+            disabled={runScreen.isPending}
+            className="btn-primary fixed sm:hidden flex items-center gap-2 z-40"
+            style={{ right: 16, bottom: 80, boxShadow: "0 8px 24px rgba(0,0,0,0.4)" }}
+            aria-label="Run screen"
+          >
+            {runScreen.isPending ? <LoadingSpinner size="sm" /> : <Play size={13} />}
+            {runScreen.isPending ? "Screening" : "Run"}
+          </button>
+        )}
 
         {/* ── SIMPLE MODE: strategy cards ── */}
         {isSimple && (

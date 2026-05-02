@@ -9,12 +9,11 @@ import { useAuth } from "@/lib/auth";
 import { useI18n } from "@/lib/i18n";
 import {
   LayoutDashboard, Filter, Star, Briefcase, Wallet,
-  TrendingUp, FileText, Settings, UserCircle, LogOut, BookOpen,
-  Search, Sun, Moon, Bell, ChevronLeft, ChevronRight, Network, Users,
+  TrendingUp, FileText, Settings, BookOpen,
+  Search, Bell, ChevronLeft, ChevronRight, Network, Users,
   type LucideProps,
 } from "lucide-react";
 import type { ForwardRefExoticComponent, RefAttributes } from "react";
-import { useTheme } from "@/lib/theme";
 
 type LucideIcon = ForwardRefExoticComponent<Omit<LucideProps, "ref"> & RefAttributes<SVGSVGElement>>;
 interface NavItem { href: string; label: string; icon: LucideIcon; badge?: string; section?: string; }
@@ -63,12 +62,7 @@ interface SidebarProps {
 export default function Sidebar({ isOpen, onClose, isCollapsed, onToggleCollapse }: SidebarProps) {
   const pathname = usePathname();
   const router   = useRouter();
-  const { user, logout } = useAuth();
-  const { theme, toggle } = useTheme();
   const { t } = useI18n();
-
-  const plan     = user?.subscription?.plan ?? "free";
-  const initials = user?.email ? user.email[0].toUpperCase() : "?";
 
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -114,7 +108,6 @@ export default function Sidebar({ isOpen, onClose, isCollapsed, onToggleCollapse
 
   const BOTTOM_NAV: NavItem[] = [
     { href: "/settings", label: t.nav.settings, icon: Settings },
-    { href: "/account",  label: t.nav.account,  icon: UserCircle },
   ];
 
   const ALL_NAV = [...MAIN_NAV, ...BOTTOM_NAV];
@@ -136,12 +129,12 @@ export default function Sidebar({ isOpen, onClose, isCollapsed, onToggleCollapse
     >
       {/* ── Brand ── */}
       <div
-        className="flex items-center flex-shrink-0 overflow-hidden"
-        style={{ height: 52, borderBottom: "1px solid var(--border)", padding: isCollapsed ? "0 14px" : "0 18px" }}
+        className="flex items-center justify-center flex-shrink-0 overflow-hidden"
+        style={{ height: 52, borderBottom: "1px solid var(--border)", padding: "0 14px" }}
       >
         {!isCollapsed ? (
-          <span style={{ fontSize: "1.05rem", fontWeight: 600, letterSpacing: "-0.01em", color: "var(--t1)", whiteSpace: "nowrap" }}>
-            Capitalis
+          <span style={{ fontSize: "0.95rem", fontWeight: 700, letterSpacing: "0.18em", color: "var(--t1)", whiteSpace: "nowrap", textTransform: "uppercase" }}>
+            CAPITALIS
           </span>
         ) : (
           <span style={{ fontSize: "1.05rem", fontWeight: 700, color: "var(--orange)", lineHeight: 1 }}>C</span>
@@ -207,49 +200,6 @@ export default function Sidebar({ isOpen, onClose, isCollapsed, onToggleCollapse
           />
         ))}
       </div>
-
-      {/* ── User ── */}
-      {!isCollapsed ? (
-        <div className="flex items-center gap-3 px-4 py-3" style={{ borderTop: "1px solid var(--border)" }}>
-          <div className="flex items-center justify-center font-bold flex-shrink-0"
-            style={{ width: 30, height: 30, background: "var(--orange-dim)", border: "1px solid var(--orange-border)", borderRadius: "var(--r-sm)", color: "var(--orange)", fontSize: "0.78rem" }}>
-            {initials}
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="font-medium truncate leading-tight" style={{ color: "var(--t1)", fontSize: "0.75rem" }}>{user?.email ?? ""}</div>
-            <span className={cn("badge mt-1", (plan === "premium" || plan === "institutional") ? "badge-green" : plan === "pro" ? "badge-orange" : "")}>
-              {(plan === "premium" || plan === "institutional") ? t.user.plan.institutional : plan === "pro" ? "Pro" : t.user.plan.free}
-            </span>
-          </div>
-          <button onClick={toggle} title={theme === "dark" ? "Switch to light" : "Switch to dark"}
-            aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
-            className="sidebar-theme-btn flex-shrink-0 p-1.5">
-            {theme === "dark" ? <Sun size={13} /> : <Moon size={13} />}
-          </button>
-          <button onClick={() => { logout(); router.replace("/login"); }} title={t.user.signOut}
-            aria-label={t.user.signOut}
-            className="sidebar-logout-btn flex-shrink-0 p-1.5">
-            <LogOut size={13} />
-          </button>
-        </div>
-      ) : (
-        <div className="flex flex-col items-center gap-2 py-3" style={{ borderTop: "1px solid var(--border)" }}>
-          <div className="flex items-center justify-center font-bold"
-            style={{ width: 28, height: 28, background: "var(--orange-dim)", border: "1px solid var(--orange-border)", borderRadius: "var(--r-sm)", color: "var(--orange)", fontSize: "0.72rem" }}>
-            {initials}
-          </div>
-          <button onClick={toggle} title={theme === "dark" ? "Switch to light" : "Switch to dark"}
-            aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
-            className="sidebar-theme-btn flex-shrink-0 p-1.5">
-            {theme === "dark" ? <Sun size={13} /> : <Moon size={13} />}
-          </button>
-          <button onClick={() => { logout(); router.replace("/login"); }} title={t.user.signOut}
-            aria-label={t.user.signOut}
-            className="sidebar-logout-btn flex-shrink-0 p-1.5">
-            <LogOut size={13} />
-          </button>
-        </div>
-      )}
 
       {/* ── Collapse toggle ── */}
       <button

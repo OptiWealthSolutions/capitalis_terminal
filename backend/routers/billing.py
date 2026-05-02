@@ -36,14 +36,29 @@ STRIPE_SECRET_KEY: str | None = os.environ.get("STRIPE_SECRET_KEY")
 STRIPE_WEBHOOK_SECRET: str | None = os.environ.get("STRIPE_WEBHOOK_SECRET")
 FRONTEND_URL: str = os.environ.get("FRONTEND_URL", "http://localhost:3000")
 
-STRIPE_PRICE_PRO_MONTHLY        = os.environ.get("STRIPE_PRICE_PRO_MONTHLY",     "price_1TQwJ3DTTquLlx6jeYRnjKGu")
-STRIPE_PRICE_PREMIUM_MONTHLY    = os.environ.get("STRIPE_PRICE_PREMIUM_MONTHLY", "price_1TQwJ4DTTquLlx6jkcRv4orV")
-STRIPE_PRICE_PRO_ANNUAL         = os.environ.get("STRIPE_PRICE_PRO_ANNUAL",      "price_1TQwJ3DTTquLlx6jHdH8sN9W")
-STRIPE_PRICE_PREMIUM_ANNUAL     = os.environ.get("STRIPE_PRICE_PREMIUM_ANNUAL",  "price_1TQwJ5DTTquLlx6jh1FQED6f")
-STRIPE_PAYMENT_LINK_PRO         = os.environ.get("STRIPE_PAYMENT_LINK_PRO",         "")
-STRIPE_PAYMENT_LINK_PREMIUM     = os.environ.get("STRIPE_PAYMENT_LINK_PREMIUM",     "")
-STRIPE_PAYMENT_LINK_PRO_ANNUAL  = os.environ.get("STRIPE_PAYMENT_LINK_PRO_ANNUAL",  "")
-STRIPE_PAYMENT_LINK_PREMIUM_ANNUAL = os.environ.get("STRIPE_PAYMENT_LINK_PREMIUM_ANNUAL", "")
+def _env(*names: str, default: str = "") -> str:
+    for n in names:
+        v = os.environ.get(n)
+        if v:
+            return v
+    return default
+
+STRIPE_PRICE_PRO_MONTHLY        = _env("STRIPE_PRICE_PRO_MONTHLY", "STRIPE_PRICE_PRO",
+                                       default="price_1TQwJ3DTTquLlx6jeYRnjKGu")
+STRIPE_PRICE_PREMIUM_MONTHLY    = _env("STRIPE_PRICE_PREMIUM_MONTHLY", "STRIPE_PRICE_PREMIUM",
+                                       "STRIPE_PRICE_INSTITUTIONAL",
+                                       default="price_1TQwJ4DTTquLlx6jkcRv4orV")
+STRIPE_PRICE_PRO_ANNUAL         = _env("STRIPE_PRICE_PRO_ANNUAL",
+                                       default="price_1TQwJ3DTTquLlx6jHdH8sN9W")
+STRIPE_PRICE_PREMIUM_ANNUAL     = _env("STRIPE_PRICE_PREMIUM_ANNUAL",
+                                       "STRIPE_PRICE_INSTITUTIONAL_ANNUAL",
+                                       default="price_1TQwJ5DTTquLlx6jh1FQED6f")
+STRIPE_PAYMENT_LINK_PRO         = _env("STRIPE_PAYMENT_LINK_PRO")
+STRIPE_PAYMENT_LINK_PREMIUM     = _env("STRIPE_PAYMENT_LINK_PREMIUM",
+                                       "STRIPE_PAYMENT_LINK_INSTITUTIONAL")
+STRIPE_PAYMENT_LINK_PRO_ANNUAL  = _env("STRIPE_PAYMENT_LINK_PRO_ANNUAL")
+STRIPE_PAYMENT_LINK_PREMIUM_ANNUAL = _env("STRIPE_PAYMENT_LINK_PREMIUM_ANNUAL",
+                                          "STRIPE_PAYMENT_LINK_INSTITUTIONAL_ANNUAL")
 
 # price_id → plan name mapping (webhook: any price → plan tier)
 _PRICE_TO_PLAN: dict[str, str] = {
@@ -280,11 +295,15 @@ async def stripe_webhook(
         if customer_id:
             user = get_user_by_stripe_customer(customer_id)
             if user:
-                price_id = sub["items"]["data"][0]["price"]["id"]
+                item0 = sub["items"]["data"][0]
+                price_id = item0["price"]["id"]
                 plan = _PRICE_TO_PLAN.get(price_id, "pro")
-                period_end = datetime.fromtimestamp(
-                    sub["current_period_end"], tz=timezone.utc
-                ).isoformat()
+                ts_end = sub.get("current_period_end") or item0.get("current_period_end")
+                if ts_end is None:
+                    logger.warning("Stripe sub %s missing current_period_end", sub.get("id"))
+                    period_end = None
+                else:
+                    period_end = datetime.fromtimestamp(ts_end, tz=timezone.utc).isoformat()
                 upsert_subscription(
                     user_id=user["id"],
                     plan=plan,

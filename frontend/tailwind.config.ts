@@ -50,14 +50,14 @@ const config: Config = {
         xxs: ["0.625rem", { lineHeight: "1rem" }],
       },
       borderRadius: {
-        /* Horacle Capital scale */
-        "2xl": "18px",
-        xl:    "14px",
+        /* Unified radius — single value across surfaces */
+        "2xl": "12px",
+        xl:    "12px",
         lg:    "12px",
-        DEFAULT: "7px",
-        md:    "7px",
-        sm:    "7px",
-        xs:    "4px",
+        DEFAULT: "12px",
+        md:    "12px",
+        sm:    "12px",
+        xs:    "6px",
       },
       boxShadow: {
         /* inner glow only — no drop shadows per spec */

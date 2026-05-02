@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 import { useAuth } from "@/lib/auth";
-import { post, get, patch, del } from "@/lib/api";
+import { post, get, patch, del, errMsg } from "@/lib/api";
 import {
   UserCircle, CreditCard, Shield, CheckCircle, AlertCircle,
   ExternalLink, LogOut, Key, Eye, EyeOff, Save, Zap, Building2,
@@ -555,7 +555,8 @@ function SecurityTab({ onDeleted, authProvider }: { onDeleted: () => void; authP
       toast.success("Account deleted.");
       onDeleted();
     } catch (err: any) {
-      toast.error(err?.response?.data?.detail ?? "Failed to delete account.");
+      console.error("[account] delete", err);
+      toast.error(errMsg(err?.response?.data?.detail));
     } finally {
       setDeleteLoading(false);
     }
@@ -861,7 +862,8 @@ export default function AccountPage() {
       setBetaCode("");
       await refreshUser();
     } catch (err: any) {
-      toast.error(err?.response?.data?.detail ?? "Invalid code.");
+      console.error("[account] beta", err);
+      toast.error(errMsg(err?.response?.data?.detail));
     } finally {
       setBetaLoading(false);
     }

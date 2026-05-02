@@ -39,6 +39,15 @@ apiClient.interceptors.request.use((config) => {
 // ---------------------------------------------------------------------------
 // Response interceptor — normalize errors, surface to user
 // ---------------------------------------------------------------------------
+const IS_PROD = process.env.NODE_ENV === "production";
+export const GENERIC_ERROR_MSG = "Erreur, impossible de charger";
+
+/** Safe error message — returns generic message in production, detail in dev. */
+export function errMsg(detail?: string | null): string {
+  if (IS_PROD) return GENERIC_ERROR_MSG;
+  return detail || GENERIC_ERROR_MSG;
+}
+
 apiClient.interceptors.response.use(
   (response: AxiosResponse) => response,
   (error: AxiosError<{ detail?: string; status?: string }>) => {
@@ -50,17 +59,21 @@ apiClient.interceptors.response.use(
         if (typeof window !== "undefined") {
           sessionStorage.removeItem("access_token");
         }
-        toast.error("Session expired. Please log in again.");
+        toast.error(IS_PROD ? GENERIC_ERROR_MSG : "Session expired. Please log in again.");
       } else if (status === 429) {
-        toast.error("Rate limit reached. Please wait before retrying.");
+        toast.error(IS_PROD ? GENERIC_ERROR_MSG : "Rate limit reached. Please wait before retrying.");
       } else if (status >= 500) {
-        toast.error(`Server error: ${detail}`);
+        if (IS_PROD) {
+          console.error("[api]", status, detail);
+          toast.error(GENERIC_ERROR_MSG);
+        } else {
+          toast.error(`Server error: ${detail}`);
+        }
       }
-      // 4xx errors are handled at the query level
     } else if (error.code === "ECONNABORTED") {
-      toast.error("Request timed out. The computation may be too heavy.");
+      toast.error(IS_PROD ? GENERIC_ERROR_MSG : "Request timed out. The computation may be too heavy.");
     } else if (!error.response) {
-      toast.error("Backend unreachable. Is the FastAPI server running?");
+      toast.error(IS_PROD ? GENERIC_ERROR_MSG : "Backend unreachable. Is the FastAPI server running?");
     }
     return Promise.reject(error);
   }

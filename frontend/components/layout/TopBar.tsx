@@ -1,10 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Sparkles, Briefcase, TrendingUp, Target, Sun, Moon, UserCircle, Sliders } from "lucide-react";
+import Link from "next/link";
+import { useRouter, usePathname } from "next/navigation";
+import { Sparkles, Briefcase, TrendingUp, Target, Sun, Moon, Sliders, LogOut } from "lucide-react";
 import { useTheme } from "@/lib/theme";
 import { useI18n } from "@/lib/i18n";
 import { useInvestorMode } from "@/lib/investorMode";
+import { useAuth } from "@/lib/auth";
+import { cn } from "@/lib/utils";
 
 interface SavedPortfolio {
   name?: string;
@@ -23,7 +27,16 @@ export default function TopBar({ onMenuToggle: _onMenuToggle }: TopBarProps) {
   const { theme, toggle } = useTheme();
   const { t, locale, setLocale } = useI18n();
   const { mode, toggleMode, openProfileModal } = useInvestorMode();
+  const { user, logout } = useAuth();
+  const router = useRouter();
+  const pathname = usePathname();
   const [pf, setPf] = useState<SavedPortfolio | null>(null);
+
+  const plan      = user?.subscription?.plan ?? "free";
+  const initials  = user?.email ? user.email[0].toUpperCase() : "?";
+  const planLabel = (plan === "premium" || plan === "institutional") ? "Premium" : plan === "pro" ? "Pro" : "Free";
+  const planTone  = (plan === "premium" || plan === "institutional") ? "var(--green)" : plan === "pro" ? "var(--orange)" : "var(--t3)";
+  const accountActive = pathname?.startsWith("/account") ?? false;
 
   useEffect(() => {
     try {
@@ -122,7 +135,7 @@ export default function TopBar({ onMenuToggle: _onMenuToggle }: TopBarProps) {
             color: "var(--t3)",
           }}
         >
-          <UserCircle size={14} />
+          <Sliders size={14} />
         </button>
 
         {/* Language toggle */}
@@ -145,17 +158,60 @@ export default function TopBar({ onMenuToggle: _onMenuToggle }: TopBarProps) {
           onClick={toggle}
           title={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
           aria-label={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
-          className="topbar-pill-btn flex items-center gap-1.5"
+          className="topbar-pill-btn flex items-center justify-center"
           style={{
-            height: 28, padding: "0 10px", borderRadius: 999,
+            width: 28, height: 28, borderRadius: 999,
             color: "var(--t2)",
-            fontSize: 10.5, letterSpacing: "0.04em", fontWeight: 600,
           }}
         >
-          {theme === "dark"
-            ? <><Sun size={11} /><span className="hidden sm:inline">{t.topbar.light}</span></>
-            : <><Moon size={11} /><span className="hidden sm:inline">{t.topbar.dark}</span></>
-          }
+          {theme === "dark" ? <Sun size={12} /> : <Moon size={12} />}
+        </button>
+
+        {/* ── Account cluster — avatar / plan / logout ── */}
+        <span
+          className="hidden sm:block"
+          aria-hidden
+          style={{ width: 1, height: 18, background: "var(--border)", margin: "0 4px" }}
+        />
+
+        <Link
+          href="/account"
+          title={user?.email ?? "Account"}
+          aria-label="Account"
+          className={cn("topbar-pill-btn flex items-center gap-2")}
+          style={{
+            height: 28, padding: "0 4px 0 4px", borderRadius: 999,
+            background: accountActive ? "var(--orange-dim)" : "transparent",
+            border: accountActive ? "1px solid var(--orange-border)" : "1px solid transparent",
+            color: "var(--t2)",
+          }}
+        >
+          <span
+            className="flex items-center justify-center font-bold flex-shrink-0"
+            style={{
+              width: 22, height: 22, borderRadius: 999,
+              background: "var(--orange-dim)", border: "1px solid var(--orange-border)",
+              color: "var(--orange)", fontSize: 10,
+            }}
+          >
+            {initials}
+          </span>
+          <span
+            className="hidden md:inline"
+            style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: "0.06em", color: planTone, textTransform: "uppercase" }}
+          >
+            {planLabel}
+          </span>
+        </Link>
+
+        <button
+          onClick={() => { logout(); router.replace("/login"); }}
+          title="Sign out"
+          aria-label="Sign out"
+          className="topbar-pill-btn hidden sm:flex items-center justify-center"
+          style={{ width: 28, height: 28, borderRadius: 999, color: "var(--t3)" }}
+        >
+          <LogOut size={12} />
         </button>
       </div>
     </div>

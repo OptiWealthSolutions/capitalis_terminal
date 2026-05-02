@@ -8,7 +8,7 @@ import {
 import { useRef } from "react";
 import toast from "react-hot-toast";
 import { useI18n } from "@/lib/i18n";
-import { get, post, del } from "@/lib/api";
+import { get, post, del, errMsg } from "@/lib/api";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -130,7 +130,8 @@ export default function TrackerPage() {
       setNewPfName("");
       toast.success(`Portfolio "${name}" created.`);
     } catch (err: any) {
-      toast.error(err?.response?.data?.detail ?? "Failed to create portfolio.");
+      console.error("[tracker]", err);
+      toast.error(errMsg(err?.response?.data?.detail));
     }
   };
 

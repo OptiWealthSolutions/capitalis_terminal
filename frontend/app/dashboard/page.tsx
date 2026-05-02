@@ -24,6 +24,7 @@ import {
   Newspaper, ExternalLink, Clock,
 } from "lucide-react";
 import { get, post } from "@/lib/api";
+import { cn } from "@/lib/utils";
 import type { OptimizationResult, PerformanceResult, TrackerPerfResult, EquityFundamentals } from "@/lib/types";
 import PlotlyChart from "@/components/charts/PlotlyChart";
 import { useTheme } from "@/lib/theme";
@@ -262,9 +263,20 @@ export default function DashboardPage() {
             <EmptyState />
           ) : (
             <>
-              {/* ── Optimizer Equity Curve ── */}
+              {/* ── Mobile-only KPI table (replaces equity curves on small screens) ── */}
+              <MobilePortfolioKpis
+                className="md:hidden mb-5"
+                optimizer={portfolio && perfResult ? { name: portfolio.name, metrics: perfResult.metrics } : optPortfolios[0] ? { name: optPortfolios[0].name, metrics: null } : null}
+                tracker={trackerPf && trackerResult ? { name: trackerPf.name, metrics: trackerResult.metrics, positions: trackerPf.positions.length } : trackerPortfolios[0] ? { name: trackerPortfolios[0].name, metrics: null, positions: trackerPortfolios[0].positions.length } : null}
+                onRefreshOpt={() => portfolio && perfMutation.mutate({ pf: portfolio, range: optTimeRange })}
+                onRefreshTrk={() => trackerPf && trackerMutation.mutate(trackerPf)}
+                loadingOpt={perfMutation.isPending}
+                loadingTrk={trackerMutation.isPending}
+              />
+
+              {/* ── Optimizer Equity Curve (desktop only) ── */}
               {optPortfolios.length > 0 && (
-                <section className="mb-5">
+                <section className="mb-5 hidden md:block">
                   <EquityCurveCard
                     title="Optimizer Portfolio"
                     badgeLabel={portfolio?.method}
@@ -332,9 +344,9 @@ export default function DashboardPage() {
                 </section>
               )}
 
-              {/* ── Tracker Equity Curve ── */}
+              {/* ── Tracker Equity Curve (desktop only) ── */}
               {trackerPortfolios.length > 0 && (
-                <section className="mb-5">
+                <section className="mb-5 hidden md:block">
                   <EquityCurveCard
                     title="Tracker Portfolio"
                     badgeLabel={trackerPf ? `${trackerPf.positions.length} positions` : undefined}
@@ -456,8 +468,8 @@ export default function DashboardPage() {
         )}
       </div>
 
-      {/* ── Bottom 2-col: News feed + Optimizer Portfolio Summary (desktop only) ── */}
-      <div className={`hidden md:grid grid-cols-1 gap-5 mb-5${portfolio ? " lg:grid-cols-2" : ""}`}>
+      {/* ── Bottom 2-col: News feed + Optimizer Portfolio Summary (mobile shows portfolio summary first then news) ── */}
+      <div className={`grid grid-cols-1 gap-5 mb-5${portfolio ? " lg:grid-cols-2" : ""}`}>
         <NewsPanel />
 
         {portfolio && (
@@ -634,6 +646,79 @@ function KpiStrip({ items }: { items: { label: string; value: string; color: str
       ))}
     </div>
     </div>
+  );
+}
+
+type PortfolioMetrics = Partial<Record<"total_return" | "ann_return" | "ann_volatility" | "sharpe_ratio" | "max_drawdown" | "current_value" | "cost_basis" | "unrealized_pnl", number>>;
+
+function MobilePortfolioKpis({
+  className, optimizer, tracker, onRefreshOpt, onRefreshTrk, loadingOpt, loadingTrk,
+}: {
+  className?: string;
+  optimizer: { name: string; metrics: PortfolioMetrics | null } | null;
+  tracker: { name: string; metrics: PortfolioMetrics | null; positions: number } | null;
+  onRefreshOpt: () => void;
+  onRefreshTrk: () => void;
+  loadingOpt: boolean;
+  loadingTrk: boolean;
+}) {
+  const rows: Array<{ label: string; value: string; tone?: "up" | "down" | "neutral" }> = [];
+  if (optimizer) {
+    const m = optimizer.metrics;
+    rows.push({ label: "Optimizer", value: optimizer.name, tone: "neutral" });
+    rows.push({ label: "Value",   value: fmtEur(m?.current_value),   tone: "neutral" });
+    rows.push({ label: "Return",  value: fmtPct(m?.total_return),    tone: (m?.total_return ?? 0) >= 0 ? "up" : "down" });
+    rows.push({ label: "Sharpe",  value: fmtNum(m?.sharpe_ratio, 2), tone: "neutral" });
+    rows.push({ label: "Max DD",  value: fmtPct(m?.max_drawdown),    tone: "down" });
+  }
+  if (tracker) {
+    const m = tracker.metrics;
+    rows.push({ label: "Tracker", value: `${tracker.name} · ${tracker.positions}p`, tone: "neutral" });
+    rows.push({ label: "Value",   value: fmtEur(m?.current_value),    tone: "neutral" });
+    rows.push({ label: "P&L",     value: fmtPnl(m?.unrealized_pnl),   tone: (m?.unrealized_pnl ?? 0) >= 0 ? "up" : "down" });
+    rows.push({ label: "Return",  value: fmtPct(m?.total_return),     tone: (m?.total_return ?? 0) >= 0 ? "up" : "down" });
+  }
+  if (rows.length === 0) return null;
+
+  return (
+    <section className={cn("card", className)} style={{ padding: "12px 14px" }}>
+      <div className="flex items-center justify-between mb-2">
+        <span style={{ fontSize: "0.62rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--t3)" }}>
+          Portfolios
+        </span>
+        <div className="flex items-center gap-2">
+          {optimizer && (
+            <button onClick={onRefreshOpt} disabled={loadingOpt}
+              style={{ background: "transparent", border: "1px solid var(--border)", borderRadius: "var(--r-sm)", padding: "3px 8px", fontSize: 10, color: "var(--t3)" }}>
+              {loadingOpt ? "…" : "↻ opt"}
+            </button>
+          )}
+          {tracker && (
+            <button onClick={onRefreshTrk} disabled={loadingTrk}
+              style={{ background: "transparent", border: "1px solid var(--border)", borderRadius: "var(--r-sm)", padding: "3px 8px", fontSize: 10, color: "var(--t3)" }}>
+              {loadingTrk ? "…" : "↻ trk"}
+            </button>
+          )}
+        </div>
+      </div>
+      <table className="w-full" style={{ borderCollapse: "collapse" }}>
+        <tbody>
+          {rows.map((r, i) => (
+            <tr key={`${r.label}-${i}`} style={{ borderTop: i === 0 ? "none" : "1px solid var(--border)" }}>
+              <td style={{ padding: "7px 0", fontSize: 11, color: "var(--t3)", letterSpacing: "0.04em", textTransform: "uppercase", width: "40%" }}>
+                {r.label}
+              </td>
+              <td className="mono" style={{
+                padding: "7px 0", fontSize: 12, fontWeight: 600, textAlign: "right",
+                color: r.tone === "up" ? "var(--green)" : r.tone === "down" ? "var(--red)" : "var(--t1)",
+              }}>
+                {r.value}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </section>
   );
 }
 
