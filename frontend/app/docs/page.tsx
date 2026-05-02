@@ -55,7 +55,7 @@ function P({ children }: { children: React.ReactNode }) {
 }
 function Code({ children }: { children: React.ReactNode }) {
   return (
-    <code className="text-xs font-mono px-1.5 py-0.5 rounded" style={{ background: "var(--bg-hover)", color: "var(--orange)" }}>
+    <code className="text-xs px-1.5 py-0.5 rounded" style={{ background: "var(--bg-hover)", color: "var(--orange)" }}>
       {children}
     </code>
   );

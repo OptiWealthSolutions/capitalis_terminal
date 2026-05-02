@@ -197,9 +197,9 @@ export default function ReportingPage() {
                           .sort(([, a], [, b]) => b - a)
                           .map(([tkr, w]) => (
                             <tr key={tkr} style={{ borderBottom: "1px solid var(--border)" }}>
-                              <td className="px-5 py-2.5 font-mono font-semibold" style={{ color: "var(--orange)" }}>{tkr}</td>
-                              <td className="px-5 py-2.5 font-mono" style={{ color: "var(--t1)" }}>{fmtPct(w)}</td>
-                              <td className="px-5 py-2.5 font-mono" style={{ color: "var(--t2)" }}>
+                              <td className="px-5 py-2.5 font-semibold" style={{ color: "var(--orange)" }}>{tkr}</td>
+                              <td className="px-5 py-2.5" style={{ color: "var(--t1)" }}>{fmtPct(w)}</td>
+                              <td className="px-5 py-2.5" style={{ color: "var(--t2)" }}>
                                 {fmtEur(w * (selected.capital ?? 0))}
                               </td>
                               <td className="px-5 py-2.5 w-36">

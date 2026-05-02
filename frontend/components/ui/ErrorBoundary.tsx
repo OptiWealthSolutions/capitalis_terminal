@@ -36,7 +36,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
             <div className="text-text-primary font-medium mb-1">
               {this.props.fallbackLabel ?? "MODULE RENDER ERROR"}
             </div>
-            <div className="text-text-secondary text-xs font-mono">
+            <div className="text-text-secondary text-xs">
               {this.state.error?.message ?? "Unknown error"}
             </div>
           </div>

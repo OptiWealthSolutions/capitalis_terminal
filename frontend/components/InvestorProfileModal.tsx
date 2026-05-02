@@ -78,7 +78,7 @@ function ChoiceCard<T extends string>({
         {choice.icon}
       </span>
       <span className="flex-1 min-w-0">
-        <span className="block text-sm font-semibold" style={{ color: "var(--t1)", fontFamily: "monospace" }}>
+        <span className="block text-sm font-semibold" style={{ color: "var(--t1)", }}>
           {choice.label}
         </span>
         <span className="block text-xs mt-0.5" style={{ color: "var(--t3)" }}>
@@ -125,7 +125,7 @@ function Pill({ label: text, color = "var(--orange)" }: { label: string; color?:
   return (
     <span
       className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold"
-      style={{ background: `${color}18`, color, fontFamily: "monospace", letterSpacing: "0.04em" }}
+      style={{ background: `${color}18`, color, letterSpacing: "0.04em" }}
     >
       {text}
     </span>
@@ -195,7 +195,7 @@ export default function InvestorProfileModal() {
         >
           <div className="flex items-center gap-2">
             <Sparkles size={14} style={{ color: "var(--orange)" }} />
-            <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.10em", color: "var(--t3)", fontFamily: "monospace" }}>
+            <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.10em", color: "var(--t3)", }}>
               INVESTOR PROFILE
             </span>
           </div>
@@ -217,7 +217,7 @@ export default function InvestorProfileModal() {
                 >
                   <Sparkles size={28} style={{ color: "var(--orange)" }} />
                 </div>
-                <h2 className="text-lg font-bold" style={{ color: "var(--t1)", fontFamily: "monospace" }}>
+                <h2 className="text-lg font-bold" style={{ color: "var(--t1)", }}>
                   Personalize Your Experience
                 </h2>
                 <p className="text-sm max-w-xs mx-auto" style={{ color: "var(--t3)", lineHeight: 1.6 }}>
@@ -250,7 +250,7 @@ export default function InvestorProfileModal() {
           {step === 1 && (
             <>
               <div>
-                <h3 className="text-sm font-bold mb-1" style={{ color: "var(--t1)", fontFamily: "monospace" }}>
+                <h3 className="text-sm font-bold mb-1" style={{ color: "var(--t1)", }}>
                   What's your investing experience?
                 </h3>
                 <p className="text-xs" style={{ color: "var(--t3)" }}>This helps us calibrate the complexity of tools shown to you.</p>
@@ -267,7 +267,7 @@ export default function InvestorProfileModal() {
           {step === 2 && (
             <>
               <div>
-                <h3 className="text-sm font-bold mb-1" style={{ color: "var(--t1)", fontFamily: "monospace" }}>
+                <h3 className="text-sm font-bold mb-1" style={{ color: "var(--t1)", }}>
                   What's your investment horizon?
                 </h3>
                 <p className="text-xs" style={{ color: "var(--t3)" }}>Affects which strategies and time-frames are recommended.</p>
@@ -284,7 +284,7 @@ export default function InvestorProfileModal() {
           {step === 3 && (
             <>
               <div>
-                <h3 className="text-sm font-bold mb-1" style={{ color: "var(--t1)", fontFamily: "monospace" }}>
+                <h3 className="text-sm font-bold mb-1" style={{ color: "var(--t1)", }}>
                   What's your risk tolerance?
                 </h3>
                 <p className="text-xs" style={{ color: "var(--t3)" }}>How comfortable are you with portfolio drawdowns?</p>
@@ -301,7 +301,7 @@ export default function InvestorProfileModal() {
           {step === 4 && (
             <>
               <div>
-                <h3 className="text-sm font-bold mb-1" style={{ color: "var(--t1)", fontFamily: "monospace" }}>
+                <h3 className="text-sm font-bold mb-1" style={{ color: "var(--t1)", }}>
                   What's your approximate capital?
                 </h3>
                 <p className="text-xs" style={{ color: "var(--t3)" }}>Used only for sizing suggestions. Never shared.</p>
@@ -324,7 +324,7 @@ export default function InvestorProfileModal() {
                 >
                   <Check size={24} style={{ color: "var(--green)" }} />
                 </div>
-                <h3 className="text-sm font-bold" style={{ color: "var(--t1)", fontFamily: "monospace" }}>
+                <h3 className="text-sm font-bold" style={{ color: "var(--t1)", }}>
                   Your Profile is Ready
                 </h3>
                 <p className="text-xs max-w-xs" style={{ color: "var(--t3)" }}>{resultProfile.description}</p>

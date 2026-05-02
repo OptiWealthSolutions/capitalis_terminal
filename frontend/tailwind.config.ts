@@ -10,7 +10,7 @@ const config: Config = {
     extend: {
       fontFamily: {
         sans: ["Inter", "system-ui", "sans-serif"],
-        mono: ["monospace"],
+        mono: ["DM Sans", "sans-serif"],
       },
       colors: {
         bg: {

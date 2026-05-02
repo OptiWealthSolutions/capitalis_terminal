@@ -28,7 +28,7 @@ export default function Providers({ children }: { children: React.ReactNode }) {
               background: "var(--surface)",
               color: "var(--ink)",
               border: "1px solid var(--border)",
-              fontFamily: "monospace",
+              
               fontSize: "12px",
             },
             error: { iconTheme: { primary: "var(--red)", secondary: "var(--surface)" } },

@@ -256,7 +256,7 @@ export default function DashboardPage() {
       <div className="flex flex-col lg:flex-row lg:items-start gap-5 mb-5">
         {/* ── LEFT: main content ── */}
         <div className="flex-1 min-w-0">
-          <PollWidget />
+          <div className="hidden md:block"><PollWidget /></div>
 
           {optPortfolios.length === 0 && trackerPortfolios.length === 0 ? (
             <EmptyState />
@@ -388,7 +388,7 @@ export default function DashboardPage() {
                         />
 
                         {/* Per-position table */}
-                        <div className="px-5 pb-4 mt-2 overflow-x-auto">
+                        <div className="hidden md:block px-5 pb-4 mt-2 overflow-x-auto">
                           <table className="w-full text-xs" style={{ borderCollapse: "collapse" }}>
                             <thead>
                               <tr style={{ borderBottom: "1px solid var(--border)" }}>
@@ -403,19 +403,19 @@ export default function DashboardPage() {
                                 const up = (pos.return_pct ?? 0) >= 0;
                                 return (
                                   <tr key={pos.ticker} style={{ borderBottom: "1px solid var(--border)" }}>
-                                    <td className="py-2 pr-4 font-mono font-semibold" style={{ color: "var(--orange)" }}>{pos.ticker}</td>
-                                    <td className="py-2 pr-4 font-mono" style={{ color: "var(--t2)" }}>{pos.shares}</td>
-                                    <td className="py-2 pr-4 font-mono" style={{ color: "var(--t3)" }}>€{pos.entry_price.toFixed(2)}</td>
-                                    <td className="py-2 pr-4 font-mono" style={{ color: "var(--t1)" }}>
+                                    <td className="py-2 pr-4 font-semibold" style={{ color: "var(--orange)" }}>{pos.ticker}</td>
+                                    <td className="py-2 pr-4" style={{ color: "var(--t2)" }}>{pos.shares}</td>
+                                    <td className="py-2 pr-4" style={{ color: "var(--t3)" }}>€{pos.entry_price.toFixed(2)}</td>
+                                    <td className="py-2 pr-4" style={{ color: "var(--t1)" }}>
                                       {pos.current_price != null ? `€${pos.current_price.toFixed(2)}` : "—"}
                                     </td>
-                                    <td className="py-2 pr-4 font-mono" style={{ color: "var(--t1)" }}>
+                                    <td className="py-2 pr-4" style={{ color: "var(--t1)" }}>
                                       {pos.current_value != null ? fmtEur(pos.current_value) : "—"}
                                     </td>
-                                    <td className="py-2 pr-4 font-mono" style={{ color: up ? "var(--green)" : "var(--red)" }}>
+                                    <td className="py-2 pr-4" style={{ color: up ? "var(--green)" : "var(--red)" }}>
                                       {pos.unrealized_pnl != null ? fmtPnl(pos.unrealized_pnl) : "—"}
                                     </td>
-                                    <td className="py-2 font-mono font-semibold" style={{ color: up ? "var(--green)" : "var(--red)" }}>
+                                    <td className="py-2 font-semibold" style={{ color: up ? "var(--green)" : "var(--red)" }}>
                                       {pos.return_pct != null ? fmtPct(pos.return_pct) : "—"}
                                     </td>
                                   </tr>
@@ -440,22 +440,24 @@ export default function DashboardPage() {
               )}
 
               {/* ── Market Pulse ── */}
-              <MarketPulse data={market} loading={marketLoading} updatedAt={marketUpdatedAt} />
+              <div className="hidden md:block">
+                <MarketPulse data={market} loading={marketLoading} updatedAt={marketUpdatedAt} />
+              </div>
             </>
           )}
         </div>
 
-        {/* ── RIGHT: Watchlist + Community feed ── */}
+        {/* ── RIGHT: Watchlist + Community feed (desktop only) ── */}
         {watchlist.length > 0 && (
-          <div className="w-full lg:w-[320px] lg:flex-shrink-0">
+          <div className="hidden lg:block w-full lg:w-[320px] lg:flex-shrink-0">
             <WatchlistPanel tickers={watchlist} />
             <CommunityFeedWidget limit={5} />
           </div>
         )}
       </div>
 
-      {/* ── Bottom 2-col: News feed + Optimizer Portfolio Summary ── */}
-      <div className={`grid grid-cols-1 gap-5 mb-5${portfolio ? " lg:grid-cols-2" : ""}`}>
+      {/* ── Bottom 2-col: News feed + Optimizer Portfolio Summary (desktop only) ── */}
+      <div className={`hidden md:grid grid-cols-1 gap-5 mb-5${portfolio ? " lg:grid-cols-2" : ""}`}>
         <NewsPanel />
 
         {portfolio && (
@@ -517,7 +519,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Footer */}
-      <div className="flex items-center gap-3" style={{ color: "var(--t3)", fontSize: "0.72rem" }}>
+      <div className="hidden md:flex items-center gap-3" style={{ color: "var(--t3)", fontSize: "0.72rem" }}>
         <span>{optPortfolios.length} optimizer portfolio{optPortfolios.length !== 1 ? "s" : ""}</span>
         <span>·</span>
         <span>{trackerPortfolios.length} tracker portfolio{trackerPortfolios.length !== 1 ? "s" : ""}</span>
@@ -908,7 +910,7 @@ function NewsPanel() {
                         {newsTimeAgo(item.published)}
                       </span>
                       {item.tickers?.slice(0, 3).map(t => (
-                        <span key={t} style={{ fontSize: "0.56rem", fontWeight: 700, fontFamily: "monospace", color: "var(--t3)", padding: "1px 4px", border: "1px solid var(--border)", borderRadius: "var(--r-xs)" }}>
+                        <span key={t} style={{ fontSize: "0.56rem", fontWeight: 700, color: "var(--t3)", padding: "1px 4px", border: "1px solid var(--border)", borderRadius: "var(--r-xs)" }}>
                           {t}
                         </span>
                       ))}

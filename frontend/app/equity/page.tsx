@@ -252,7 +252,7 @@ export default function EquityPage() {
                     onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.background = "var(--bg-hover)")}
                     onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.background = "none")}
                   >
-                    <span style={{ fontFamily: "monospace", fontWeight: 700, color: "var(--orange)", fontSize: "0.78rem", minWidth: 60 }}>{s.ticker}</span>
+                    <span style={{ fontWeight: 700, color: "var(--orange)", fontSize: "0.78rem", minWidth: 60 }}>{s.ticker}</span>
                     <span style={{ color: "var(--t2)", fontSize: "0.75rem", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.name}</span>
                     <span style={{ color: "var(--t3)", fontSize: "0.65rem", flexShrink: 0 }}>{s.exchange}</span>
                   </button>
@@ -280,7 +280,7 @@ export default function EquityPage() {
             borderLeft: "3px solid var(--orange)", borderRadius: "var(--r-sm)",
           }}>
             <span style={{
-              fontFamily: "monospace", fontSize: "1.1rem",
+              fontSize: "1.1rem",
               fontWeight: 700, color: "var(--orange)",
             }}>
               {ticker}
@@ -297,7 +297,7 @@ export default function EquityPage() {
               <div style={{ marginLeft: "auto", display: "flex", alignItems: "baseline", gap: 12 }}>
                 <span style={{
                   fontSize: "1.35rem", fontWeight: 700,
-                  color: "var(--t1)", fontFamily: "monospace",
+                  color: "var(--t1)", 
                 }}>
                   {formatCurrency(currentPrice, (fund.currency as string) ?? "USD")}
                 </span>
@@ -305,7 +305,7 @@ export default function EquityPage() {
                   <span style={{
                     fontSize: "0.88rem", fontWeight: 600,
                     color: dayChange >= 0 ? "var(--green)" : "var(--red)",
-                    fontFamily: "monospace",
+                    
                   }}>
                     {dayChange >= 0 ? "+" : ""}{formatNumber(dayChange, 2)}{" "}
                     <span style={{ opacity: 0.7 }}>
@@ -375,7 +375,7 @@ export default function EquityPage() {
                     }}>
                       <span>About</span>
                       {fund?.fullTimeEmployees != null && (
-                        <span style={{ fontFamily: "monospace", color: "var(--t2)", fontSize: "0.68rem", fontWeight: 500, textTransform: "none", letterSpacing: 0 }}>
+                        <span style={{ color: "var(--t2)", fontSize: "0.68rem", fontWeight: 500, textTransform: "none", letterSpacing: 0 }}>
                           {formatLargeNumber(n(fund.fullTimeEmployees))} employees
                         </span>
                       )}
@@ -425,12 +425,12 @@ export default function EquityPage() {
                           borderBottom: "none",
                         }}>
                           <div style={{ fontSize: "0.6rem", color: "var(--t3)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>{label}</div>
-                          <div style={{ fontFamily: "monospace", fontSize: "0.92rem", fontWeight: 600, color: "var(--t1)" }}>{value}</div>
+                          <div style={{ fontSize: "0.92rem", fontWeight: 600, color: "var(--t1)" }}>{value}</div>
                           {label === "Mean Target" && currentPrice != null && fund?.targetMeanPrice != null && (
                             <div style={{
                               fontSize: "0.65rem", marginTop: 3,
                               color: (n(fund.targetMeanPrice)! > currentPrice) ? "var(--green)" : "var(--red)",
-                              fontFamily: "monospace",
+                              
                             }}>
                               {((n(fund.targetMeanPrice)! - currentPrice) / currentPrice * 100).toFixed(1)}% upside
                             </div>
@@ -575,14 +575,14 @@ export default function EquityPage() {
                       return (
                         <div>
                           <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}>
-                            <span style={{ fontSize: "0.65rem", color: "var(--t3)", fontFamily: "monospace" }}>{formatCurrency(lo, curr)}</span>
-                            <span style={{ fontSize: "0.65rem", color: "var(--t3)", fontFamily: "monospace" }}>{formatCurrency(hi, curr)}</span>
+                            <span style={{ fontSize: "0.65rem", color: "var(--t3)", }}>{formatCurrency(lo, curr)}</span>
+                            <span style={{ fontSize: "0.65rem", color: "var(--t3)", }}>{formatCurrency(hi, curr)}</span>
                           </div>
                           <div style={{ height: 4, background: "var(--bg-hover)", borderRadius: 2, position: "relative" }}>
                             <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: `${pct * 100}%`, background: `linear-gradient(90deg, var(--red), var(--green))`, borderRadius: 2 }} />
                             <div style={{ position: "absolute", top: -3, left: `calc(${pct * 100}% - 4px)`, width: 8, height: 10, background: "var(--orange)", borderRadius: 2 }} />
                           </div>
-                          <div style={{ textAlign: "center", marginTop: 5, fontSize: "0.7rem", fontFamily: "monospace", color: "var(--t1)", fontWeight: 600 }}>
+                          <div style={{ textAlign: "center", marginTop: 5, fontSize: "0.7rem", color: "var(--t1)", fontWeight: 600 }}>
                             {(pct * 100).toFixed(0)}% of range
                           </div>
                         </div>
@@ -605,7 +605,7 @@ export default function EquityPage() {
                       {item.label}
                     </div>
                     {item.custom ?? (
-                      <div style={{ fontFamily: "monospace", fontSize: "0.9rem", fontWeight: 600, color: (item as { color?: string }).color ?? "var(--t1)" }}>
+                      <div style={{ fontSize: "0.9rem", fontWeight: 600, color: (item as { color?: string }).color ?? "var(--t1)" }}>
                         {(item as { value?: string }).value ?? "—"}
                       </div>
                     )}
@@ -718,7 +718,7 @@ function EquitySimpleView({ ticker, fund, stats, history, currentPrice, dayChang
     return (
       <div style={{ padding: "12px 16px", background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 10 }}>
         <div style={{ fontSize: "0.58rem", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--t3)", marginBottom: 6 }}>{label}</div>
-        <div style={{ fontSize: "0.95rem", fontWeight: 700, color: c, fontFamily: "monospace" }}>{value}</div>
+        <div style={{ fontSize: "0.95rem", fontWeight: 700, color: c, }}>{value}</div>
       </div>
     );
   }
@@ -734,7 +734,7 @@ function EquitySimpleView({ ticker, fund, stats, history, currentPrice, dayChang
     return (
       <div style={{ textAlign: "center" }}>
         <div style={{ fontSize: "0.58rem", color: "var(--t3)", marginBottom: 4, letterSpacing: "0.07em", textTransform: "uppercase" }}>{label}</div>
-        <div style={{ fontSize: "0.9rem", fontWeight: 700, color: pos ? "var(--green)" : "var(--red)", fontFamily: "monospace" }}>
+        <div style={{ fontSize: "0.9rem", fontWeight: 700, color: pos ? "var(--green)" : "var(--red)", }}>
           {pos ? "+" : ""}{formatPercent(value)}
         </div>
       </div>
@@ -773,7 +773,7 @@ function EquitySimpleView({ ticker, fund, stats, history, currentPrice, dayChang
           {recLabel && (
             <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, padding: "14px 18px", display: "flex", flexDirection: "column", gap: 4 }}>
               <div style={{ fontSize: "0.58rem", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--t3)" }}>Analyst Consensus</div>
-              <div style={{ fontSize: "1.05rem", fontWeight: 700, color: recColor, fontFamily: "monospace" }}>{recLabel}</div>
+              <div style={{ fontSize: "1.05rem", fontWeight: 700, color: recColor, }}>{recLabel}</div>
               {fund.numberOfAnalystOpinions != null && (
                 <div style={{ fontSize: "0.7rem", color: "var(--t3)" }}>{String(fund.numberOfAnalystOpinions)} analysts</div>
               )}
@@ -782,7 +782,7 @@ function EquitySimpleView({ ticker, fund, stats, history, currentPrice, dayChang
           {fund.targetMeanPrice != null && currentPrice != null && (
             <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, padding: "14px 18px", display: "flex", flexDirection: "column", gap: 4 }}>
               <div style={{ fontSize: "0.58rem", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--t3)" }}>Price Target</div>
-              <div style={{ fontSize: "1.05rem", fontWeight: 700, color: "var(--t1)", fontFamily: "monospace" }}>
+              <div style={{ fontSize: "1.05rem", fontWeight: 700, color: "var(--t1)", }}>
                 {formatCurrency(fund.targetMeanPrice as number, currency)}
               </div>
               <div style={{ fontSize: "0.7rem", color: (fund.targetMeanPrice as number) > currentPrice ? "var(--green)" : "var(--red)" }}>
@@ -826,7 +826,7 @@ function StatKPI({ label, value, tone }: { label: string; value: string; tone?: 
         {METRIC_TIPS[label] ? <MetricTooltip label={label} tip={METRIC_TIPS[label]} /> : label}
       </div>
       <div style={{
-        fontFamily: "monospace", fontSize: "1.25rem",
+        fontSize: "1.25rem",
         fontWeight: 700, color: col, letterSpacing: "-0.02em",
       }}>
         {value}
@@ -870,7 +870,7 @@ function FundSection({ title, rows }: { title: string; rows: FundRow[] }) {
             </span>
             <span style={{
               display: "flex", alignItems: "center",
-              fontSize: "0.78rem", fontFamily: "monospace",
+              fontSize: "0.78rem", 
               fontWeight: 500, color: "var(--t1)",
             }}>
               {value}
@@ -962,7 +962,7 @@ function FinancialCharts({ data, view }: { data: FinancialPeriod; view: FinView 
             borderRight: i < kpis.length - 1 ? "1px solid var(--border)" : "none",
           }}>
             <div style={{ fontSize: "0.55rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--t3)", marginBottom: 6 }}>{k.label}</div>
-            <div style={{ fontFamily: "monospace", fontSize: "0.88rem", fontWeight: 600, color: k.color ?? "var(--t1)" }}>{k.value}</div>
+            <div style={{ fontSize: "0.88rem", fontWeight: 600, color: k.color ?? "var(--t1)" }}>{k.value}</div>
           </div>
         ))}
       </div>
@@ -1042,13 +1042,13 @@ function FinAreaLineChart({ labels, series, yUnit = "", height = 280 }: {
           return (
             <g key={i}>
               <line x1={ML} x2={W - MR} y1={y} y2={y} style={{ stroke: "var(--border)" }} strokeWidth={0.6} strokeDasharray="4 3" />
-              <text x={ML - 6} y={y + 3.5} textAnchor="end" fontSize={7.5} fontFamily="monospace" style={{ fill: "var(--t3)" }}>
+              <text x={ML - 6} y={y + 3.5} textAnchor="end" fontSize={7.5} style={{ fill: "var(--t3)" }}>
                 {t.toFixed(1)}
               </text>
             </g>
           );
         })}
-        <text x={ML - 8} y={MT - 10} textAnchor="end" fontSize={7.5} fontFamily="monospace" style={{ fill: "var(--orange)" }} fontWeight="700">{yUnit}</text>
+        <text x={ML - 8} y={MT - 10} textAnchor="end" fontSize={7.5} style={{ fill: "var(--orange)" }} fontWeight="700">{yUnit}</text>
         <line x1={ML} x2={ML} y1={MT} y2={MT + PH} style={{ stroke: "var(--border)" }} strokeWidth={1} />
         <line x1={ML} x2={W - MR} y1={MT + PH} y2={MT + PH} style={{ stroke: "var(--border)" }} strokeWidth={1} />
 
@@ -1096,14 +1096,14 @@ function FinAreaLineChart({ labels, series, yUnit = "", height = 280 }: {
         })}
 
         {labels.map((lbl, i) => (
-          <text key={i} x={toX(i)} y={H - MB + 14} textAnchor="middle" fontSize={7.5} fontFamily="monospace" style={{ fill: "var(--t3)" }}>{lbl}</text>
+          <text key={i} x={toX(i)} y={H - MB + 14} textAnchor="middle" fontSize={7.5} style={{ fill: "var(--t3)" }}>{lbl}</text>
         ))}
 
         {series.map((s, i) => (
           <g key={s.name} transform={`translate(${legendStartX + i * legendItemW}, ${MT - 18})`}>
             <line x1={0} y1={5} x2={12} y2={5} style={{ stroke: s.color }} strokeWidth={2} />
             <circle cx={6} cy={5} r={3} style={{ fill: s.color, stroke: "var(--bg-card)" }} strokeWidth={1.5} />
-            <text x={17} y={9} fontSize={7.5} fontFamily="monospace" style={{ fill: "var(--t2)" }} fontWeight="500">{s.name}</text>
+            <text x={17} y={9} fontSize={7.5} style={{ fill: "var(--t2)" }} fontWeight="500">{s.name}</text>
           </g>
         ))}
       </svg>
@@ -1155,7 +1155,7 @@ function Tooltip({ hover, labels, items }: {
       borderRadius: 8,
       padding: "8px 12px",
       fontSize: 11,
-      fontFamily: "monospace",
+      
       pointerEvents: "none",
       zIndex: 20,
       minWidth: 160,
@@ -1211,7 +1211,7 @@ function FinBarChart({ labels, series, yUnit = "", height = 280 }: {
           return (
             <g key={i}>
               <line x1={ML} x2={W - MR} y1={y} y2={y} style={{ stroke: "var(--border)" }} strokeWidth={0.6} strokeDasharray="4 3" />
-              <text x={ML - 6} y={y + 3.5} textAnchor="end" fontSize={7.5} fontFamily="monospace" style={{ fill: "var(--t3)" }}>
+              <text x={ML - 6} y={y + 3.5} textAnchor="end" fontSize={7.5} style={{ fill: "var(--t3)" }}>
                 {Math.abs(t) >= 100 ? t.toFixed(0) : Math.abs(t) >= 10 ? t.toFixed(1) : t.toFixed(2)}
               </text>
             </g>
@@ -1219,7 +1219,7 @@ function FinBarChart({ labels, series, yUnit = "", height = 280 }: {
         })}
 
         {/* Y unit label */}
-        <text x={ML - 8} y={MT - 10} textAnchor="end" fontSize={7.5} fontFamily="monospace" style={{ fill: "var(--orange)" }} fontWeight="700">{yUnit}</text>
+        <text x={ML - 8} y={MT - 10} textAnchor="end" fontSize={7.5} style={{ fill: "var(--orange)" }} fontWeight="700">{yUnit}</text>
 
         {/* Axis borders */}
         <line x1={ML} x2={ML} y1={MT} y2={MT + PH} style={{ stroke: "var(--border)" }} strokeWidth={1} />
@@ -1249,7 +1249,7 @@ function FinBarChart({ labels, series, yUnit = "", height = 280 }: {
               {isH && <line x1={ML + gi * groupW + groupW / 2} x2={ML + gi * groupW + groupW / 2} y1={MT} y2={MT + PH} style={{ stroke: "var(--t2)" }} strokeWidth={1} opacity={0.4} />}
               <rect x={ML + gi * groupW} y={MT} width={groupW} height={PH} fill="transparent" style={{ cursor: "crosshair" }}
                 onMouseEnter={() => setHover({ idx: gi, pctX: (gi + 0.5) / n })} />
-              <text x={ML + gi * groupW + groupW / 2} y={H - MB + 14} textAnchor="middle" fontSize={7.5} fontFamily="monospace" style={{ fill: "var(--t3)" }}>{lbl}</text>
+              <text x={ML + gi * groupW + groupW / 2} y={H - MB + 14} textAnchor="middle" fontSize={7.5} style={{ fill: "var(--t3)" }}>{lbl}</text>
             </g>
           );
         })}
@@ -1258,7 +1258,7 @@ function FinBarChart({ labels, series, yUnit = "", height = 280 }: {
         {series.map((s, i) => (
           <g key={s.name} transform={`translate(${legendStartX + i * legendItemW}, ${MT - 18})`}>
             <rect x={0} y={1} width={9} height={9} rx={2} style={{ fill: s.color }} opacity={0.9} />
-            <text x={13} y={9} fontSize={7.5} fontFamily="monospace" style={{ fill: "var(--t2)" }} fontWeight="500">{s.name}</text>
+            <text x={13} y={9} fontSize={7.5} style={{ fill: "var(--t2)" }} fontWeight="500">{s.name}</text>
           </g>
         ))}
       </svg>
@@ -1306,7 +1306,7 @@ function FinLineChart({ labels, series, yUnit = "", height = 280 }: {
           return (
             <g key={i}>
               <line x1={ML} x2={W - MR} y1={y} y2={y} style={{ stroke: "var(--border)" }} strokeWidth={0.6} strokeDasharray="4 3" />
-              <text x={ML - 6} y={y + 3.5} textAnchor="end" fontSize={7.5} fontFamily="monospace" style={{ fill: "var(--t3)" }}>
+              <text x={ML - 6} y={y + 3.5} textAnchor="end" fontSize={7.5} style={{ fill: "var(--t3)" }}>
                 {t.toFixed(1)}
               </text>
             </g>
@@ -1314,7 +1314,7 @@ function FinLineChart({ labels, series, yUnit = "", height = 280 }: {
         })}
 
         {/* Y unit label */}
-        <text x={ML - 8} y={MT - 10} textAnchor="end" fontSize={7.5} fontFamily="monospace" style={{ fill: "var(--orange)" }} fontWeight="700">{yUnit}</text>
+        <text x={ML - 8} y={MT - 10} textAnchor="end" fontSize={7.5} style={{ fill: "var(--orange)" }} fontWeight="700">{yUnit}</text>
 
         {/* Axis borders */}
         <line x1={ML} x2={ML} y1={MT} y2={MT + PH} style={{ stroke: "var(--border)" }} strokeWidth={1} />
@@ -1376,7 +1376,7 @@ function FinLineChart({ labels, series, yUnit = "", height = 280 }: {
 
         {/* X labels */}
         {labels.map((lbl, i) => (
-          <text key={i} x={toX(i)} y={H - MB + 14} textAnchor="middle" fontSize={7.5} fontFamily="monospace" style={{ fill: "var(--t3)" }}>{lbl}</text>
+          <text key={i} x={toX(i)} y={H - MB + 14} textAnchor="middle" fontSize={7.5} style={{ fill: "var(--t3)" }}>{lbl}</text>
         ))}
 
         {/* Centered legend (line + dot style) */}
@@ -1384,7 +1384,7 @@ function FinLineChart({ labels, series, yUnit = "", height = 280 }: {
           <g key={s.name} transform={`translate(${legendStartX + i * legendItemW}, ${MT - 18})`}>
             <line x1={0} y1={5} x2={12} y2={5} style={{ stroke: s.color }} strokeWidth={2} />
             <circle cx={6} cy={5} r={3} style={{ fill: s.color, stroke: "var(--bg-card)" }} strokeWidth={1.5} />
-            <text x={17} y={9} fontSize={7.5} fontFamily="monospace" style={{ fill: "var(--t2)" }} fontWeight="500">{s.name}</text>
+            <text x={17} y={9} fontSize={7.5} style={{ fill: "var(--t2)" }} fontWeight="500">{s.name}</text>
           </g>
         ))}
       </svg>
@@ -1438,7 +1438,7 @@ function FinDualBarChart({ labels, leftSeries, rightSeries, height = 280 }: {
           return (
             <g key={i}>
               <line x1={ML} x2={ML + PW} y1={y} y2={y} style={{ stroke: "var(--border)" }} strokeWidth={0.6} strokeDasharray="4 3" />
-              <text x={ML - 8} y={y + 4} textAnchor="end" fontSize={8}fontFamily="monospace" style={{ fill: "var(--t3)" }}>
+              <text x={ML - 8} y={y + 4} textAnchor="end" fontSize={8} style={{ fill: "var(--t3)" }}>
                 {Math.abs(t) >= 10 ? t.toFixed(1) : t.toFixed(2)}
               </text>
             </g>
@@ -1446,13 +1446,13 @@ function FinDualBarChart({ labels, leftSeries, rightSeries, height = 280 }: {
         })}
 
         {/* Left Y unit */}
-        <text x={ML - 8} y={MT - 10} textAnchor="end" fontSize={7.5} fontFamily="monospace" style={{ fill: leftSeries.color }} fontWeight="700">{leftSeries.unit}</text>
+        <text x={ML - 8} y={MT - 10} textAnchor="end" fontSize={7.5} style={{ fill: leftSeries.color }} fontWeight="700">{leftSeries.unit}</text>
         {/* Right Y unit */}
-        <text x={ML + PW + 8} y={MT - 10} textAnchor="start" fontSize={7.5} fontFamily="monospace" style={{ fill: rightSeries.color }} fontWeight="700">{rightSeries.unit}</text>
+        <text x={ML + PW + 8} y={MT - 10} textAnchor="start" fontSize={7.5} style={{ fill: rightSeries.color }} fontWeight="700">{rightSeries.unit}</text>
 
         {/* Right ticks */}
         {rTicks.map((t, i) => (
-          <text key={i} x={ML + PW + 8} y={toYR(t) + 4} textAnchor="start" fontSize={8}fontFamily="monospace" style={{ fill: "var(--t3)" }}>
+          <text key={i} x={ML + PW + 8} y={toYR(t) + 4} textAnchor="start" fontSize={8} style={{ fill: "var(--t3)" }}>
             {Math.abs(t) >= 10 ? t.toFixed(1) : t.toFixed(2)}
           </text>
         ))}
@@ -1492,7 +1492,7 @@ function FinDualBarChart({ labels, leftSeries, rightSeries, height = 280 }: {
               })()}
               <rect x={ML + gi * groupW} y={MT} width={groupW} height={PH} fill="transparent" style={{ cursor: "crosshair" }}
                 onMouseEnter={() => setHover({ idx: gi, pctX: (gi + 0.5) / n })} />
-              <text x={cx} y={H - MB + 18} textAnchor="middle" fontSize={8}fontFamily="monospace" style={{ fill: "var(--t3)" }}>{lbl}</text>
+              <text x={cx} y={H - MB + 18} textAnchor="middle" fontSize={8} style={{ fill: "var(--t3)" }}>{lbl}</text>
             </g>
           );
         })}
@@ -1501,7 +1501,7 @@ function FinDualBarChart({ labels, leftSeries, rightSeries, height = 280 }: {
         {[leftSeries, rightSeries].map((s, i) => (
           <g key={s.name} transform={`translate(${legendStartX + i * legendItemW}, ${MT - 18})`}>
             <rect x={0} y={1} width={9} height={9} rx={2} style={{ fill: s.color }} opacity={0.9} />
-            <text x={13} y={9} fontSize={7.5} fontFamily="monospace" style={{ fill: "var(--t2)" }} fontWeight="500">{s.name}</text>
+            <text x={13} y={9} fontSize={7.5} style={{ fill: "var(--t2)" }} fontWeight="500">{s.name}</text>
           </g>
         ))}
       </svg>
@@ -1540,7 +1540,7 @@ function HoldersSection({ data, loading }: { data: HoldersData | undefined; load
               <div style={{ color: "var(--t3)", fontSize: "0.6rem", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>
                 {m.label}
               </div>
-              <div style={{ fontFamily: "monospace", color: "var(--t1)", fontSize: "1.1rem", fontWeight: 600 }}>
+              <div style={{ color: "var(--t1)", fontSize: "1.1rem", fontWeight: 600 }}>
                 {m.value}
               </div>
             </div>
@@ -1722,7 +1722,7 @@ function PeerComparison({
               background: "var(--bg-hover)", border: "1px solid var(--border)",
               borderRadius: "var(--r-sm)", padding: "7px 12px",
               fontSize: "0.78rem", color: "var(--t1)", outline: "none",
-              fontFamily: "monospace", width: 160,
+              width: 160,
             }}
           />
           <button
@@ -1743,7 +1743,7 @@ function PeerComparison({
               display: "inline-flex", alignItems: "center", gap: 6,
               padding: "4px 10px", borderRadius: "var(--r-sm)",
               background: "var(--orange-dim)", border: "1px solid var(--orange-border)",
-              fontSize: "0.75rem", fontFamily: "monospace", color: "var(--orange)",
+              fontSize: "0.75rem", color: "var(--orange)",
             }}
           >
             {t}
@@ -1786,7 +1786,7 @@ function PeerComparison({
                       whiteSpace: "nowrap",
                     }}
                   >
-                    <div style={{ fontFamily: "monospace", fontSize: "0.82rem", fontWeight: 700, color: idx === 0 ? "var(--orange)" : "var(--t1)" }}>
+                    <div style={{ fontSize: "0.82rem", fontWeight: 700, color: idx === 0 ? "var(--orange)" : "var(--t1)" }}>
                       {t}
                     </div>
                     {fund && (
@@ -1830,7 +1830,7 @@ function PeerComparison({
                         textAlign: "right", padding: "8px 14px",
                         borderBottom: "1px solid var(--border)",
                         borderLeft: "1px solid var(--border)",
-                        fontFamily: "monospace",
+                        
                         fontSize: "0.78rem",
                         fontWeight: idx === 0 ? 600 : 400,
                         color: toneColor,

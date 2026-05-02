@@ -54,7 +54,7 @@ export default function MetricCard({
             <>
               <span style={{
                 color: deltaColor(delta.value),
-                fontFamily: "monospace",
+                
                 fontSize: "0.72rem",
                 fontWeight: 500,
               }}>

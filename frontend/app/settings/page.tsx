@@ -237,7 +237,7 @@ function AppearanceTab({ prefs, onChange }: { prefs: UserPreferences; onChange: 
                 const v = e.target.value;
                 if (/^#[0-9A-Fa-f]{0,6}$/.test(v)) onChange({ accent_color: v });
               }}
-              className="input-field text-xs font-mono uppercase"
+              className="input-field text-xs uppercase"
               style={{ width: 100 }}
               maxLength={7}
               placeholder="#7AA7E8"
@@ -307,7 +307,7 @@ function DefaultsTab({ prefs, onChange }: { prefs: UserPreferences; onChange: (p
               max={0.30}
               step={0.005}
             />
-            <span className="text-xs font-mono" style={{ color: "var(--orange)" }}>
+            <span className="text-xs" style={{ color: "var(--orange)" }}>
               = {((prefs.risk_free_rate ?? 0.04) * 100).toFixed(1)}%
             </span>
           </div>
@@ -475,7 +475,7 @@ function DataTab() {
         <Row label="Optimizer portfolios" hint={`${pfCount} saved portfolios`}>
           <div className="flex items-center gap-3">
             <span
-              className="text-xs font-mono font-semibold px-3 py-1 rounded"
+              className="text-xs font-semibold px-3 py-1 rounded"
               style={{ background: "var(--bg-hover)", color: "var(--orange)" }}
             >
               {pfCount} portfolio{pfCount !== 1 ? "s" : ""}
@@ -494,7 +494,7 @@ function DataTab() {
         <Row label="Tracker portfolios" hint={`${trCount} saved portfolios`}>
           <div className="flex items-center gap-3">
             <span
-              className="text-xs font-mono font-semibold px-3 py-1 rounded"
+              className="text-xs font-semibold px-3 py-1 rounded"
               style={{ background: "var(--bg-hover)", color: "var(--orange)" }}
             >
               {trCount} portfolio{trCount !== 1 ? "s" : ""}
@@ -570,7 +570,7 @@ function SystemTab() {
         ) : (
           <div className="space-y-0">
             <Row label="Backend version" hint="FastAPI">
-              <span className="font-mono text-xs" style={{ color: "var(--orange)" }}>
+              <span className="text-xs" style={{ color: "var(--orange)" }}>
                 v{(status.data as any)?.backend_version ?? "—"}
               </span>
             </Row>
@@ -618,7 +618,7 @@ function SystemTab() {
       <Card>
         <SectionHeader title="Application" />
         <Row label="Frontend" hint="Next.js 14 App Router">
-          <span className="text-xs font-mono" style={{ color: "var(--t2)" }}>v2.0.0</span>
+          <span className="text-xs" style={{ color: "var(--t2)" }}>v2.0.0</span>
         </Row>
         <Row label="Stack">
           <div className="flex flex-wrap gap-1.5">

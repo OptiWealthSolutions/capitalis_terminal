@@ -42,7 +42,7 @@ export default function PlotlyChart({
     template:      tmpl,
     paper_bgcolor: "rgba(0,0,0,0)",
     plot_bgcolor:  "rgba(0,0,0,0)",
-    font: { family: "monospace", color: fontColor, size: 10 },
+    font: { family: "DM Sans", color: fontColor, size: 10 },
     margin: { l: 52, r: 16, t: 24, b: 40 },
     legend: {
       orientation: "h",
@@ -76,7 +76,7 @@ export default function PlotlyChart({
     hoverlabel: {
       bgcolor:     hoverBg,
       bordercolor: hoverBorder,
-      font: { family: "monospace", size: 11, color: hoverFont },
+      font: { family: "DM Sans", size: 11, color: hoverFont },
     },
   };
 

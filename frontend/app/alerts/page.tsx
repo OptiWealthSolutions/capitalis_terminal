@@ -110,10 +110,10 @@ export default function AlertsPage() {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <p className="text-xs tracking-widest mb-1" style={{ color: "var(--t3)", fontFamily: "monospace" }}>
+          <p className="text-xs tracking-widest mb-1" style={{ color: "var(--t3)", }}>
             Capital / Alerts
           </p>
-          <h1 className="text-xl font-bold tracking-wide" style={{ fontFamily: "monospace" }}>
+          <h1 className="text-xl font-bold tracking-wide" style={{ }}>
             {t.nav.alerts}
           </h1>
           <p className="text-xs mt-1" style={{ color: "var(--t3)" }}>
@@ -276,7 +276,7 @@ function Section({ title, count, color, children }: {
     <div>
       <div className="flex items-center gap-2 mb-3">
         <span className="w-1.5 h-1.5 rounded-full" style={{ background: color }} />
-        <span className="text-xs font-semibold tracking-widest uppercase" style={{ color: "var(--t3)", fontFamily: "monospace" }}>
+        <span className="text-xs font-semibold tracking-widest uppercase" style={{ color: "var(--t3)", }}>
           {title}
         </span>
         <span className="text-xs rounded px-1.5 py-0.5" style={{ background: "var(--bg-hover)", color: "var(--t3)" }}>
@@ -318,7 +318,7 @@ function AlertRow({ alert, onToggle, onDelete }: {
 
       <span
         className="font-bold text-sm w-16 flex-shrink-0"
-        style={{ fontFamily: "monospace", color: "var(--t1)" }}
+        style={{ color: "var(--t1)" }}
       >
         {alert.ticker}
       </span>

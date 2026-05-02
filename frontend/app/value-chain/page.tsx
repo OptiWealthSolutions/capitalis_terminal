@@ -125,7 +125,7 @@ function FearGreedGauge({ score, label }: { score: number; label: string }) {
           </g>
         </svg>
         <div style={{ display: "flex", alignItems: "baseline", gap: 4, marginTop: -4 }}>
-          <span style={{ fontSize: "1.5rem", fontWeight: 700, color, fontFamily: "monospace", lineHeight: 1 }}>
+          <span style={{ fontSize: "1.5rem", fontWeight: 700, color, lineHeight: 1 }}>
             {score.toFixed(0)}
           </span>
           <span style={{ fontSize: "0.6rem", color: "var(--t3)" }}>/100</span>
@@ -160,7 +160,7 @@ function SectorCard({ s, sortKey }: { s: SectorData; sortKey: SortKey }) {
           <div style={{ fontSize: "0.8rem", fontWeight: 600, color: "var(--t1)", lineHeight: 1.2 }}>{s.sector}</div>
         </div>
         <div style={{ textAlign: "right" }}>
-          <span style={{ fontSize: "0.72rem", fontWeight: 700, color: highlightUp ? "var(--green)" : "var(--red)", fontFamily: "monospace" }}>
+          <span style={{ fontSize: "0.72rem", fontWeight: 700, color: highlightUp ? "var(--green)" : "var(--red)", }}>
             {fmtPct(highlight)}
           </span>
           {/* Volume badge */}
@@ -180,11 +180,11 @@ function SectorCard({ s, sortKey }: { s: SectorData; sortKey: SortKey }) {
       {/* Price + sparkline */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
         <div>
-          <span style={{ fontFamily: "monospace", fontSize: "1rem", fontWeight: 600, color: "var(--t1)" }}>
+          <span style={{ fontSize: "1rem", fontWeight: 600, color: "var(--t1)" }}>
             ${s.price.toFixed(2)}
           </span>
           {s.from_52w_high_pct != null && s.from_52w_high_pct < -0.5 && (
-            <span style={{ fontSize: "0.58rem", color: "var(--t3)", marginLeft: 6, fontFamily: "monospace" }}>
+            <span style={{ fontSize: "0.58rem", color: "var(--t3)", marginLeft: 6, }}>
               {fmtPct(s.from_52w_high_pct, 1)} ATH
             </span>
           )}
@@ -200,7 +200,7 @@ function SectorCard({ s, sortKey }: { s: SectorData; sortKey: SortKey }) {
           return (
             <div key={label} style={{ textAlign: "center" }}>
               <div style={{ fontSize: "0.55rem", color: "var(--t3)", marginBottom: 2 }}>{label}</div>
-              <div style={{ fontSize: "0.68rem", fontWeight: 600, color: pctColor(v), fontFamily: "monospace" }}>
+              <div style={{ fontSize: "0.68rem", fontWeight: 600, color: pctColor(v), }}>
                 {fmtPct(v, 1)}
               </div>
             </div>
@@ -212,7 +212,7 @@ function SectorCard({ s, sortKey }: { s: SectorData; sortKey: SortKey }) {
       <div style={{ marginBottom: 8 }}>
         <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
           <span style={{ fontSize: "0.52rem", color: "var(--t3)" }}>52W LOW</span>
-          <span style={{ fontSize: "0.52rem", color: "var(--t3)", fontFamily: "monospace" }}>{pos52.toFixed(0)}%</span>
+          <span style={{ fontSize: "0.52rem", color: "var(--t3)", }}>{pos52.toFixed(0)}%</span>
           <span style={{ fontSize: "0.52rem", color: "var(--t3)" }}>52W HIGH</span>
         </div>
         <div style={{ height: 3, background: "var(--bg-base)", borderRadius: 2, overflow: "hidden", position: "relative" }}>
@@ -275,13 +275,13 @@ function MacroCard({ item }: { item: MacroItem }) {
       </div>
 
       <div style={{ marginBottom: 8 }}>
-        <span style={{ fontFamily: "monospace", fontSize: "1.05rem", fontWeight: 700, color: "var(--t1)" }}>
+        <span style={{ fontSize: "1.05rem", fontWeight: 700, color: "var(--t1)" }}>
           {item.symbol.includes("TNX") || item.symbol.includes("TYX") || item.symbol.includes("IRX")
             ? `${item.price.toFixed(2)}%`
             : `$${fmtPrice(item.price)}`
           }
         </span>
-        <span style={{ marginLeft: 8, fontSize: "0.72rem", fontWeight: 600, color: isVix ? pctColor(-item.change_1d_pct) : pctColor(item.change_1d_pct), fontFamily: "monospace" }}>
+        <span style={{ marginLeft: 8, fontSize: "0.72rem", fontWeight: 600, color: isVix ? pctColor(-item.change_1d_pct) : pctColor(item.change_1d_pct), }}>
           {fmtPct(item.change_1d_pct)} 1D
         </span>
       </div>
@@ -290,7 +290,7 @@ function MacroCard({ item }: { item: MacroItem }) {
         {([["1W", item.change_1w_pct], ["1M", item.change_1m_pct], ["3M", item.change_3m_pct]] as [string, number][]).map(([l, v]) => (
           <div key={l} style={{ textAlign: "center" }}>
             <div style={{ fontSize: "0.52rem", color: "var(--t3)", marginBottom: 2 }}>{l}</div>
-            <div style={{ fontSize: "0.65rem", fontWeight: 600, color: isVix ? pctColor(-v) : pctColor(v), fontFamily: "monospace" }}>
+            <div style={{ fontSize: "0.65rem", fontWeight: 600, color: isVix ? pctColor(-v) : pctColor(v), }}>
               {fmtPct(v, 1)}
             </div>
           </div>
@@ -324,7 +324,7 @@ function NewsCard({ item }: { item: NewsItem }) {
           <Clock size={9} style={{ color: "var(--t3)" }} />
           <span style={{ fontSize: "0.62rem", color: "var(--t3)" }}>{timeAgo(item.published)}</span>
           {item.tickers.slice(0, 3).map(t => (
-            <span key={t} style={{ fontSize: "0.58rem", fontFamily: "monospace", fontWeight: 600, color: "var(--orange)", padding: "1px 5px", background: "var(--orange-dim)", borderRadius: 3 }}>
+            <span key={t} style={{ fontSize: "0.58rem", fontWeight: 600, color: "var(--orange)", padding: "1px 5px", background: "var(--orange-dim)", borderRadius: 3 }}>
               {t}
             </span>
           ))}
@@ -348,7 +348,7 @@ function BreadthKpi({ label, value, total, icon }: { label: string; value: numbe
         <span style={{ fontSize: "0.62rem", fontWeight: 600, letterSpacing: "0.07em", textTransform: "uppercase", color: "var(--t3)" }}>{label}</span>
       </div>
       <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
-        <span style={{ fontSize: "1.5rem", fontWeight: 700, color: good ? "var(--green)" : "var(--red)", fontFamily: "monospace", lineHeight: 1 }}>
+        <span style={{ fontSize: "1.5rem", fontWeight: 700, color: good ? "var(--green)" : "var(--red)", lineHeight: 1 }}>
           {value}
         </span>
         <span style={{ color: "var(--t3)", fontSize: "0.75rem" }}>/ {total}</span>
@@ -502,7 +502,7 @@ export default function MarketMapPage() {
               <Gauge size={13} style={{ color: "var(--orange)" }} />
               <span style={{ fontSize: "0.62rem", fontWeight: 600, letterSpacing: "0.07em", textTransform: "uppercase", color: "var(--t3)" }}>Avg RSI</span>
             </div>
-            <div style={{ fontSize: "1.5rem", fontWeight: 700, color: breadth.avg_rsi > 70 ? "var(--red)" : breadth.avg_rsi < 40 ? "var(--green)" : "var(--orange)", fontFamily: "monospace", lineHeight: 1 }}>
+            <div style={{ fontSize: "1.5rem", fontWeight: 700, color: breadth.avg_rsi > 70 ? "var(--red)" : breadth.avg_rsi < 40 ? "var(--green)" : "var(--orange)", lineHeight: 1 }}>
               {breadth.avg_rsi}
             </div>
             <div style={{ fontSize: "0.65rem", color: "var(--t3)", marginTop: 6 }}>
@@ -518,8 +518,8 @@ export default function MarketMapPage() {
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-                <span style={{ color: "var(--green)", fontWeight: 700, fontFamily: "monospace", fontSize: "0.9rem" }}>{breadth.bullish}▲</span>
-                <span style={{ color: "var(--red)", fontWeight: 700, fontFamily: "monospace", fontSize: "0.9rem" }}>{breadth.bearish}▼</span>
+                <span style={{ color: "var(--green)", fontWeight: 700, fontSize: "0.9rem" }}>{breadth.bullish}▲</span>
+                <span style={{ color: "var(--red)", fontWeight: 700, fontSize: "0.9rem" }}>{breadth.bearish}▼</span>
               </div>
               <div style={{ flex: 1 }}>
                 {[{ v: breadth.bullish, c: "var(--green)" }, { v: breadth.bearish, c: "var(--red)" }].map((row, i) => (
@@ -596,7 +596,7 @@ export default function MarketMapPage() {
                     background: spread > 0 ? "rgba(134,179,138,0.12)" : "rgba(212,133,133,0.1)",
                     color: spread > 0 ? "var(--green)" : "var(--red)",
                     border: `1px solid ${spread > 0 ? "rgba(134,179,138,0.25)" : "rgba(212,133,133,0.2)"}`,
-                    fontFamily: "monospace",
+                    
                   }}>
                     {spread > 0 ? "RISK ON" : "RISK OFF"} {Math.abs(spread).toFixed(1)}%
                   </span>
@@ -670,13 +670,13 @@ export default function MarketMapPage() {
                   {[...sectors].sort((a, b) => b.change_1y_pct - a.change_1y_pct).map(s => (
                     <tr key={s.etf} style={{ borderBottom: "1px solid var(--border)" }}>
                       <td style={{ padding: "7px 10px 7px 0", color: "var(--t1)", fontWeight: 600 }}>{s.sector}</td>
-                      <td style={{ paddingRight: 10, color: "var(--orange)", fontFamily: "monospace", fontWeight: 600 }}>{s.etf}</td>
-                      <td style={{ paddingRight: 10, textAlign: "right", fontFamily: "monospace", color: "var(--t1)" }}>${s.price.toFixed(2)}</td>
+                      <td style={{ paddingRight: 10, color: "var(--orange)", fontWeight: 600 }}>{s.etf}</td>
+                      <td style={{ paddingRight: 10, textAlign: "right", color: "var(--t1)" }}>${s.price.toFixed(2)}</td>
                       {[s.change_1d_pct, s.change_1m_pct, s.change_3m_pct, s.change_1y_pct].map((v, i) => (
-                        <td key={i} style={{ paddingRight: 10, textAlign: "right", fontFamily: "monospace", color: pctColor(v), fontWeight: 600 }}>{fmtPct(v, 1)}</td>
+                        <td key={i} style={{ paddingRight: 10, textAlign: "right", color: pctColor(v), fontWeight: 600 }}>{fmtPct(v, 1)}</td>
                       ))}
-                      <td style={{ paddingRight: 10, textAlign: "right", fontFamily: "monospace", color: s.rsi_14 > 70 ? "var(--red)" : s.rsi_14 < 30 ? "var(--green)" : "var(--t2)" }}>{s.rsi_14.toFixed(0)}</td>
-                      <td style={{ paddingRight: 10, textAlign: "right", fontFamily: "monospace", color: (s.position_52w_pct ?? 50) > 70 ? "var(--green)" : (s.position_52w_pct ?? 50) < 30 ? "var(--red)" : "var(--t2)" }}>{(s.position_52w_pct ?? 0).toFixed(0)}%</td>
+                      <td style={{ paddingRight: 10, textAlign: "right", color: s.rsi_14 > 70 ? "var(--red)" : s.rsi_14 < 30 ? "var(--green)" : "var(--t2)" }}>{s.rsi_14.toFixed(0)}</td>
+                      <td style={{ paddingRight: 10, textAlign: "right", color: (s.position_52w_pct ?? 50) > 70 ? "var(--green)" : (s.position_52w_pct ?? 50) < 30 ? "var(--red)" : "var(--t2)" }}>{(s.position_52w_pct ?? 0).toFixed(0)}%</td>
                       <td style={{ paddingRight: 10, textAlign: "right", color: s.above_200ma ? "var(--green)" : "var(--red)" }}>{s.above_200ma ? "▲" : "▼"}</td>
                       <td style={{ textAlign: "right", color: s.above_50ma ? "var(--green)" : "var(--red)" }}>{s.above_50ma ? "▲" : "▼"}</td>
                     </tr>
@@ -724,7 +724,7 @@ export default function MarketMapPage() {
                       <div style={{ background: "var(--bg-card)", border: `1px solid ${macroData.inverted ? "rgba(212,133,133,0.3)" : "var(--border)"}`, borderRadius: "var(--r)", padding: "14px 16px" }}>
                         <div style={{ fontSize: "0.6rem", color: "var(--t3)", fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: 6 }}>rates</div>
                         <div style={{ fontSize: "0.8rem", fontWeight: 600, color: "var(--t1)", marginBottom: 10 }}>Yield Curve</div>
-                        <div style={{ fontSize: "1.05rem", fontWeight: 700, fontFamily: "monospace", color: macroData.inverted ? "var(--red)" : "var(--green)" }}>
+                        <div style={{ fontSize: "1.05rem", fontWeight: 700, color: macroData.inverted ? "var(--red)" : "var(--green)" }}>
                           {macroData.curve_spread > 0 ? "+" : ""}{macroData.curve_spread.toFixed(2)}%
                         </div>
                         <div style={{ fontSize: "0.65rem", color: macroData.inverted ? "var(--red)" : "var(--t3)", marginTop: 6, fontWeight: macroData.inverted ? 600 : 400 }}>
@@ -774,10 +774,10 @@ export default function MarketMapPage() {
                 <div>
                   {[...sectors].sort((a, b) => b.change_1d_pct - a.change_1d_pct).map((s, i) => (
                     <div key={s.etf} style={{ display: "flex", alignItems: "center", padding: "7px 16px", borderBottom: i < sectors.length - 1 ? "1px solid var(--border)" : "none", gap: 10 }}>
-                      <span style={{ minWidth: 36, fontFamily: "monospace", fontWeight: 700, fontSize: "0.72rem", color: "var(--orange)" }}>{s.etf}</span>
+                      <span style={{ minWidth: 36, fontWeight: 700, fontSize: "0.72rem", color: "var(--orange)" }}>{s.etf}</span>
                       <span style={{ flex: 1, fontSize: "0.72rem", color: "var(--t2)" }}>{s.sector}</span>
                       <Spark values={s.spark_30d} up={s.change_1d_pct >= 0} w={44} h={14} />
-                      <span style={{ fontFamily: "monospace", fontSize: "0.75rem", fontWeight: 600, color: pctColor(s.change_1d_pct), minWidth: 52, textAlign: "right" }}>
+                      <span style={{ fontSize: "0.75rem", fontWeight: 600, color: pctColor(s.change_1d_pct), minWidth: 52, textAlign: "right" }}>
                         {fmtPct(s.change_1d_pct)}
                       </span>
                     </div>
@@ -801,11 +801,11 @@ export default function MarketMapPage() {
                     const flow = s.change_1m_pct - s.change_3m_pct / 3;
                     return (
                       <div key={s.etf} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                        <span style={{ minWidth: 36, fontFamily: "monospace", fontWeight: 700, fontSize: "0.68rem", color: "var(--orange)" }}>{s.etf}</span>
+                        <span style={{ minWidth: 36, fontWeight: 700, fontSize: "0.68rem", color: "var(--orange)" }}>{s.etf}</span>
                         <div style={{ flex: 1, height: 5, background: "var(--bg-base)", borderRadius: 3, overflow: "hidden" }}>
                           <div style={{ height: "100%", width: `${Math.min(100, Math.abs(flow) * 5)}%`, background: flow > 0 ? "var(--green)" : "var(--red)", borderRadius: 3 }} />
                         </div>
-                        <span style={{ fontSize: "0.65rem", fontWeight: 600, color: flow > 0 ? "var(--green)" : "var(--red)", minWidth: 50, textAlign: "right", fontFamily: "monospace" }}>
+                        <span style={{ fontSize: "0.65rem", fontWeight: 600, color: flow > 0 ? "var(--green)" : "var(--red)", minWidth: 50, textAlign: "right", }}>
                           {flow > 0 ? "▲" : "▼"} {Math.abs(flow).toFixed(1)}%
                         </span>
                       </div>
@@ -825,9 +825,9 @@ export default function MarketMapPage() {
                 <div>
                   {[...sectors].sort((a, b) => a.change_1m_pct - b.change_1m_pct).slice(0, 5).map((s, i) => (
                     <div key={s.etf} style={{ display: "flex", alignItems: "center", padding: "7px 16px", borderBottom: i < 4 ? "1px solid var(--border)" : "none", gap: 10 }}>
-                      <span style={{ minWidth: 36, fontFamily: "monospace", fontWeight: 700, fontSize: "0.72rem", color: "var(--orange)" }}>{s.etf}</span>
+                      <span style={{ minWidth: 36, fontWeight: 700, fontSize: "0.72rem", color: "var(--orange)" }}>{s.etf}</span>
                       <span style={{ flex: 1, fontSize: "0.72rem", color: "var(--t2)" }}>{s.sector}</span>
-                      <span style={{ fontFamily: "monospace", fontSize: "0.72rem", fontWeight: 600, color: pctColor(s.change_1m_pct) }}>
+                      <span style={{ fontSize: "0.72rem", fontWeight: 600, color: pctColor(s.change_1m_pct) }}>
                         {fmtPct(s.change_1m_pct, 1)} 1M
                       </span>
                     </div>

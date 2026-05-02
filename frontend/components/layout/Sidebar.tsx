@@ -19,20 +19,6 @@ import { useTheme } from "@/lib/theme";
 type LucideIcon = ForwardRefExoticComponent<Omit<LucideProps, "ref"> & RefAttributes<SVGSVGElement>>;
 interface NavItem { href: string; label: string; icon: LucideIcon; badge?: string; section?: string; }
 
-// ─── Logo mark — plain img to avoid next/image optimizer (broken on static export) ──
-function CapitalisLogo({ size = 28 }: { size?: number }) {
-  return (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img
-      src="/android-chrome-192x192.png"
-      alt="Capitalis"
-      width={size}
-      height={size}
-      style={{ borderRadius: 6, flexShrink: 0, display: "block", objectFit: "cover" }}
-    />
-  );
-}
-
 // ─── NavLink — full + collapsed ───────────────────────────────────────────────
 function NavLink({
   item, active, onClose, collapsed,
@@ -47,7 +33,7 @@ function NavLink({
         className={cn("flex items-center justify-center py-2 mx-1 rounded transition-all duration-120", active ? "nav-item-active" : "nav-item-inactive")}
         style={{ height: 36 }}
       >
-        <Icon size={16} style={{ color: active ? "var(--orange)" : "var(--t3)" }} />
+        <Icon size={16} style={{ color: active ? "var(--orange-light)" : "var(--t3)" }} />
       </Link>
     );
   }
@@ -57,7 +43,7 @@ function NavLink({
       onClick={onClose}
       className={cn("flex items-center gap-2.5 px-3 py-2 font-medium transition-all duration-120 select-none", active ? "nav-item-active" : "nav-item-inactive")}
     >
-      <Icon size={15} className="flex-shrink-0" style={{ color: active ? "var(--orange)" : "var(--t3)" }} />
+      <Icon size={15} className="flex-shrink-0" style={{ color: active ? "var(--orange-light)" : "var(--t3)" }} />
       <span className="flex-1 truncate" style={{ fontSize: "0.8125rem" }}>{item.label}</span>
       {item.badge && (
         <span className="badge badge-violet" style={{ fontSize: "0.5rem", padding: "1px 5px" }}>{item.badge}</span>
@@ -148,21 +134,17 @@ export default function Sidebar({ isOpen, onClose, isCollapsed, onToggleCollapse
       data-sidebar-dark
       style={{ width: w, background: "var(--bg-surface)", borderRight: "1px solid var(--border)" }}
     >
-      {/* ── Logo ── */}
+      {/* ── Brand ── */}
       <div
         className="flex items-center flex-shrink-0 overflow-hidden"
-        style={{ height: 52, borderBottom: "1px solid var(--border)", padding: isCollapsed ? "0 14px" : "0 16px", gap: 10 }}
+        style={{ height: 52, borderBottom: "1px solid var(--border)", padding: isCollapsed ? "0 14px" : "0 18px" }}
       >
-        <CapitalisLogo size={28} />
-        {!isCollapsed && (
-          <div className="min-w-0">
-            <div style={{ fontFamily: "monospace", fontSize: "0.82rem", fontWeight: 700, letterSpacing: "0.04em", color: "var(--t1)", lineHeight: 1, whiteSpace: "nowrap" }}>
-              CAPITALIS
-            </div>
-            <div style={{ fontSize: "0.52rem", color: "var(--t3)", letterSpacing: "0.06em", marginTop: 3, whiteSpace: "nowrap" }}>
-              Smarter investing
-            </div>
-          </div>
+        {!isCollapsed ? (
+          <span style={{ fontSize: "1.05rem", fontWeight: 600, letterSpacing: "-0.01em", color: "var(--t1)", whiteSpace: "nowrap" }}>
+            Capitalis
+          </span>
+        ) : (
+          <span style={{ fontSize: "1.05rem", fontWeight: 700, color: "var(--orange)", lineHeight: 1 }}>C</span>
         )}
       </div>
 
@@ -176,7 +158,7 @@ export default function Sidebar({ isOpen, onClose, isCollapsed, onToggleCollapse
           >
             <Search size={12} style={{ color: "var(--t3)", flexShrink: 0 }} />
             <span style={{ fontSize: "0.75rem", color: "var(--t3)" }}>{t.sidebar.search}</span>
-            <span className="ml-auto" style={{ fontSize: "0.57rem", color: "var(--t3)", fontFamily: "monospace", background: "var(--bg-hover)", border: "1px solid var(--border)", borderRadius: "3px", padding: "1px 4px" }}>⌘K</span>
+            <span className="ml-auto" style={{ fontSize: "0.57rem", color: "var(--t3)", background: "var(--bg-hover)", border: "1px solid var(--border)", borderRadius: "3px", padding: "1px 4px" }}>⌘K</span>
           </button>
         </div>
       )}
@@ -187,10 +169,9 @@ export default function Sidebar({ isOpen, onClose, isCollapsed, onToggleCollapse
           <button
             onClick={() => setSearchOpen(true)}
             title={t.sidebar.search}
-            className="flex items-center justify-center transition-colors"
-            style={{ width: 32, height: 32, borderRadius: "var(--r-sm)", color: "var(--t3)" }}
-            onMouseEnter={e => (e.currentTarget.style.color = "var(--t1)")}
-            onMouseLeave={e => (e.currentTarget.style.color = "var(--t3)")}
+            aria-label={t.sidebar.search}
+            className="sidebar-theme-btn flex items-center justify-center"
+            style={{ width: 32, height: 32 }}
           >
             <Search size={14} />
           </button>
@@ -231,7 +212,7 @@ export default function Sidebar({ isOpen, onClose, isCollapsed, onToggleCollapse
       {!isCollapsed ? (
         <div className="flex items-center gap-3 px-4 py-3" style={{ borderTop: "1px solid var(--border)" }}>
           <div className="flex items-center justify-center font-bold flex-shrink-0"
-            style={{ width: 30, height: 30, background: "var(--orange-dim)", border: "1px solid var(--orange-border)", borderRadius: "var(--r-sm)", color: "var(--orange)", fontFamily: "monospace", fontSize: "0.78rem" }}>
+            style={{ width: 30, height: 30, background: "var(--orange-dim)", border: "1px solid var(--orange-border)", borderRadius: "var(--r-sm)", color: "var(--orange)", fontSize: "0.78rem" }}>
             {initials}
           </div>
           <div className="flex-1 min-w-0">
@@ -254,7 +235,7 @@ export default function Sidebar({ isOpen, onClose, isCollapsed, onToggleCollapse
       ) : (
         <div className="flex flex-col items-center gap-2 py-3" style={{ borderTop: "1px solid var(--border)" }}>
           <div className="flex items-center justify-center font-bold"
-            style={{ width: 28, height: 28, background: "var(--orange-dim)", border: "1px solid var(--orange-border)", borderRadius: "var(--r-sm)", color: "var(--orange)", fontFamily: "monospace", fontSize: "0.72rem" }}>
+            style={{ width: 28, height: 28, background: "var(--orange-dim)", border: "1px solid var(--orange-border)", borderRadius: "var(--r-sm)", color: "var(--orange)", fontSize: "0.72rem" }}>
             {initials}
           </div>
           <button onClick={toggle} title={theme === "dark" ? "Switch to light" : "Switch to dark"}
@@ -300,8 +281,8 @@ export default function Sidebar({ isOpen, onClose, isCollapsed, onToggleCollapse
             <Search size={13} style={{ color: "var(--t3)", flexShrink: 0 }} />
             <input autoFocus value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
               placeholder="Search pages or tickers…"
-              style={{ flex: 1, background: "transparent", border: "none", outline: "none", fontSize: "0.8125rem", color: "var(--t1)", fontFamily: "monospace" }} />
-            <span style={{ fontSize: "0.55rem", color: "var(--t3)", fontFamily: "monospace", background: "var(--bg-hover)", border: "1px solid var(--border)", borderRadius: "3px", padding: "1px 5px" }}>ESC</span>
+              style={{ flex: 1, background: "transparent", border: "none", outline: "none", fontSize: "0.8125rem", color: "var(--t1)", }} />
+            <span style={{ fontSize: "0.55rem", color: "var(--t3)", background: "var(--bg-hover)", border: "1px solid var(--border)", borderRadius: "3px", padding: "1px 5px" }}>ESC</span>
           </div>
           <div style={{ maxHeight: 400, overflowY: "auto" }}>
             {/* Nav results */}
@@ -342,7 +323,7 @@ export default function Sidebar({ isOpen, onClose, isCollapsed, onToggleCollapse
                     style={{ padding: "8px 14px", fontSize: "0.8125rem", color: "var(--t2)" }}
                     onMouseEnter={e => (e.currentTarget.style.background = "var(--bg-hover)")}
                     onMouseLeave={e => (e.currentTarget.style.background = "")}>
-                    <span style={{ fontFamily: "monospace", fontWeight: 700, color: "var(--orange)", minWidth: 56, fontSize: "0.78rem" }}>{item.ticker}</span>
+                    <span style={{ fontWeight: 700, color: "var(--orange)", minWidth: 56, fontSize: "0.78rem" }}>{item.ticker}</span>
                     <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.name}</span>
                     <span style={{ fontSize: "0.65rem", color: "var(--t3)", flexShrink: 0 }}>{item.exchange}</span>
                   </button>

@@ -26,10 +26,11 @@
   --t2: rgba(245,245,245,0.72);
   --t3: rgba(245,245,245,0.48);
 
-  /* Vivid accent colors */
-  --orange:        #60A5FA;
-  --orange-dim:    rgba(96,165,250,0.12);
-  --orange-border: rgba(96,165,250,0.28);
+  /* Brand — Horacle Capital royal blue */
+  --orange:        #2563EB;
+  --orange-dim:    rgba(37,99,235,0.12);
+  --orange-border: rgba(37,99,235,0.32);
+  --orange-light:  #60A5FA;
   --green:         #4ADE80;
   --green-dim:     rgba(74,222,128,0.12);
   --red:           #F87171;
@@ -83,11 +84,11 @@
   --accent-yellow:      var(--yellow);
   --accent-orange-dim:  var(--orange-dim);
   --accent-orange-border: var(--orange-border);
-  --accent-orange-strong: rgba(59,130,246,0.14);
-  --orange-hover:       #93C5FD;
+  --accent-orange-strong: rgba(37,99,235,0.18);
+  --orange-hover:       #1E40AF;
   --r-md:               var(--r-sm);
   --r-lg:               var(--r);
-  --glow-orange:        0 0 12px rgba(96,165,250,0.22);
+  --glow-orange:        0 4px 16px rgba(37,99,235,0.35);
 }
 
 :root[data-theme="light"] {
@@ -124,8 +125,9 @@
     0 2px 8px rgba(15,15,15,0.10),
     0 0 0 1px rgba(15,15,15,0.08);
 
-  --orange-hover: #1D4ED8;
-  --glow-orange:  0 0 10px rgba(37,99,235,0.16);
+  --orange-hover: #1E40AF;
+  --orange-light: #2563EB;
+  --glow-orange:  0 4px 16px rgba(37,99,235,0.30);
 }
 
 /* ═══════════════════════════════════════════════════
@@ -143,9 +145,10 @@
   --t1: #F5F5F5;
   --t2: rgba(245,245,245,0.72);
   --t3: rgba(245,245,245,0.48);
-  --orange:        #60A5FA;
-  --orange-dim:    rgba(96,165,250,0.12);
-  --orange-border: rgba(96,165,250,0.28);
+  --orange:        #2563EB;
+  --orange-dim:    rgba(37,99,235,0.12);
+  --orange-border: rgba(37,99,235,0.32);
+  --orange-light:  #60A5FA;
   --green:         #4ADE80;
   --red:           #F87171;
   --card-shadow:
@@ -273,7 +276,7 @@ button, a { -webkit-tap-highlight-color: transparent; }
 
 /* Value: white, weight 600 */
 .metric-card .mc-value {
-  font-family: monospace;
+  
   font-variant-numeric: tabular-nums;
   font-size: 1.9rem;
   font-weight: 600;
@@ -297,7 +300,7 @@ button, a { -webkit-tap-highlight-color: transparent; }
 /* ═══════════════════════════════════════════════════
    MONO UTILITY
 ═══════════════════════════════════════════════════ */
-.mono { font-family: monospace; font-variant-numeric: tabular-nums; }
+.mono {  font-variant-numeric: tabular-nums; }
 
 /* ═══════════════════════════════════════════════════
    TOPBAR
@@ -311,7 +314,7 @@ button, a { -webkit-tap-highlight-color: transparent; }
   padding: 0 24px;
   overflow: hidden;
   flex-shrink: 0;
-  font-family: monospace;
+  
   font-size: 11px;
   letter-spacing: 0.04em;
 }
@@ -372,24 +375,25 @@ select.input-field option { background: var(--bg-surface); color: var(--t1); }
   padding: 8px 18px;
   background: var(--orange);
   border: none;
-  border-radius: var(--r-sm);
+  border-radius: 7px;
   color: #fff;
   font-family: "DM Sans", sans-serif;
   font-size: 0.75rem;
   font-weight: 600;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
   cursor: pointer;
-  transition: filter 0.15s;
+  transition: background 0.18s cubic-bezier(0.16,1,0.3,1), transform 0.18s cubic-bezier(0.16,1,0.3,1), box-shadow 0.18s cubic-bezier(0.16,1,0.3,1);
   white-space: nowrap;
   line-height: 1;
+  box-shadow: 0 4px 16px rgba(37,99,235,0.35);
 }
 .btn-primary:hover:not(:disabled) {
-  filter: brightness(1.08);
-  transform: translateY(-0.5px);
-  box-shadow: 0 4px 12px rgba(96,165,250,0.22);
+  background: var(--orange-hover);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 28px rgba(37,99,235,0.45);
 }
-.btn-primary:active:not(:disabled) { transform: translateY(0); filter: brightness(0.98); }
+.btn-primary:active:not(:disabled) { transform: translateY(0); box-shadow: 0 2px 8px rgba(37,99,235,0.30); }
 .btn-primary:disabled { opacity: 0.35; cursor: not-allowed; }
 
 .btn-secondary {
@@ -476,14 +480,14 @@ select.input-field option { background: var(--bg-surface); color: var(--t1); }
   line-height: 1.5;
 }
 .terminal-table td.num {
-  font-family: monospace;
+  
   font-variant-numeric: tabular-nums;
   text-align: right;
   font-size: 0.76rem;
   font-weight: 500;
 }
 .terminal-table td.ticker {
-  font-family: monospace;
+  
   font-weight: 600;
   color: var(--orange);
   font-size: 0.8rem;
@@ -547,8 +551,8 @@ select.input-field option { background: var(--bg-surface); color: var(--t1); }
 /* ═══════════════════════════════════════════════════
    DELTAS — semantic: numeric data only
 ═══════════════════════════════════════════════════ */
-.delta-up   { color: var(--green); font-family: monospace; font-variant-numeric: tabular-nums; font-size: 0.72rem; font-weight: 500; }
-.delta-down { color: var(--red);   font-family: monospace; font-variant-numeric: tabular-nums; font-size: 0.72rem; font-weight: 500; }
+.delta-up   { color: var(--green);  font-variant-numeric: tabular-nums; font-size: 0.72rem; font-weight: 500; }
+.delta-down { color: var(--red);    font-variant-numeric: tabular-nums; font-size: 0.72rem; font-weight: 500; }
 
 /* ═══════════════════════════════════════════════════
    LIVE DOT
@@ -621,9 +625,14 @@ select.input-field option { background: var(--bg-surface); color: var(--t1); }
    SIDEBAR NAV ITEMS
 ═══════════════════════════════════════════════════ */
 .nav-item-active {
-  background: var(--orange-dim);
-  border: 1px solid var(--orange-border);
+  background: rgba(96,165,250,0.15);
+  border: 1px solid rgba(96,165,250,0.30);
   border-radius: var(--r-sm);
+  color: var(--orange-light) !important;
+}
+[data-theme="light"] .nav-item-active {
+  background: var(--orange-dim);
+  border-color: var(--orange-border);
   color: var(--orange) !important;
 }
 

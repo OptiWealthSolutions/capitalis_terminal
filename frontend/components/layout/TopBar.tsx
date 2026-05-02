@@ -41,7 +41,7 @@ export default function TopBar({ onMenuToggle: _onMenuToggle }: TopBarProps) {
       {/* Mobile-only brand chip (no sidebar on mobile, BottomNav handles it) */}
       <div className="flex sm:hidden items-center gap-2 mr-auto">
         <span style={{
-          fontFamily: "monospace",
+          
           fontSize: 12, fontWeight: 700, letterSpacing: "0.04em",
           color: "var(--t1)",
         }}>
@@ -158,7 +158,7 @@ export default function TopBar({ onMenuToggle: _onMenuToggle }: TopBarProps) {
             border: "1px solid var(--border)",
             color: "var(--t2)",
             fontSize: 10.5, fontWeight: 700, letterSpacing: "0.07em",
-            fontFamily: "monospace",
+            
           }}
           onMouseEnter={e => {
             (e.currentTarget as HTMLElement).style.borderColor = "var(--orange-border)";

@@ -88,7 +88,7 @@ export default function PollWidget() {
                 {isSelected && "✓ "}{opt.text}
               </span>
               {voted && (
-                <span style={{ position: "relative", fontSize: "0.68rem", fontWeight: 600, color: isSelected ? "var(--orange)" : "var(--t3)", fontFamily: "monospace", flexShrink: 0, marginLeft: 8 }}>
+                <span style={{ position: "relative", fontSize: "0.68rem", fontWeight: 600, color: isSelected ? "var(--orange)" : "var(--t3)", flexShrink: 0, marginLeft: 8 }}>
                   {opt.pct.toFixed(0)}%
                 </span>
               )}

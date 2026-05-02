@@ -43,7 +43,7 @@ export default function RegisterPage() {
   const inputStyle: React.CSSProperties = {
     width: "100%", background: "var(--bg-base)", border: "1px solid var(--border)",
     borderRadius: "var(--r-sm)", color: "var(--t1)", fontSize: "0.78rem",
-    padding: "10px 12px", outline: "none", fontFamily: "monospace",
+    padding: "10px 12px", outline: "none", 
     boxSizing: "border-box",
   };
 

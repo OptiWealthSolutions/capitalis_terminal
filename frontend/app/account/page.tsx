@@ -235,7 +235,7 @@ function ProfileCard({ user, onSaved }: { user: any; onSaved: () => Promise<void
       </FieldRow>
 
       <FieldRow label="Email">
-        <span className="text-xs font-mono" style={{ color: "var(--t1)" }}>{user?.email ?? "—"}</span>
+        <span className="text-xs" style={{ color: "var(--t1)" }}>{user?.email ?? "—"}</span>
       </FieldRow>
 
       <FieldRow label="Member since">
@@ -280,7 +280,7 @@ function UsageCard() {
         {stats.map(s => (
           <div key={s.label} className="flex items-center justify-between">
             <span className="text-xs" style={{ color: "var(--t2)" }}>{s.label}</span>
-            <span className="text-xs font-mono font-semibold" style={{ color: "var(--orange)" }}>
+            <span className="text-xs font-semibold" style={{ color: "var(--orange)" }}>
               {s.value === null ? "—" : s.value}
             </span>
           </div>
@@ -405,7 +405,7 @@ function PlanCard({
               }}
             >
               <span style={{ color: "var(--t3)" }}>{lim.label}</span>
-              <span className="font-mono font-semibold"
+              <span className="font-semibold"
                 style={{ color: lim.value === "—" ? "var(--t3)" : lim.value === "Soon" ? "var(--yellow)" : plan.color }}>
                 {lim.value}
               </span>
@@ -503,9 +503,9 @@ function BillingTab({ currentPlan, onPortal }: { currentPlan: PlanId; onPortal: 
             <tbody>
               {invoices.map(inv => (
                 <tr key={inv.id} style={{ borderBottom: "1px solid var(--border)" }}>
-                  <td className="py-2.5 font-mono" style={{ color: "var(--t2)" }}>{inv.date}</td>
+                  <td className="py-2.5" style={{ color: "var(--t2)" }}>{inv.date}</td>
                   <td className="py-2.5" style={{ color: "var(--t2)" }}>{inv.description ?? "Subscription"}</td>
-                  <td className="py-2.5 font-mono font-semibold" style={{ color: "var(--t1)" }}>€{inv.amount_eur.toFixed(2)}</td>
+                  <td className="py-2.5 font-semibold" style={{ color: "var(--t1)" }}>€{inv.amount_eur.toFixed(2)}</td>
                   <td className="py-2.5">
                     <span
                       className="px-2 py-0.5 rounded text-xs font-semibold uppercase"
@@ -685,7 +685,7 @@ function SecurityTab({ onDeleted, authProvider }: { onDeleted: () => void; authP
                   value={apiKeys[f.id]}
                   onChange={e => setApiKeys(k => ({ ...k, [f.id]: e.target.value }))}
                   placeholder={f.ph}
-                  className="input-field text-xs font-mono flex-1"
+                  className="input-field text-xs flex-1"
                 />
                 <button
                   onClick={() => setShowKeys(s => ({ ...s, [f.id]: !s[f.id] }))}
@@ -944,7 +944,7 @@ export default function AccountPage() {
                           value={betaCode}
                           onChange={e => setBetaCode(e.target.value.toUpperCase())}
                           onKeyDown={e => e.key === "Enter" && handleRedeemBeta()}
-                          className="w-full px-3 py-2 rounded-lg text-xs font-mono tracking-widest"
+                          className="w-full px-3 py-2 rounded-lg text-xs tracking-widest"
                           style={{ background: "var(--bg-hover)", border: "1px solid var(--border)", color: "var(--t1)", outline: "none" }}
                           autoFocus
                         />

@@ -92,7 +92,7 @@ function PollCard({ poll }: { poll: Poll }) {
                 {isSelected && "✓ "}{opt.text}
               </span>
               {voted && (
-                <span style={{ position: "relative", fontSize: "0.72rem", fontWeight: 600, color: isSelected ? "var(--orange)" : "var(--t3)", fontFamily: "monospace", flexShrink: 0, marginLeft: 8 }}>
+                <span style={{ position: "relative", fontSize: "0.72rem", fontWeight: 600, color: isSelected ? "var(--orange)" : "var(--t3)", flexShrink: 0, marginLeft: 8 }}>
                   {opt.pct.toFixed(0)}%
                 </span>
               )}
@@ -145,7 +145,7 @@ function PostCard({ post: p, currentUserEmail }: { post: Post; currentUserEmail:
           width: 32, height: 32, borderRadius: "50%", flexShrink: 0,
           background: "var(--orange-dim)", border: "1px solid var(--orange-border)",
           display: "flex", alignItems: "center", justifyContent: "center",
-          color: "var(--orange)", fontWeight: 700, fontFamily: "monospace", fontSize: "0.78rem",
+          color: "var(--orange)", fontWeight: 700, fontSize: "0.78rem",
         }}>
           {p.author.initials}
         </div>
@@ -154,7 +154,7 @@ function PostCard({ post: p, currentUserEmail }: { post: Post; currentUserEmail:
           <span style={{ fontSize: "0.62rem", color: "var(--t3)", marginLeft: 8 }}>{timeAgo(p.created_at)}</span>
         </div>
         {p.ticker && (
-          <span style={{ fontSize: "0.62rem", fontWeight: 700, fontFamily: "monospace", color: "var(--orange)", padding: "2px 8px", background: "var(--orange-dim)", border: "1px solid var(--orange-border)", borderRadius: 4 }}>
+          <span style={{ fontSize: "0.62rem", fontWeight: 700, color: "var(--orange)", padding: "2px 8px", background: "var(--orange-dim)", border: "1px solid var(--orange-border)", borderRadius: 4 }}>
             ${p.ticker}
           </span>
         )}
@@ -303,7 +303,7 @@ function ComposePost({ onSuccess }: { onSuccess: () => void }) {
               value={ticker}
               onChange={e => setTicker(e.target.value.toUpperCase().replace(/[^A-Z0-9.]/g, "").slice(0, 10))}
               placeholder="AAPL (optional ticker tag)"
-              style={{ width: 160, background: "var(--bg-base)", border: "1px solid var(--border)", borderRadius: "var(--r-sm)", padding: "6px 10px", fontSize: "0.75rem", color: "var(--t1)", fontFamily: "monospace", outline: "none" }}
+              style={{ width: 160, background: "var(--bg-base)", border: "1px solid var(--border)", borderRadius: "var(--r-sm)", padding: "6px 10px", fontSize: "0.75rem", color: "var(--t1)", outline: "none" }}
               onFocus={e => (e.currentTarget.style.borderColor = "var(--orange-border)")}
               onBlur={e => (e.currentTarget.style.borderColor = "var(--border)")}
             />
@@ -382,7 +382,7 @@ function ComposePoll({ onSuccess }: { onSuccess: () => void }) {
       <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 6 }}>
         {options.map((opt, i) => (
           <div key={i} style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <span style={{ fontSize: "0.62rem", color: "var(--t3)", fontFamily: "monospace", minWidth: 16 }}>{i + 1}.</span>
+            <span style={{ fontSize: "0.62rem", color: "var(--t3)", minWidth: 16 }}>{i + 1}.</span>
             <input
               type="text"
               value={opt}

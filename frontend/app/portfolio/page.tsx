@@ -554,7 +554,7 @@ export default function PortfolioPage() {
                         >
                           <div className="flex items-center gap-1.5 mb-1" style={{ color: isActive ? "var(--orange)" : "var(--t2)" }}>
                             {opt.icon}
-                            <span className="text-xs font-bold" style={{ fontFamily: "monospace", fontSize: 10 }}>{opt.label}</span>
+                            <span className="text-xs font-bold" style={{ fontSize: 10 }}>{opt.label}</span>
                           </div>
                           <p className="text-xs leading-tight" style={{ color: "var(--t3)", fontSize: 10 }}>{opt.sub}</p>
                           {isRec && !isActive && (
@@ -565,7 +565,7 @@ export default function PortfolioPage() {
                     })}
                   </div>
                   <p className="text-xs mt-2" style={{ color: "var(--t3)" }}>
-                    Method: <span style={{ color: "var(--t2)", fontFamily: "monospace" }}>{SIMPLE_RISK_METHODS[simpleRisk]}</span>
+                    Method: <span style={{ color: "var(--t2)", }}>{SIMPLE_RISK_METHODS[simpleRisk]}</span>
                   </p>
                 </div>
                 <form id="opt-form" onSubmit={handleSubmit((d) => { d.method = SIMPLE_RISK_METHODS[simpleRisk]; optimize.mutate(d); })}>
@@ -912,7 +912,7 @@ export default function PortfolioPage() {
                           </span>
                         )}
                       </p>
-                      <p className="text-base font-semibold font-mono" style={{ color: m.color }}>{m.value}</p>
+                      <p className="text-base font-semibold" style={{ color: m.color }}>{m.value}</p>
                     </div>
                   ))}
                 </div>
@@ -951,7 +951,7 @@ export default function PortfolioPage() {
                           </span>
                         )}
                       </p>
-                      <p className="text-base font-semibold font-mono" style={{ color: m.color }}>{m.value}</p>
+                      <p className="text-base font-semibold" style={{ color: m.color }}>{m.value}</p>
                     </div>
                   ))}
                 </div>
@@ -1010,9 +1010,9 @@ export default function PortfolioPage() {
                           <tbody>
                             {rows.map(([t, w], i) => (
                               <tr key={t} style={{ borderBottom: "1px solid var(--border)" }}>
-                                <td className="px-5 py-3 font-semibold font-mono" style={{ color: "var(--orange)" }}>{t}</td>
-                                <td className="px-5 py-3 font-mono" style={{ color: "var(--t1)" }}>{formatPercent(w)}</td>
-                                <td className="px-5 py-3 font-mono" style={{ color: "var(--t2)" }}>{formatCurrency(optResult.allocation_eur[t])}</td>
+                                <td className="px-5 py-3 font-semibold" style={{ color: "var(--orange)" }}>{t}</td>
+                                <td className="px-5 py-3" style={{ color: "var(--t1)" }}>{formatPercent(w)}</td>
+                                <td className="px-5 py-3" style={{ color: "var(--t2)" }}>{formatCurrency(optResult.allocation_eur[t])}</td>
                                 <td className="px-5 py-3 w-48">
                                   <div className="rounded-full overflow-hidden" style={{ height: 4, background: "var(--bg-hover)" }}>
                                     <div className="h-full rounded-full"
@@ -1070,7 +1070,7 @@ export default function PortfolioPage() {
                         <input
                           type="number" min={1} step={50} value={dcaAmount}
                           onChange={(e) => setDcaAmount(Math.max(1, Number(e.target.value)))}
-                          className="text-xs px-2 py-1 rounded border outline-none w-20 font-mono"
+                          className="text-xs px-2 py-1 rounded border outline-none w-20"
                           style={{ background: "var(--bg-hover)", borderColor: "var(--border)", color: "var(--t1)" }}
                         />
                         <span className="text-xs" style={{ color: "var(--t3)" }}>€</span>
@@ -1098,7 +1098,7 @@ export default function PortfolioPage() {
                         <input
                           type="number" min={1} max={1000} step={1} value={dcaIter}
                           onChange={(e) => setDcaIter(Math.max(1, Number(e.target.value)))}
-                          className="text-xs px-2 py-1 rounded border outline-none w-16 font-mono"
+                          className="text-xs px-2 py-1 rounded border outline-none w-16"
                           style={{ background: "var(--bg-hover)", borderColor: "var(--border)", color: "var(--t1)" }}
                         />
                       </div>
@@ -1122,10 +1122,10 @@ export default function PortfolioPage() {
                           <tbody>
                             {visRows.map(({ ticker, w, perPeriod, total }, i) => (
                               <tr key={ticker} style={{ borderBottom: "1px solid var(--border)" }}>
-                                <td className="px-5 py-3 font-semibold font-mono" style={{ color: "var(--orange)" }}>{ticker}</td>
-                                <td className="px-5 py-3 font-mono" style={{ color: "var(--t1)" }}>{formatPercent(w)}</td>
-                                <td className="px-5 py-3 font-mono" style={{ color: "var(--t2)" }}>{formatCurrency(perPeriod)}</td>
-                                <td className="px-5 py-3 font-mono" style={{ color: "var(--green)" }}>{formatCurrency(total)}</td>
+                                <td className="px-5 py-3 font-semibold" style={{ color: "var(--orange)" }}>{ticker}</td>
+                                <td className="px-5 py-3" style={{ color: "var(--t1)" }}>{formatPercent(w)}</td>
+                                <td className="px-5 py-3" style={{ color: "var(--t2)" }}>{formatCurrency(perPeriod)}</td>
+                                <td className="px-5 py-3" style={{ color: "var(--green)" }}>{formatCurrency(total)}</td>
                                 <td className="px-5 py-3 w-40">
                                   <div className="rounded-full overflow-hidden" style={{ height: 4, background: "var(--bg-hover)" }}>
                                     <div className="h-full rounded-full"
@@ -1138,8 +1138,8 @@ export default function PortfolioPage() {
                               <td className="px-5 py-3 font-semibold text-xs" colSpan={2} style={{ color: "var(--t3)" }}>
                                 TOTAL ({dcaIter} {freqLabel[dcaFreq].toLowerCase()} periods)
                               </td>
-                              <td className="px-5 py-3 font-mono font-semibold" style={{ color: "var(--t1)" }}>{formatCurrency(dcaAmount)}</td>
-                              <td className="px-5 py-3 font-mono font-semibold" style={{ color: "var(--green)" }}>{formatCurrency(grandTotal)}</td>
+                              <td className="px-5 py-3 font-semibold" style={{ color: "var(--t1)" }}>{formatCurrency(dcaAmount)}</td>
+                              <td className="px-5 py-3 font-semibold" style={{ color: "var(--green)" }}>{formatCurrency(grandTotal)}</td>
                               <td />
                             </tr>
                           </tbody>
@@ -1228,7 +1228,7 @@ export default function PortfolioPage() {
                           }}
                         >
                           <p className="text-xs mb-1.5" style={{ color: "var(--t3)" }}>{m.label}</p>
-                          <p className="text-base font-semibold font-mono" style={{ color: m.color }}>{m.value}</p>
+                          <p className="text-base font-semibold" style={{ color: m.color }}>{m.value}</p>
                         </div>
                       ))}
                     </div>
@@ -1338,13 +1338,13 @@ export default function PortfolioPage() {
                             <tr key={pf.id} style={{ borderBottom: "1px solid var(--border)" }}>
                               <td className="px-4 py-3 font-medium" style={{ color: CHART_COLORS[i % CHART_COLORS.length] }}>{pf.name}</td>
                               <td className="px-4 py-3" style={{ color: "var(--t2)" }}>{pf.method}</td>
-                              <td className="px-4 py-3 font-mono" style={{ color: "var(--green)" }}>{formatPercent(pf.result!.metrics.expected_annual_return)}</td>
-                              <td className="px-4 py-3 font-mono" style={{ color: "var(--yellow)" }}>{formatPercent(pf.result!.metrics.annual_volatility)}</td>
-                              <td className="px-4 py-3 font-mono" style={{ color: "var(--t1)" }}>{formatNumber(pf.result!.metrics.sharpe_ratio, 3)}</td>
-                              <td className="px-4 py-3 font-mono" style={{ color: "var(--t1)" }}>{formatNumber(pf.result!.metrics.sortino_ratio, 3)}</td>
-                              <td className="px-4 py-3 font-mono" style={{ color: "var(--t1)" }}>{formatNumber(pf.result!.metrics.calmar_ratio, 3)}</td>
-                              <td className="px-4 py-3 font-mono" style={{ color: "var(--red)" }}>{formatPercent(pf.result!.metrics.max_drawdown)}</td>
-                              <td className="px-4 py-3 font-mono" style={{ color: "var(--t1)" }}>{formatNumber(pf.result!.metrics.beta, 3)}</td>
+                              <td className="px-4 py-3" style={{ color: "var(--green)" }}>{formatPercent(pf.result!.metrics.expected_annual_return)}</td>
+                              <td className="px-4 py-3" style={{ color: "var(--yellow)" }}>{formatPercent(pf.result!.metrics.annual_volatility)}</td>
+                              <td className="px-4 py-3" style={{ color: "var(--t1)" }}>{formatNumber(pf.result!.metrics.sharpe_ratio, 3)}</td>
+                              <td className="px-4 py-3" style={{ color: "var(--t1)" }}>{formatNumber(pf.result!.metrics.sortino_ratio, 3)}</td>
+                              <td className="px-4 py-3" style={{ color: "var(--t1)" }}>{formatNumber(pf.result!.metrics.calmar_ratio, 3)}</td>
+                              <td className="px-4 py-3" style={{ color: "var(--red)" }}>{formatPercent(pf.result!.metrics.max_drawdown)}</td>
+                              <td className="px-4 py-3" style={{ color: "var(--t1)" }}>{formatNumber(pf.result!.metrics.beta, 3)}</td>
                             </tr>
                           ))}
                         </tbody>
@@ -1456,7 +1456,7 @@ export default function PortfolioPage() {
                         <div key={m.label} className="px-5 py-4"
                           style={{ background: "var(--bg-card)", borderRight: i < kpis.length - 1 ? "1px solid var(--border)" : "none" }}>
                           <p className="text-xs mb-1.5" style={{ color: "var(--t3)" }}>{m.label}</p>
-                          <p className="text-base font-semibold font-mono" style={{ color: m.color }}>{m.value}</p>
+                          <p className="text-base font-semibold" style={{ color: m.color }}>{m.value}</p>
                         </div>
                       ))}
                     </div>
@@ -1479,7 +1479,7 @@ export default function PortfolioPage() {
                         style={{ background: "var(--bg-card)", borderRight: i < 2 ? "1px solid var(--border)" : "none" }}
                       >
                         <p className="text-xs mb-1.5" style={{ color: "var(--t3)" }}>{m.label}</p>
-                        <p className="text-base font-semibold font-mono" style={{ color: m.color }}>{m.value}</p>
+                        <p className="text-base font-semibold" style={{ color: m.color }}>{m.value}</p>
                       </div>
                     ))}
                   </div>
@@ -1501,7 +1501,7 @@ export default function PortfolioPage() {
                         style={{ background: "var(--bg-card)", borderRight: i < 2 ? "1px solid var(--border)" : "none" }}
                       >
                         <p className="text-xs mb-1.5" style={{ color: "var(--t3)" }}>{m.label}</p>
-                        <p className="text-base font-semibold font-mono" style={{ color: "var(--orange)" }}>{m.value}</p>
+                        <p className="text-base font-semibold" style={{ color: "var(--orange)" }}>{m.value}</p>
                       </div>
                     ))}
                   </div>
@@ -1730,11 +1730,11 @@ function DonutChart({ title, data }: { title: string; data: Record<string, numbe
             {top1 && (
               <>
                 <text x={60} y={56} textAnchor="middle" fontSize="10" fontWeight="700"
-                  fontFamily="monospace" fill="var(--t1)">
+                  fill="var(--t1)">
                   {(top1.frac * 100).toFixed(0)}%
                 </text>
                 <text x={60} y={70} textAnchor="middle" fontSize="7"
-                  fontFamily="monospace" fill="var(--t3)">
+                  fill="var(--t3)">
                   {top1.name.length > 12 ? top1.name.slice(0, 11) + "…" : top1.name}
                 </text>
               </>
@@ -1749,7 +1749,7 @@ function DonutChart({ title, data }: { title: string; data: Record<string, numbe
               <span style={{ flex: 1, fontSize: 11, color: "var(--t2)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                 {seg.name}
               </span>
-              <span style={{ fontSize: 11, fontFamily: "monospace", color: "var(--t3)", flexShrink: 0 }}>
+              <span style={{ fontSize: 11, color: "var(--t3)", flexShrink: 0 }}>
                 {(seg.frac * 100).toFixed(0)}%
               </span>
             </div>
@@ -1778,7 +1778,7 @@ function WeightBarChart({ weights }: { weights: Record<string, number> }) {
               style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-end", height: "100%" }}
             >
               <span style={{
-                fontSize: 9, fontFamily: "monospace",
+                fontSize: 9, 
                 color: "var(--t3)", marginBottom: 3, userSelect: "none",
               }}>
                 {(w * 100).toFixed(1)}%
@@ -1803,7 +1803,7 @@ function WeightBarChart({ weights }: { weights: Record<string, number> }) {
             key={ticker}
             style={{
               flex: 1, textAlign: "center",
-              fontSize: 10, fontFamily: "monospace",
+              fontSize: 10, 
               fontWeight: 600, color: "var(--orange)",
               overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
             }}
@@ -1902,7 +1902,7 @@ function PortfolioTemplates({ onSelect }: { onSelect: (t: PortfolioTemplate) => 
         style={{ color: "var(--orange)" }}
       >
         <Sparkles size={11} />
-        <span style={{ fontFamily: "monospace", letterSpacing: "0.06em" }}>
+        <span style={{ letterSpacing: "0.06em" }}>
           1-CLICK TEMPLATES
         </span>
         <span style={{ color: "var(--t3)", fontSize: 10 }}>
@@ -1924,7 +1924,7 @@ function PortfolioTemplates({ onSelect }: { onSelect: (t: PortfolioTemplate) => 
                 borderTop: `2px solid ${tmpl.color}`,
               }}
             >
-              <div className="font-semibold mb-1" style={{ color: tmpl.color, fontSize: "0.82rem", fontFamily: "monospace" }}>
+              <div className="font-semibold mb-1" style={{ color: tmpl.color, fontSize: "0.82rem", }}>
                 {tmpl.name}
               </div>
               <div className="text-xs mb-2" style={{ color: "var(--t3)", fontSize: "0.65rem", letterSpacing: "0.04em" }}>
@@ -1935,7 +1935,7 @@ function PortfolioTemplates({ onSelect }: { onSelect: (t: PortfolioTemplate) => 
               </p>
               <div className="flex flex-wrap gap-1 mb-2">
                 {tmpl.tickers.slice(0, 5).map(t => (
-                  <span key={t} className="px-1.5 py-0.5 rounded text-xs" style={{ background: "var(--bg-hover)", color: "var(--t3)", fontSize: "0.6rem", border: "1px solid var(--border)", fontFamily: "monospace" }}>
+                  <span key={t} className="px-1.5 py-0.5 rounded text-xs" style={{ background: "var(--bg-hover)", color: "var(--t3)", fontSize: "0.6rem", border: "1px solid var(--border)", }}>
                     {t}
                   </span>
                 ))}

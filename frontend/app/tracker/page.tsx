@@ -291,7 +291,7 @@ export default function TrackerPage() {
               >
                 {pf.name}
                 <span
-                  className="text-xs font-mono"
+                  className="text-xs"
                   style={{ color: activeId === pf.id ? "var(--orange)" : "var(--t3)", opacity: 0.7 }}
                 >
                   ({pf.positions.length})

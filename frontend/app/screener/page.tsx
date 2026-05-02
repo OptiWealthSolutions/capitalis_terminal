@@ -327,7 +327,7 @@ export default function ScreenerPage() {
                         <Sparkles size={8} /> FOR YOU
                       </span>
                     )}
-                    <p className="text-sm font-bold mb-1 pr-16" style={{ color: isActive ? "var(--orange)" : "var(--t1)", fontFamily: "monospace" }}>
+                    <p className="text-sm font-bold mb-1 pr-16" style={{ color: isActive ? "var(--orange)" : "var(--t1)", }}>
                       {qp.label}
                     </p>
                     <p className="text-xs leading-relaxed" style={{ color: "var(--t3)" }}>
@@ -335,7 +335,7 @@ export default function ScreenerPage() {
                     </p>
                     <div className="mt-3 flex flex-wrap gap-1">
                       {qp.criteria.map((c) => (
-                        <span key={`${c.metric}-${c.op}-${c.val}`} className="text-xs px-1.5 py-0.5 rounded" style={{ background: "var(--bg-hover)", color: "var(--t3)", fontFamily: "monospace", fontSize: 10 }}>
+                        <span key={`${c.metric}-${c.op}-${c.val}`} className="text-xs px-1.5 py-0.5 rounded" style={{ background: "var(--bg-hover)", color: "var(--t3)", fontSize: 10 }}>
                           {c.metric} {c.op} {c.val}
                         </span>
                       ))}
@@ -500,7 +500,7 @@ export default function ScreenerPage() {
                         <select
                           value={c.op}
                           onChange={(e) => updateCriterion(c.id, "op", e.target.value)}
-                          className="text-xs px-2 py-1 rounded border outline-none cursor-pointer font-mono"
+                          className="text-xs px-2 py-1 rounded border outline-none cursor-pointer"
                           style={{ background: "var(--bg-card)", borderColor: "var(--border)", color: "var(--t1)" }}
                         >
                           {OPS.map((op) => (
@@ -512,7 +512,7 @@ export default function ScreenerPage() {
                         <input
                           type="number" value={c.val} step={0.01}
                           onChange={(e) => updateCriterion(c.id, "val", e.target.value)}
-                          className="text-xs px-2 py-1 rounded border outline-none w-20 font-mono"
+                          className="text-xs px-2 py-1 rounded border outline-none w-20"
                           style={{ background: "var(--bg-card)", borderColor: "var(--border)", color: "var(--t1)" }}
                           onFocus={(e) => (e.currentTarget.style.borderColor = "var(--orange)")}
                           onBlur={(e) => (e.currentTarget.style.borderColor = "var(--border)")}
@@ -592,7 +592,7 @@ export default function ScreenerPage() {
                 {criteria.filter((c) => c.val).map((c) => (
                   <span
                     key={c.id}
-                    className="px-2 py-0.5 rounded border text-xs font-mono"
+                    className="px-2 py-0.5 rounded border text-xs"
                     style={{
                       background: "var(--orange-dim)",
                       borderColor: "var(--orange-border)",
@@ -667,7 +667,7 @@ export default function ScreenerPage() {
                             key={col.key}
                             style={{
                               padding: "10px 20px",
-                              fontFamily: col.key !== "Sector" && col.key !== "Name" ? "monospace" : undefined,
+                              
                               color: col.key === "Ticker" ? "var(--orange)"
                                 : col.key === "Sector" || col.key === "Name" ? "var(--t2)"
                                 : "var(--t1)",
@@ -680,7 +680,7 @@ export default function ScreenerPage() {
                                 className="link-hover-opacity"
                                 style={{ textDecoration: "none" }}
                               >
-                                <span style={{ display: "block", color: "var(--orange)", fontWeight: 700, fontFamily: "monospace", fontSize: "0.82rem" }}>
+                                <span style={{ display: "block", color: "var(--orange)", fontWeight: 700, fontSize: "0.82rem" }}>
                                   {String(asset[col.key] ?? "N/A")}
                                 </span>
                                 {(() => {
