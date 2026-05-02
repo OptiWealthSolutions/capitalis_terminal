@@ -9,7 +9,7 @@ const config: Config = {
   theme: {
     extend: {
       fontFamily: {
-        sans: ["Inter", "system-ui", "sans-serif"],
+        sans: ["DM Sans", "system-ui", "sans-serif"],
         mono: ["DM Sans", "sans-serif"],
       },
       colors: {
@@ -50,14 +50,14 @@ const config: Config = {
         xxs: ["0.625rem", { lineHeight: "1rem" }],
       },
       borderRadius: {
-        /* redesign.md exact system */
-        "2xl": "24px",
-        xl:    "20px",
-        lg:    "16px",   /* data cards */
-        DEFAULT: "16px",
-        md:    "8px",
-        sm:    "8px",    /* buttons, inputs */
-        xs:    "4px",    /* badges */
+        /* Horacle Capital scale */
+        "2xl": "18px",
+        xl:    "14px",
+        lg:    "12px",
+        DEFAULT: "7px",
+        md:    "7px",
+        sm:    "7px",
+        xs:    "4px",
       },
       boxShadow: {
         /* inner glow only — no drop shadows per spec */

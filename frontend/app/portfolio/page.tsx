@@ -572,8 +572,7 @@ export default function PortfolioPage() {
                   <button
                     type="submit"
                     disabled={optimize.isPending || (tickers.length === 0 && !useTopScored)}
-                    className="w-full flex items-center justify-center gap-2 py-2.5 rounded text-xs font-semibold tracking-wider transition-all disabled:opacity-50"
-                    style={{ background: "var(--orange)", color: isDark ? "#0A0A0A" : "#ffffff" }}
+                    className="btn-primary w-full"
                   >
                     {optimize.isPending ? <LoadingSpinner size="sm" /> : <Play size={12} />}
                     {optimize.isPending ? "Optimizing…" : "Optimize Portfolio"}
@@ -816,8 +815,7 @@ export default function PortfolioPage() {
                       <button
                         type="submit"
                         disabled={optimize.isPending || (tickers.length === 0 && !useTopScored)}
-                        className="flex items-center gap-2 px-5 py-2 rounded text-xs font-semibold tracking-wider transition-all disabled:opacity-50"
-                        style={{ background: "var(--orange)", color: isDark ? "#0A0A0A" : "#ffffff" }}
+                        className="btn-primary"
                       >
                         {optimize.isPending ? <LoadingSpinner size="sm" /> : <Play size={12} />}
                         {optimize.isPending ? "Optimizing…" : "Run Optimization"}
@@ -1420,8 +1418,7 @@ export default function PortfolioPage() {
                   <button
                     onClick={() => performance.mutate()}
                     disabled={performance.isPending || !perfPortfolioId}
-                    className="flex items-center gap-2 px-5 py-2 rounded text-xs font-semibold transition-all disabled:opacity-50"
-                    style={{ background: "var(--orange)", color: isDark ? "#0A0A0A" : "#ffffff" }}
+                    className="btn-primary"
                   >
                     {performance.isPending ? <LoadingSpinner size="sm" /> : <Play size={12} />}
                     {performance.isPending ? "Loading…" : "Track"}

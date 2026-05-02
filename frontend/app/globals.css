@@ -38,11 +38,11 @@
   --yellow:        #FBBF24;
   --yellow-dim:    rgba(251,191,36,0.12);
 
-  /* ── Radius system — unified 12px for all cards ── */
-  --r-2xl: 12px;
-  --r-xl:  12px;
+  /* ── Radius system — Horacle Capital scale ── */
+  --r-2xl: 18px;
+  --r-xl:  14px;
   --r:     12px;
-  --r-sm:   8px;
+  --r-sm:   7px;
   --r-xs:   4px;
 
   /* ── Elevation — inner glow ONLY, no drop shadows ── */
@@ -134,14 +134,14 @@
    SIDEBAR — always dark regardless of app theme
 ═══════════════════════════════════════════════════ */
 [data-sidebar-dark] {
-  --bg-surface: #111111;
-  --bg-base:    #0A0A0A;
-  --bg-card:    #161616;
-  --bg-inner:   #191919;
-  --bg-hover:   #1E1E1E;
-  --bg-pop:     #222222;
-  --border:     rgba(255,255,255,0.07);
-  --border-hi:  rgba(255,255,255,0.12);
+  --bg-surface: #0F172A;
+  --bg-base:    #0A1020;
+  --bg-card:    #1C2236;
+  --bg-inner:   #243044;
+  --bg-hover:   rgba(96,165,250,0.08);
+  --bg-pop:     #243044;
+  --border:     #1E2D45;
+  --border-hi:  rgba(96,165,250,0.18);
   --t1: #F5F5F5;
   --t2: rgba(245,245,245,0.72);
   --t3: rgba(245,245,245,0.48);
@@ -220,18 +220,17 @@ button, a { -webkit-tap-highlight-color: transparent; }
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-top-color: var(--border-hi);
-  border-radius: var(--r);
+  border-radius: var(--r-xl);
   box-shadow: var(--card-shadow);
-  transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
+  transition: background 0.18s cubic-bezier(0.16,1,0.3,1), border-color 0.18s cubic-bezier(0.16,1,0.3,1), box-shadow 0.18s cubic-bezier(0.16,1,0.3,1), transform 0.18s cubic-bezier(0.16,1,0.3,1);
 }
 
 .card { padding: 20px 24px; }
 
 .card:hover,
 .card-float:hover {
-  background: var(--bg-hover);
-  border-top-color: rgba(255,255,255,0.12);
-  box-shadow: var(--card-shadow-hover);
+  border-color: rgba(96,165,250,0.22);
+  box-shadow: var(--card-shadow-hover), 0 8px 28px rgba(37,99,235,0.10);
 }
 
 /* Light theme — suppress aggressive hover background shift */
@@ -798,3 +797,130 @@ input[type='range'] { cursor: pointer; accent-color: var(--orange); }
 
 .portfolio-template-card { transition: background 0.15s, border-color 0.15s; }
 .portfolio-template-card:hover { background: var(--bg-hover) !important; }
+
+/* ═══════════════════════════════════════════════════
+   GENERIC HOVER UTILITIES — eliminate onMouseEnter/Leave
+═══════════════════════════════════════════════════ */
+.hov-text-t1 { transition: color 0.15s; }
+.hov-text-t1:hover { color: var(--t1) !important; }
+
+.hov-text-t2 { transition: color 0.15s; }
+.hov-text-t2:hover { color: var(--t2) !important; }
+
+.hov-text-orange { transition: color 0.15s; }
+.hov-text-orange:hover { color: var(--orange) !important; }
+
+.hov-text-red { transition: color 0.15s; }
+.hov-text-red:hover { color: var(--red) !important; }
+
+.hov-border-hi { transition: border-color 0.15s; }
+.hov-border-hi:hover { border-color: var(--border-hi) !important; }
+
+.hov-border-orange { transition: border-color 0.15s; }
+.hov-border-orange:hover { border-color: var(--orange-border) !important; }
+
+.hov-border-red { transition: border-color 0.15s; }
+.hov-border-red:hover { border-color: var(--red) !important; }
+
+.hov-bg-hover { transition: background 0.15s; }
+.hov-bg-hover:hover { background: var(--bg-hover) !important; }
+
+.hov-brighten { transition: filter 0.15s; }
+.hov-brighten:hover { filter: brightness(1.1); }
+
+/* ═══════════════════════════════════════════════════
+   HORACLE-STYLE PRIMITIVES — surface, pill, tile
+═══════════════════════════════════════════════════ */
+.surface {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--r-xl);
+  box-shadow: var(--card-shadow);
+}
+
+.surface-elevated {
+  background: linear-gradient(180deg, var(--bg-card), var(--bg-inner));
+  border: 1px solid var(--border);
+  border-radius: var(--r-2xl);
+  box-shadow: var(--card-shadow), 0 1px 0 rgba(255,255,255,0.04) inset;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 11px;
+  border-radius: 999px;
+  background: rgba(96,165,250,0.10);
+  border: 1px solid rgba(96,165,250,0.22);
+  color: var(--orange-light);
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.pill-neutral {
+  background: var(--bg-hover);
+  border-color: var(--border);
+  color: var(--t2);
+}
+
+.tile {
+  background: var(--bg-inner);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 14px 16px;
+  transition: background 0.18s cubic-bezier(0.16,1,0.3,1), border-color 0.18s cubic-bezier(0.16,1,0.3,1), transform 0.18s cubic-bezier(0.16,1,0.3,1);
+}
+.tile:hover {
+  border-color: rgba(96,165,250,0.30);
+  transform: translateY(-1px);
+}
+
+.section-title {
+  font-size: 0.66rem;
+  font-weight: 600;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  color: var(--t3);
+}
+
+/* Sidebar nav idle/hover (horacle navbar feel) */
+[data-sidebar-dark] .nav-item-inactive {
+  color: rgba(255,255,255,0.60);
+}
+[data-sidebar-dark] .nav-item-inactive:hover {
+  color: #ffffff;
+  background: rgba(255,255,255,0.04);
+  border-color: transparent;
+}
+
+/* Horacle hero halo — subtle ambient glow */
+.brand-halo {
+  position: relative;
+  isolation: isolate;
+}
+.brand-halo::before {
+  content: "";
+  position: absolute;
+  inset: -40px -40px auto auto;
+  width: 320px;
+  height: 220px;
+  background: radial-gradient(ellipse 80% 60% at 80% 20%, rgba(37,99,235,0.10), transparent 70%);
+  pointer-events: none;
+  z-index: -1;
+}
+
+/* Topbar pill buttons — uniform hover */
+.topbar-pill-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  transition: background 0.18s cubic-bezier(0.16,1,0.3,1), border-color 0.18s cubic-bezier(0.16,1,0.3,1), color 0.18s cubic-bezier(0.16,1,0.3,1);
+}
+.topbar-pill-btn:hover {
+  background: var(--orange-dim);
+  border-color: var(--orange-border);
+  color: var(--orange) !important;
+}

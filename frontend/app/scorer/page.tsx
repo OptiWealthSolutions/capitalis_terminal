@@ -343,7 +343,7 @@ export default function ScorerPage() {
         {!isSimple && (
         <div style={{
           background: "var(--bg-card)", border: "1px solid var(--border)",
-          borderRadius: "var(--r)", padding: "20px 24px", marginBottom: 20,
+          borderRadius: "var(--r-xl)", padding: "20px 24px", marginBottom: 20,
         }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
             <div>
@@ -583,7 +583,7 @@ export default function ScorerPage() {
             {/* Full table */}
             <div style={{
               background: "var(--bg-card)", border: "1px solid var(--border)",
-              borderRadius: "var(--r)", overflow: "hidden",
+              borderRadius: "var(--r-xl)", overflow: "hidden",
             }}>
               <div style={{
                 padding: "14px 20px", borderBottom: "1px solid var(--border)",

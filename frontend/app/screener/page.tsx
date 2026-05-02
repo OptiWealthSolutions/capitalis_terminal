@@ -275,8 +275,7 @@ export default function ScreenerPage() {
           <button
             onClick={() => runScreen.mutate()}
             disabled={runScreen.isPending}
-            className="flex items-center gap-2 px-5 py-2 rounded text-xs font-semibold tracking-wider transition-all disabled:opacity-50"
-            style={{ background: "var(--orange)", color: isDark ? "#0A0A0A" : "#ffffff" }}
+            className="btn-primary"
           >
             {runScreen.isPending ? <LoadingSpinner size="sm" /> : <Play size={12} />}
             {runScreen.isPending ? "Screening…" : "Run Screen"}

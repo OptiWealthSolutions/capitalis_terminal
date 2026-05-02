@@ -97,23 +97,12 @@ export default function TopBar({ onMenuToggle: _onMenuToggle }: TopBarProps) {
         <button
           onClick={toggleMode}
           title={mode === "simple" ? "Switch to Advanced" : "Switch to Simple"}
-          className="hidden sm:flex items-center justify-center gap-1.5 transition-all"
+          aria-label={mode === "simple" ? "Switch to Advanced mode" : "Switch to Simple mode"}
+          className="topbar-pill-btn hidden sm:flex items-center justify-center gap-1.5"
           style={{
             height: 28, padding: "0 12px", borderRadius: 999,
-            background: "transparent",
-            border: "1px solid var(--border)",
             color: "var(--t2)",
             fontSize: 11, fontWeight: 600, letterSpacing: "0.02em",
-          }}
-          onMouseEnter={e => {
-            (e.currentTarget as HTMLElement).style.borderColor = "var(--orange-border)";
-            (e.currentTarget as HTMLElement).style.background = "var(--orange-dim)";
-            (e.currentTarget as HTMLElement).style.color = "var(--orange)";
-          }}
-          onMouseLeave={e => {
-            (e.currentTarget as HTMLElement).style.borderColor = "var(--border)";
-            (e.currentTarget as HTMLElement).style.background = "transparent";
-            (e.currentTarget as HTMLElement).style.color = "var(--t2)";
           }}
         >
           {mode === "simple"
@@ -126,22 +115,11 @@ export default function TopBar({ onMenuToggle: _onMenuToggle }: TopBarProps) {
         <button
           onClick={openProfileModal}
           title="Edit investor profile"
-          className="hidden sm:flex items-center justify-center transition-all"
+          aria-label="Edit investor profile"
+          className="topbar-pill-btn hidden sm:flex items-center justify-center"
           style={{
             width: 28, height: 28, borderRadius: 999,
-            background: "transparent",
-            border: "1px solid var(--border)",
             color: "var(--t3)",
-          }}
-          onMouseEnter={e => {
-            (e.currentTarget as HTMLElement).style.borderColor = "var(--orange-border)";
-            (e.currentTarget as HTMLElement).style.background = "var(--orange-dim)";
-            (e.currentTarget as HTMLElement).style.color = "var(--orange)";
-          }}
-          onMouseLeave={e => {
-            (e.currentTarget as HTMLElement).style.borderColor = "var(--border)";
-            (e.currentTarget as HTMLElement).style.background = "transparent";
-            (e.currentTarget as HTMLElement).style.color = "var(--t3)";
           }}
         >
           <UserCircle size={14} />
@@ -151,24 +129,12 @@ export default function TopBar({ onMenuToggle: _onMenuToggle }: TopBarProps) {
         <button
           onClick={() => setLocale(locale === "en" ? "fr" : "en")}
           title={locale === "en" ? "Switch to French" : "Passer en anglais"}
-          className="flex items-center justify-center transition-all"
+          aria-label={locale === "en" ? "Switch to French" : "Switch to English"}
+          className="topbar-pill-btn flex items-center justify-center"
           style={{
             height: 28, minWidth: 36, padding: "0 10px", borderRadius: 999,
-            background: "transparent",
-            border: "1px solid var(--border)",
             color: "var(--t2)",
             fontSize: 10.5, fontWeight: 700, letterSpacing: "0.07em",
-            
-          }}
-          onMouseEnter={e => {
-            (e.currentTarget as HTMLElement).style.borderColor = "var(--orange-border)";
-            (e.currentTarget as HTMLElement).style.background = "var(--orange-dim)";
-            (e.currentTarget as HTMLElement).style.color = "var(--orange)";
-          }}
-          onMouseLeave={e => {
-            (e.currentTarget as HTMLElement).style.borderColor = "var(--border)";
-            (e.currentTarget as HTMLElement).style.background = "transparent";
-            (e.currentTarget as HTMLElement).style.color = "var(--t2)";
           }}
         >
           {locale.toUpperCase()}
@@ -178,23 +144,12 @@ export default function TopBar({ onMenuToggle: _onMenuToggle }: TopBarProps) {
         <button
           onClick={toggle}
           title={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
-          className="flex items-center gap-1.5 transition-all"
+          aria-label={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
+          className="topbar-pill-btn flex items-center gap-1.5"
           style={{
             height: 28, padding: "0 10px", borderRadius: 999,
-            background: "transparent",
-            border: "1px solid var(--border)",
             color: "var(--t2)",
             fontSize: 10.5, letterSpacing: "0.04em", fontWeight: 600,
-          }}
-          onMouseEnter={e => {
-            (e.currentTarget as HTMLElement).style.borderColor = "var(--orange-border)";
-            (e.currentTarget as HTMLElement).style.background = "var(--orange-dim)";
-            (e.currentTarget as HTMLElement).style.color = "var(--orange)";
-          }}
-          onMouseLeave={e => {
-            (e.currentTarget as HTMLElement).style.borderColor = "var(--border)";
-            (e.currentTarget as HTMLElement).style.background = "transparent";
-            (e.currentTarget as HTMLElement).style.color = "var(--t2)";
           }}
         >
           {theme === "dark"
