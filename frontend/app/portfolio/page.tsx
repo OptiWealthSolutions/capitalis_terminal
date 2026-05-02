@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -246,6 +246,10 @@ export default function PortfolioPage() {
     setTickers((prev) => [...prev, t]);
   };
   const removeTicker = (t: string) => setTickers((prev) => prev.filter((x) => x !== t));
+  const handleTemplateSelect = useCallback((tmpl: PortfolioTemplate) => {
+    setTickers(tmpl.tickers);
+    setValue("method", tmpl.method as never);
+  }, [setTickers, setValue]);
 
   // --------------------------------------------------------------------------
   // Portfolio save / load — all server-side, user-scoped
@@ -458,10 +462,7 @@ export default function PortfolioPage() {
         )}
 
         {/* ── 1-Click Templates ── */}
-        <PortfolioTemplates onSelect={(tmpl) => {
-          setTickers(tmpl.tickers);
-          setValue("method", tmpl.method);
-        }} />
+        <PortfolioTemplates onSelect={handleTemplateSelect} />
 
         {/* ── SIMPLE MODE: simplified config ── */}
         {isSimple && (
@@ -553,7 +554,7 @@ export default function PortfolioPage() {
                         >
                           <div className="flex items-center gap-1.5 mb-1" style={{ color: isActive ? "var(--orange)" : "var(--t2)" }}>
                             {opt.icon}
-                            <span className="text-xs font-bold" style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10 }}>{opt.label}</span>
+                            <span className="text-xs font-bold" style={{ fontFamily: "monospace", fontSize: 10 }}>{opt.label}</span>
                           </div>
                           <p className="text-xs leading-tight" style={{ color: "var(--t3)", fontSize: 10 }}>{opt.sub}</p>
                           {isRec && !isActive && (
@@ -564,7 +565,7 @@ export default function PortfolioPage() {
                     })}
                   </div>
                   <p className="text-xs mt-2" style={{ color: "var(--t3)" }}>
-                    Method: <span style={{ color: "var(--t2)", fontFamily: "'JetBrains Mono', monospace" }}>{SIMPLE_RISK_METHODS[simpleRisk]}</span>
+                    Method: <span style={{ color: "var(--t2)", fontFamily: "monospace" }}>{SIMPLE_RISK_METHODS[simpleRisk]}</span>
                   </p>
                 </div>
                 <form id="opt-form" onSubmit={handleSubmit((d) => { d.method = SIMPLE_RISK_METHODS[simpleRisk]; optimize.mutate(d); })}>
@@ -1025,10 +1026,8 @@ export default function PortfolioPage() {
                         {allRows.length > TABLE_PAGE && (
                           <button
                             onClick={() => setAllocShowAll((v) => !v)}
-                            className="w-full py-2.5 text-xs transition-colors border-t"
-                            style={{ color: "var(--t3)", borderColor: "var(--border)", background: "var(--bg-card)" }}
-                            onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.color = "var(--orange)")}
-                            onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.color = "var(--t3)")}
+                            className="toggle-show-all-btn w-full py-2.5 text-xs border-t"
+                            style={{ borderColor: "var(--border)", background: "var(--bg-card)" }}
                           >
                             {allocShowAll
                               ? `Show top ${TABLE_PAGE}`
@@ -1148,10 +1147,8 @@ export default function PortfolioPage() {
                         {rows.length > TABLE_PAGE && (
                           <button
                             onClick={() => setDcaShowAll((v) => !v)}
-                            className="w-full py-2.5 text-xs transition-colors border-t"
-                            style={{ color: "var(--t3)", borderColor: "var(--border)", background: "var(--bg-card)" }}
-                            onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.color = "var(--orange)")}
-                            onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.color = "var(--t3)")}
+                            className="toggle-show-all-btn w-full py-2.5 text-xs border-t"
+                            style={{ borderColor: "var(--border)", background: "var(--bg-card)" }}
                           >
                             {dcaShowAll ? `Show top ${TABLE_PAGE}` : `Show all ${rows.length} assets`}
                           </button>
@@ -1733,11 +1730,11 @@ function DonutChart({ title, data }: { title: string; data: Record<string, numbe
             {top1 && (
               <>
                 <text x={60} y={56} textAnchor="middle" fontSize="10" fontWeight="700"
-                  fontFamily="JetBrains Mono, monospace" fill="var(--t1)">
+                  fontFamily="monospace" fill="var(--t1)">
                   {(top1.frac * 100).toFixed(0)}%
                 </text>
                 <text x={60} y={70} textAnchor="middle" fontSize="7"
-                  fontFamily="JetBrains Mono, monospace" fill="var(--t3)">
+                  fontFamily="monospace" fill="var(--t3)">
                   {top1.name.length > 12 ? top1.name.slice(0, 11) + "…" : top1.name}
                 </text>
               </>
@@ -1752,7 +1749,7 @@ function DonutChart({ title, data }: { title: string; data: Record<string, numbe
               <span style={{ flex: 1, fontSize: 11, color: "var(--t2)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                 {seg.name}
               </span>
-              <span style={{ fontSize: 11, fontFamily: "JetBrains Mono, monospace", color: "var(--t3)", flexShrink: 0 }}>
+              <span style={{ fontSize: 11, fontFamily: "monospace", color: "var(--t3)", flexShrink: 0 }}>
                 {(seg.frac * 100).toFixed(0)}%
               </span>
             </div>
@@ -1781,7 +1778,7 @@ function WeightBarChart({ weights }: { weights: Record<string, number> }) {
               style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-end", height: "100%" }}
             >
               <span style={{
-                fontSize: 9, fontFamily: "JetBrains Mono, monospace",
+                fontSize: 9, fontFamily: "monospace",
                 color: "var(--t3)", marginBottom: 3, userSelect: "none",
               }}>
                 {(w * 100).toFixed(1)}%
@@ -1806,7 +1803,7 @@ function WeightBarChart({ weights }: { weights: Record<string, number> }) {
             key={ticker}
             style={{
               flex: 1, textAlign: "center",
-              fontSize: 10, fontFamily: "JetBrains Mono, monospace",
+              fontSize: 10, fontFamily: "monospace",
               fontWeight: 600, color: "var(--orange)",
               overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
             }}
@@ -1905,7 +1902,7 @@ function PortfolioTemplates({ onSelect }: { onSelect: (t: PortfolioTemplate) => 
         style={{ color: "var(--orange)" }}
       >
         <Sparkles size={11} />
-        <span style={{ fontFamily: "'JetBrains Mono', monospace", letterSpacing: "0.06em" }}>
+        <span style={{ fontFamily: "monospace", letterSpacing: "0.06em" }}>
           1-CLICK TEMPLATES
         </span>
         <span style={{ color: "var(--t3)", fontSize: 10 }}>
@@ -1920,22 +1917,14 @@ function PortfolioTemplates({ onSelect }: { onSelect: (t: PortfolioTemplate) => 
               key={tmpl.id}
               type="button"
               onClick={() => { onSelect(tmpl); setOpen(false); }}
-              className="text-left p-4 rounded-lg border transition-all group"
+              className="portfolio-template-card text-left p-4 rounded-lg border"
               style={{
                 background: "var(--bg-card)",
                 borderColor: "var(--border)",
                 borderTop: `2px solid ${tmpl.color}`,
               }}
-              onMouseEnter={e => {
-                (e.currentTarget as HTMLElement).style.background = "var(--bg-hover)";
-                (e.currentTarget as HTMLElement).style.borderColor = tmpl.color + "66";
-              }}
-              onMouseLeave={e => {
-                (e.currentTarget as HTMLElement).style.background = "var(--bg-card)";
-                (e.currentTarget as HTMLElement).style.borderColor = "var(--border)";
-              }}
             >
-              <div className="font-semibold mb-1" style={{ color: tmpl.color, fontSize: "0.82rem", fontFamily: "'JetBrains Mono', monospace" }}>
+              <div className="font-semibold mb-1" style={{ color: tmpl.color, fontSize: "0.82rem", fontFamily: "monospace" }}>
                 {tmpl.name}
               </div>
               <div className="text-xs mb-2" style={{ color: "var(--t3)", fontSize: "0.65rem", letterSpacing: "0.04em" }}>
@@ -1946,7 +1935,7 @@ function PortfolioTemplates({ onSelect }: { onSelect: (t: PortfolioTemplate) => 
               </p>
               <div className="flex flex-wrap gap-1 mb-2">
                 {tmpl.tickers.slice(0, 5).map(t => (
-                  <span key={t} className="px-1.5 py-0.5 rounded text-xs" style={{ background: "var(--bg-hover)", color: "var(--t3)", fontSize: "0.6rem", border: "1px solid var(--border)", fontFamily: "'JetBrains Mono', monospace" }}>
+                  <span key={t} className="px-1.5 py-0.5 rounded text-xs" style={{ background: "var(--bg-hover)", color: "var(--t3)", fontSize: "0.6rem", border: "1px solid var(--border)", fontFamily: "monospace" }}>
                     {t}
                   </span>
                 ))}

@@ -112,7 +112,7 @@ export default function TVChart({
         layout: {
           background: { type: ColorType.Solid, color: bg },
           textColor: textCol,
-          fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
+          fontFamily: "monospace",
           fontSize: 11,
         },
         grid: {

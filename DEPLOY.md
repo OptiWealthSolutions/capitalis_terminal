@@ -4,7 +4,7 @@
 
 ```
 ┌─────────────────────────────────────┐
-│  Vercel (Next.js frontend)          │  free → $20/mo Pro
+│  Cloudfare (Next.js frontend)          │  free → $20/mo Pro
 │  https://capitalis.io               │
 └──────────────┬──────────────────────┘
                │ API calls → /api/* → rewrites
@@ -63,13 +63,6 @@ ALLOWED_ORIGINS=https://capitalis.io
 FRED_API_KEY=...
 ALPHA_VANTAGE_API_KEY=...
 ```
-
-### Frontend (Vercel)
-```env
-NEXT_PUBLIC_API_URL=https://api.capitalis.io
-NEXT_PUBLIC_GOOGLE_CLIENT_ID=<same-as-backend>
-```
-
 ---
 
 
@@ -130,7 +123,7 @@ NEXT_PUBLIC_GOOGLE_CLIENT_ID=<same-as-backend>
 - [ ] Stripe live keys active, webhook configured
 - [ ] Google OAuth origins updated for production domain
 - [ ] `ALLOWED_ORIGINS` set to production frontend URL only
-- [ ] HTTPS enforced (Vercel/Railway handle this)
+- [ ] HTTPS enforced (CloudFare/Railway handle this)
 - [ ] Seed admin account on production DB
 - [ ] Test all 3 plan tiers end-to-end
 - [ ] Test Stripe payment flow end-to-end (use a real card in test mode first)

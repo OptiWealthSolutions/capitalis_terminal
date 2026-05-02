@@ -156,7 +156,7 @@ export default function Sidebar({ isOpen, onClose, isCollapsed, onToggleCollapse
         <CapitalisLogo size={28} />
         {!isCollapsed && (
           <div className="min-w-0">
-            <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: "0.82rem", fontWeight: 700, letterSpacing: "0.04em", color: "var(--t1)", lineHeight: 1, whiteSpace: "nowrap" }}>
+            <div style={{ fontFamily: "monospace", fontSize: "0.82rem", fontWeight: 700, letterSpacing: "0.04em", color: "var(--t1)", lineHeight: 1, whiteSpace: "nowrap" }}>
               CAPITALIS
             </div>
             <div style={{ fontSize: "0.52rem", color: "var(--t3)", letterSpacing: "0.06em", marginTop: 3, whiteSpace: "nowrap" }}>
@@ -176,7 +176,7 @@ export default function Sidebar({ isOpen, onClose, isCollapsed, onToggleCollapse
           >
             <Search size={12} style={{ color: "var(--t3)", flexShrink: 0 }} />
             <span style={{ fontSize: "0.75rem", color: "var(--t3)" }}>{t.sidebar.search}</span>
-            <span className="ml-auto" style={{ fontSize: "0.57rem", color: "var(--t3)", fontFamily: "'JetBrains Mono', monospace", background: "var(--bg-hover)", border: "1px solid var(--border)", borderRadius: "3px", padding: "1px 4px" }}>⌘K</span>
+            <span className="ml-auto" style={{ fontSize: "0.57rem", color: "var(--t3)", fontFamily: "monospace", background: "var(--bg-hover)", border: "1px solid var(--border)", borderRadius: "3px", padding: "1px 4px" }}>⌘K</span>
           </button>
         </div>
       )}
@@ -231,7 +231,7 @@ export default function Sidebar({ isOpen, onClose, isCollapsed, onToggleCollapse
       {!isCollapsed ? (
         <div className="flex items-center gap-3 px-4 py-3" style={{ borderTop: "1px solid var(--border)" }}>
           <div className="flex items-center justify-center font-bold flex-shrink-0"
-            style={{ width: 30, height: 30, background: "var(--orange-dim)", border: "1px solid var(--orange-border)", borderRadius: "var(--r-sm)", color: "var(--orange)", fontFamily: "'JetBrains Mono', monospace", fontSize: "0.78rem" }}>
+            style={{ width: 30, height: 30, background: "var(--orange-dim)", border: "1px solid var(--orange-border)", borderRadius: "var(--r-sm)", color: "var(--orange)", fontFamily: "monospace", fontSize: "0.78rem" }}>
             {initials}
           </div>
           <div className="flex-1 min-w-0">
@@ -241,34 +241,30 @@ export default function Sidebar({ isOpen, onClose, isCollapsed, onToggleCollapse
             </span>
           </div>
           <button onClick={toggle} title={theme === "dark" ? "Switch to light" : "Switch to dark"}
-            className="flex-shrink-0 p-1.5 transition-colors" style={{ color: "var(--t3)", borderRadius: "var(--r-sm)" }}
-            onMouseEnter={e => (e.currentTarget.style.color = "var(--t1)")}
-            onMouseLeave={e => (e.currentTarget.style.color = "var(--t3)")}>
+            aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+            className="sidebar-theme-btn flex-shrink-0 p-1.5">
             {theme === "dark" ? <Sun size={13} /> : <Moon size={13} />}
           </button>
           <button onClick={() => { logout(); router.replace("/login"); }} title={t.user.signOut}
-            className="flex-shrink-0 p-1.5 transition-colors" style={{ color: "var(--t3)", borderRadius: "var(--r-sm)" }}
-            onMouseEnter={e => (e.currentTarget.style.color = "var(--red)")}
-            onMouseLeave={e => (e.currentTarget.style.color = "var(--t3)")}>
+            aria-label={t.user.signOut}
+            className="sidebar-logout-btn flex-shrink-0 p-1.5">
             <LogOut size={13} />
           </button>
         </div>
       ) : (
         <div className="flex flex-col items-center gap-2 py-3" style={{ borderTop: "1px solid var(--border)" }}>
           <div className="flex items-center justify-center font-bold"
-            style={{ width: 28, height: 28, background: "var(--orange-dim)", border: "1px solid var(--orange-border)", borderRadius: "var(--r-sm)", color: "var(--orange)", fontFamily: "'JetBrains Mono', monospace", fontSize: "0.72rem" }}>
+            style={{ width: 28, height: 28, background: "var(--orange-dim)", border: "1px solid var(--orange-border)", borderRadius: "var(--r-sm)", color: "var(--orange)", fontFamily: "monospace", fontSize: "0.72rem" }}>
             {initials}
           </div>
           <button onClick={toggle} title={theme === "dark" ? "Switch to light" : "Switch to dark"}
-            className="flex-shrink-0 p-1.5 transition-colors" style={{ color: "var(--t3)", borderRadius: "var(--r-sm)" }}
-            onMouseEnter={e => (e.currentTarget.style.color = "var(--t1)")}
-            onMouseLeave={e => (e.currentTarget.style.color = "var(--t3)")}>
+            aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+            className="sidebar-theme-btn flex-shrink-0 p-1.5">
             {theme === "dark" ? <Sun size={13} /> : <Moon size={13} />}
           </button>
           <button onClick={() => { logout(); router.replace("/login"); }} title={t.user.signOut}
-            className="flex-shrink-0 p-1.5 transition-colors" style={{ color: "var(--t3)", borderRadius: "var(--r-sm)" }}
-            onMouseEnter={e => (e.currentTarget.style.color = "var(--red)")}
-            onMouseLeave={e => (e.currentTarget.style.color = "var(--t3)")}>
+            aria-label={t.user.signOut}
+            className="sidebar-logout-btn flex-shrink-0 p-1.5">
             <LogOut size={13} />
           </button>
         </div>
@@ -278,19 +274,16 @@ export default function Sidebar({ isOpen, onClose, isCollapsed, onToggleCollapse
       <button
         onClick={onToggleCollapse}
         title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-        className="absolute hidden md:flex items-center justify-center transition-all"
+        className="sidebar-collapse-btn absolute hidden md:flex items-center justify-center"
         style={{
           right: -12, top: 52 + 8,
           width: 24, height: 24,
           background: "var(--bg-surface)",
           border: "1px solid var(--border)",
           borderRadius: "50%",
-          color: "var(--t3)",
           zIndex: 10,
           boxShadow: "0 1px 4px rgba(0,0,0,0.2)",
         }}
-        onMouseEnter={e => (e.currentTarget.style.color = "var(--orange)")}
-        onMouseLeave={e => (e.currentTarget.style.color = "var(--t3)")}
       >
         {isCollapsed ? <ChevronRight size={12} /> : <ChevronLeft size={12} />}
       </button>
@@ -307,8 +300,8 @@ export default function Sidebar({ isOpen, onClose, isCollapsed, onToggleCollapse
             <Search size={13} style={{ color: "var(--t3)", flexShrink: 0 }} />
             <input autoFocus value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
               placeholder="Search pages or tickers…"
-              style={{ flex: 1, background: "transparent", border: "none", outline: "none", fontSize: "0.8125rem", color: "var(--t1)", fontFamily: "'JetBrains Mono', monospace" }} />
-            <span style={{ fontSize: "0.55rem", color: "var(--t3)", fontFamily: "'JetBrains Mono', monospace", background: "var(--bg-hover)", border: "1px solid var(--border)", borderRadius: "3px", padding: "1px 5px" }}>ESC</span>
+              style={{ flex: 1, background: "transparent", border: "none", outline: "none", fontSize: "0.8125rem", color: "var(--t1)", fontFamily: "monospace" }} />
+            <span style={{ fontSize: "0.55rem", color: "var(--t3)", fontFamily: "monospace", background: "var(--bg-hover)", border: "1px solid var(--border)", borderRadius: "3px", padding: "1px 5px" }}>ESC</span>
           </div>
           <div style={{ maxHeight: 400, overflowY: "auto" }}>
             {/* Nav results */}
@@ -349,7 +342,7 @@ export default function Sidebar({ isOpen, onClose, isCollapsed, onToggleCollapse
                     style={{ padding: "8px 14px", fontSize: "0.8125rem", color: "var(--t2)" }}
                     onMouseEnter={e => (e.currentTarget.style.background = "var(--bg-hover)")}
                     onMouseLeave={e => (e.currentTarget.style.background = "")}>
-                    <span style={{ fontFamily: "'JetBrains Mono', monospace", fontWeight: 700, color: "var(--orange)", minWidth: 56, fontSize: "0.78rem" }}>{item.ticker}</span>
+                    <span style={{ fontFamily: "monospace", fontWeight: 700, color: "var(--orange)", minWidth: 56, fontSize: "0.78rem" }}>{item.ticker}</span>
                     <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.name}</span>
                     <span style={{ fontSize: "0.65rem", color: "var(--t3)", flexShrink: 0 }}>{item.exchange}</span>
                   </button>

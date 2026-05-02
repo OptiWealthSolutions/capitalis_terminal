@@ -93,13 +93,13 @@ export default function CommunityFeedWidget({ limit = 5 }: { limit?: number }) {
                   width: 22, height: 22, borderRadius: "50%", flexShrink: 0,
                   background: "var(--orange-dim)", border: "1px solid var(--orange-border)",
                   display: "flex", alignItems: "center", justifyContent: "center",
-                  color: "var(--orange)", fontWeight: 700, fontFamily: "JetBrains Mono, monospace", fontSize: "0.6rem",
+                  color: "var(--orange)", fontWeight: 700, fontFamily: "monospace", fontSize: "0.6rem",
                 }}>
                   {p.author.initials}
                 </div>
                 <span style={{ fontSize: "0.68rem", fontWeight: 600, color: "var(--t2)" }}>{authorName}</span>
                 {p.ticker && (
-                  <span style={{ fontSize: "0.58rem", fontWeight: 700, fontFamily: "JetBrains Mono, monospace", color: "var(--orange)", padding: "1px 5px", background: "var(--orange-dim)", border: "1px solid var(--orange-border)", borderRadius: 3 }}>
+                  <span style={{ fontSize: "0.58rem", fontWeight: 700, fontFamily: "monospace", color: "var(--orange)", padding: "1px 5px", background: "var(--orange-dim)", border: "1px solid var(--orange-border)", borderRadius: 3 }}>
                     ${p.ticker}
                   </span>
                 )}

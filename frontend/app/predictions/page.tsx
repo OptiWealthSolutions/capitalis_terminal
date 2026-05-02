@@ -156,7 +156,7 @@ export default function PredictionsPage() {
                 onChange={(e) => setTickerInput(e.target.value)}
                 placeholder="NVDA,MSFT,GOOG"
                 className="input-field"
-                style={{ width: "100%", marginBottom: 10, fontFamily: "JetBrains Mono, monospace", textTransform: "uppercase" }}
+                style={{ width: "100%", marginBottom: 10, fontFamily: "monospace", textTransform: "uppercase" }}
               />
 
               {!modelsLoaded && (
@@ -231,7 +231,7 @@ function ModelCard({ label, path, exists, loaded }: { label: string; path: strin
       borderRadius: "var(--r-sm)", padding: "10px 12px",
     }}>
       <div style={{ fontSize: "0.68rem", fontWeight: 600, color: "var(--t2)", marginBottom: 4 }}>{label}</div>
-      <div style={{ fontSize: "0.65rem", color: "var(--t3)", fontFamily: "JetBrains Mono, monospace", marginBottom: 8, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+      <div style={{ fontSize: "0.65rem", color: "var(--t3)", fontFamily: "monospace", marginBottom: 8, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
            title={path}>
         {path.split("/").slice(-2).join("/")}
       </div>
@@ -264,7 +264,7 @@ function SignalCard({ entry }: { entry: InferenceEntry }) {
       borderRadius: "var(--r)", padding: "16px 18px",
     }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-        <span style={{ color: "var(--orange)", fontWeight: 700, fontFamily: "JetBrains Mono, monospace", fontSize: "0.9rem" }}>
+        <span style={{ color: "var(--orange)", fontWeight: 700, fontFamily: "monospace", fontSize: "0.9rem" }}>
           {entry.ticker}
         </span>
         {entry.prediction && (
@@ -295,7 +295,7 @@ function SignalCard({ entry }: { entry: InferenceEntry }) {
               {Object.entries(entry.probabilities).map(([label, prob]) => (
                 <div key={label} style={{ display: "flex", justifyContent: "space-between", fontSize: "0.68rem", marginBottom: 3 }}>
                   <span style={{ color: SIGNAL_COLOR[label] ?? "var(--t2)", fontWeight: 600 }}>{label}</span>
-                  <span style={{ color: "var(--t2)", fontFamily: "JetBrains Mono, monospace" }}>{(prob * 100).toFixed(1)}%</span>
+                  <span style={{ color: "var(--t2)", fontFamily: "monospace" }}>{(prob * 100).toFixed(1)}%</span>
                 </div>
               ))}
             </div>

@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700&family=JetBrains+Mono:wght@300;400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -167,7 +167,7 @@ html, body {
     radial-gradient(ellipse 40% 35% at 90% 10%, rgba(122,167,232,0.03) 0%, transparent 60%);
   background-attachment: fixed;
   color: var(--t1);
-  font-family: "Inter", system-ui, sans-serif;
+  font-family: "DM Sans", system-ui, sans-serif;
   font-size: 14px;
   line-height: 1.55;
   letter-spacing: 0.01em;
@@ -273,7 +273,7 @@ button, a { -webkit-tap-highlight-color: transparent; }
 
 /* Value: white, weight 600 */
 .metric-card .mc-value {
-  font-family: "JetBrains Mono", monospace;
+  font-family: monospace;
   font-variant-numeric: tabular-nums;
   font-size: 1.9rem;
   font-weight: 600;
@@ -297,7 +297,7 @@ button, a { -webkit-tap-highlight-color: transparent; }
 /* ═══════════════════════════════════════════════════
    MONO UTILITY
 ═══════════════════════════════════════════════════ */
-.mono { font-family: "JetBrains Mono", monospace; font-variant-numeric: tabular-nums; }
+.mono { font-family: monospace; font-variant-numeric: tabular-nums; }
 
 /* ═══════════════════════════════════════════════════
    TOPBAR
@@ -311,7 +311,7 @@ button, a { -webkit-tap-highlight-color: transparent; }
   padding: 0 24px;
   overflow: hidden;
   flex-shrink: 0;
-  font-family: "JetBrains Mono", monospace;
+  font-family: monospace;
   font-size: 11px;
   letter-spacing: 0.04em;
 }
@@ -326,7 +326,7 @@ button, a { -webkit-tap-highlight-color: transparent; }
   border-top-color: rgba(255,255,255,0.03);
   border-radius: var(--r-sm);
   color: var(--t1);
-  font-family: "Inter", sans-serif;
+  font-family: "DM Sans", sans-serif;
   font-size: 0.8125rem;
   padding: 8px 12px;
   outline: none;
@@ -353,7 +353,7 @@ select.input-field option { background: var(--bg-surface); color: var(--t1); }
   border: 1px solid var(--border);
   border-radius: var(--r-sm);
   color: var(--t1);
-  font-family: "Inter", sans-serif;
+  font-family: "DM Sans", sans-serif;
   font-size: 0.75rem;
   padding: 5px 9px;
   outline: none;
@@ -374,7 +374,7 @@ select.input-field option { background: var(--bg-surface); color: var(--t1); }
   border: none;
   border-radius: var(--r-sm);
   color: #fff;
-  font-family: "Inter", sans-serif;
+  font-family: "DM Sans", sans-serif;
   font-size: 0.75rem;
   font-weight: 600;
   letter-spacing: 0.06em;
@@ -403,7 +403,7 @@ select.input-field option { background: var(--bg-surface); color: var(--t1); }
   border-top-color: var(--border-hi);
   border-radius: var(--r-sm);
   color: var(--t2);
-  font-family: "Inter", sans-serif;
+  font-family: "DM Sans", sans-serif;
   font-size: 0.75rem;
   font-weight: 500;
   cursor: pointer;
@@ -430,7 +430,7 @@ select.input-field option { background: var(--bg-surface); color: var(--t1); }
   border: none;
   border-radius: var(--r-sm);
   color: var(--t3);
-  font-family: "Inter", sans-serif;
+  font-family: "DM Sans", sans-serif;
   font-size: 0.8125rem;
   font-weight: 500;
   cursor: pointer;
@@ -476,14 +476,14 @@ select.input-field option { background: var(--bg-surface); color: var(--t1); }
   line-height: 1.5;
 }
 .terminal-table td.num {
-  font-family: "JetBrains Mono", monospace;
+  font-family: monospace;
   font-variant-numeric: tabular-nums;
   text-align: right;
   font-size: 0.76rem;
   font-weight: 500;
 }
 .terminal-table td.ticker {
-  font-family: "JetBrains Mono", monospace;
+  font-family: monospace;
   font-weight: 600;
   color: var(--orange);
   font-size: 0.8rem;
@@ -501,7 +501,7 @@ select.input-field option { background: var(--bg-surface); color: var(--t1); }
 }
 .tab-item {
   padding: 8px 16px;
-  font-family: "Inter", sans-serif;
+  font-family: "DM Sans", sans-serif;
   font-size: 0.8125rem;
   font-weight: 500;
   color: var(--t2);
@@ -547,8 +547,8 @@ select.input-field option { background: var(--bg-surface); color: var(--t1); }
 /* ═══════════════════════════════════════════════════
    DELTAS — semantic: numeric data only
 ═══════════════════════════════════════════════════ */
-.delta-up   { color: var(--green); font-family: "JetBrains Mono", monospace; font-variant-numeric: tabular-nums; font-size: 0.72rem; font-weight: 500; }
-.delta-down { color: var(--red);   font-family: "JetBrains Mono", monospace; font-variant-numeric: tabular-nums; font-size: 0.72rem; font-weight: 500; }
+.delta-up   { color: var(--green); font-family: monospace; font-variant-numeric: tabular-nums; font-size: 0.72rem; font-weight: 500; }
+.delta-down { color: var(--red);   font-family: monospace; font-variant-numeric: tabular-nums; font-size: 0.72rem; font-weight: 500; }
 
 /* ═══════════════════════════════════════════════════
    LIVE DOT
@@ -734,3 +734,58 @@ input[type='range'] { cursor: pointer; accent-color: var(--orange); }
   .sidebar-content-collapsed { margin-left: 56px; }
 }
 .js-plotly-plot .plotly .modebar { background: transparent !important; }
+
+/* ═══════════════════════════════════════════════════
+   SIDEBAR ICON BUTTONS — CSS hover, no JS DOM mutation
+═══════════════════════════════════════════════════ */
+.sidebar-logout-btn {
+  color: var(--t3);
+  border-radius: var(--r-sm);
+  transition: color 0.15s;
+}
+.sidebar-logout-btn:hover { color: var(--red); }
+
+.sidebar-theme-btn {
+  color: var(--t3);
+  border-radius: var(--r-sm);
+  transition: color 0.15s;
+}
+.sidebar-theme-btn:hover { color: var(--t1); }
+
+.sidebar-collapse-btn {
+  color: var(--t3);
+  transition: color 0.15s;
+}
+.sidebar-collapse-btn:hover { color: var(--orange); }
+
+/* ═══════════════════════════════════════════════════
+   HOVER UTILITY CLASSES — replace all onMouseEnter/Leave DOM mutations
+═══════════════════════════════════════════════════ */
+.profile-update-btn { color: var(--t3); border-color: var(--border); transition: color 0.15s, border-color 0.15s; }
+.profile-update-btn:hover { color: var(--orange); border-color: var(--orange); }
+
+.csv-export-btn { color: var(--t3); border-color: var(--border); transition: color 0.15s, border-color 0.15s; }
+.csv-export-btn:hover { color: var(--t1); border-color: var(--orange-border); }
+
+.link-hover-opacity { transition: opacity 0.15s; }
+.link-hover-opacity:hover { opacity: 0.7; }
+
+.preset-load-btn { color: var(--t2); transition: color 0.15s; }
+.preset-load-btn:hover { color: var(--t1); }
+
+.preset-delete-btn { color: var(--t3); transition: color 0.15s; }
+.preset-delete-btn:hover { color: var(--red); }
+
+.criterion-remove-btn { color: var(--t3); transition: color 0.15s; }
+.criterion-remove-btn:hover { color: var(--red); }
+
+.criterion-add-btn { color: var(--t3); border-color: var(--border); transition: color 0.15s, border-color 0.15s; }
+.criterion-add-btn:hover { color: var(--t2); border-color: var(--orange-border); }
+
+.table-row-hover:hover td { background: var(--bg-hover); }
+
+.toggle-show-all-btn { color: var(--t3); transition: color 0.15s; }
+.toggle-show-all-btn:hover { color: var(--orange); }
+
+.portfolio-template-card { transition: background 0.15s, border-color 0.15s; }
+.portfolio-template-card:hover { background: var(--bg-hover) !important; }

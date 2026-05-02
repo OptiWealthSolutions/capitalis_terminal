@@ -296,10 +296,8 @@ export default function ScorerPage() {
               </div>
               <button
                 onClick={openProfileModal}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded border text-xs transition-all"
-                style={{ borderColor: "var(--border)", color: "var(--t3)", background: "var(--bg-hover)" }}
-                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = "var(--orange)"; (e.currentTarget as HTMLElement).style.color = "var(--orange)"; }}
-                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = "var(--border)"; (e.currentTarget as HTMLElement).style.color = "var(--t3)"; }}
+                className="profile-update-btn flex items-center gap-1.5 px-3 py-1.5 rounded border text-xs"
+                style={{ background: "var(--bg-hover)" }}
               >
                 <Sparkles size={11} /> Update profile
               </button>
@@ -325,7 +323,7 @@ export default function ScorerPage() {
                         <Sparkles size={8} /> FOR YOU
                       </span>
                     )}
-                    <p className="text-sm font-bold mb-1 pr-14" style={{ color: isActive ? "var(--orange)" : "var(--t1)", fontFamily: "'JetBrains Mono', monospace" }}>
+                    <p className="text-sm font-bold mb-1 pr-14" style={{ color: isActive ? "var(--orange)" : "var(--t1)", fontFamily: "monospace" }}>
                       {preset.label}
                     </p>
                     <p className="text-xs leading-relaxed" style={{ color: "var(--t3)" }}>
@@ -424,7 +422,7 @@ export default function ScorerPage() {
                     background: totalOk ? "var(--green-dim)" : "var(--red-dim)",
                     border: `1px solid ${totalOk ? "rgba(134,179,138,0.25)" : "rgba(212,133,133,0.25)"}`,
                     borderRadius: "var(--r-sm)",
-                    fontSize: "0.68rem", fontFamily: "JetBrains Mono, monospace", fontWeight: 700,
+                    fontSize: "0.68rem", fontFamily: "monospace", fontWeight: 700,
                     color: totalOk ? "var(--green)" : "var(--red)",
                   }}>
                     {(total * 100).toFixed(0)}% {totalOk ? "✓" : "≠ 100%"}
@@ -458,7 +456,7 @@ export default function ScorerPage() {
                               <span style={{ fontSize: "0.6rem", color: "var(--t3)", marginLeft: 6 }}>{w.hint}</span>
                             </div>
                             <span style={{
-                              fontSize: "0.68rem", fontFamily: "JetBrains Mono, monospace",
+                              fontSize: "0.68rem", fontFamily: "monospace",
                               fontWeight: 600, color: weights[w.key] > 0 ? "var(--t1)" : "var(--t3)",
                             }}>
                               {(weights[w.key] * 100).toFixed(0)}%
@@ -517,7 +515,7 @@ export default function ScorerPage() {
                   </p>
                   {activeTicker && (
                     <span style={{
-                      fontFamily: "JetBrains Mono, monospace", fontSize: "0.82rem",
+                      fontFamily: "monospace", fontSize: "0.82rem",
                       fontWeight: 700, color: "var(--orange)",
                     }}>
                       {activeTicker}
@@ -559,11 +557,11 @@ export default function ScorerPage() {
                           transition: "all 0.12s",
                         }}
                       >
-                        <span style={{ color: "var(--t3)", fontFamily: "JetBrains Mono, monospace", fontSize: "0.6rem", minWidth: 16 }}>
+                        <span style={{ color: "var(--t3)", fontFamily: "monospace", fontSize: "0.6rem", minWidth: 16 }}>
                           #{i + 1}
                         </span>
                         <span style={{
-                          flex: 1, fontFamily: "JetBrains Mono, monospace", fontSize: "0.82rem",
+                          flex: 1, fontFamily: "monospace", fontSize: "0.82rem",
                           fontWeight: 600, color: isActive ? "var(--orange)" : "var(--t1)",
                         }}>
                           {t}
@@ -571,7 +569,7 @@ export default function ScorerPage() {
                         <span style={{ fontSize: "0.65rem", color: "var(--t3)", marginRight: 4 }}>
                           ROE {formatPercent(roe)}
                         </span>
-                        <span style={{ fontFamily: "JetBrains Mono, monospace", fontSize: "0.72rem", color: isActive ? "var(--orange)" : "var(--t2)", fontWeight: 600 }}>
+                        <span style={{ fontFamily: "monospace", fontSize: "0.72rem", color: isActive ? "var(--orange)" : "var(--t2)", fontWeight: 600 }}>
                           {score.toFixed(3)}
                         </span>
                         {isActive && <ChevronRight size={10} style={{ color: "var(--orange)", flexShrink: 0 }} />}
@@ -603,15 +601,14 @@ export default function ScorerPage() {
                   <span style={{ fontSize: "0.65rem", color: "var(--t3)" }}>Click row to inspect factor profile</span>
                   <button
                     onClick={() => downloadCSV("scorer_results.csv", assets)}
+                    className="csv-export-btn"
                     style={{
                       display: "flex", alignItems: "center", gap: 5,
                       padding: "3px 10px", borderRadius: "var(--r-sm)",
-                      border: "1px solid var(--border)", background: "var(--bg-base)",
-                      color: "var(--t3)", fontSize: "0.68rem", cursor: "pointer",
+                      border: "1px solid", background: "var(--bg-base)",
+                      fontSize: "0.68rem", cursor: "pointer",
                     }}
                     title="Export all results to CSV"
-                    onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = "var(--t1)"; (e.currentTarget as HTMLElement).style.borderColor = "var(--orange-border)"; }}
-                    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = "var(--t3)"; (e.currentTarget as HTMLElement).style.borderColor = "var(--border)"; }}
                   >
                     <Download size={10} /> CSV
                   </button>
@@ -649,14 +646,14 @@ export default function ScorerPage() {
                       const isActive = t === activeTicker;
                       return (
                         <tr
-                          key={i}
+                          key={t}
                           onClick={() => setSelectedTicker(t)}
                           style={{
                             cursor: "pointer",
                             background: isActive ? "rgba(122,167,232,0.04)" : undefined,
                           }}
                         >
-                          <td style={{ color: "var(--t3)", fontFamily: "JetBrains Mono, monospace", fontSize: "0.68rem", paddingLeft: 20 }}>
+                          <td style={{ color: "var(--t3)", fontFamily: "monospace", fontSize: "0.68rem", paddingLeft: 20 }}>
                             {i + 1}
                           </td>
                           {RESULT_COLS.map((col) => {
@@ -665,7 +662,7 @@ export default function ScorerPage() {
                               <td
                                 key={col.key}
                                 style={col.key === "ticker"
-                                  ? { color: "var(--orange)", fontWeight: 600, fontFamily: "JetBrains Mono, monospace" }
+                                  ? { color: "var(--orange)", fontWeight: 600, fontFamily: "monospace" }
                                   : col.key === "name" || col.key === "sector"
                                   ? { color: "var(--t2)" }
                                   : {}}
@@ -674,11 +671,10 @@ export default function ScorerPage() {
                                   <Link
                                     href={`/equity?ticker=${encodeURIComponent(String(val ?? ""))}`}
                                     onClick={(e) => e.stopPropagation()}
+                                    className="link-hover-opacity"
                                     style={{ textDecoration: "none" }}
-                                    onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.opacity = "0.7")}
-                                    onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.opacity = "1")}
                                   >
-                                    <span style={{ display: "block", color: "var(--orange)", fontWeight: 700, fontFamily: "JetBrains Mono, monospace", fontSize: "0.82rem" }}>
+                                    <span style={{ display: "block", color: "var(--orange)", fontWeight: 700, fontFamily: "monospace", fontSize: "0.82rem" }}>
                                       {String(val ?? "N/A")}
                                     </span>
                                     {(() => {

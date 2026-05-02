@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import { useInvestorMode } from "@/lib/investorMode";
@@ -16,10 +16,11 @@ const COLLAPSE_KEY = "capitalis_sidebar_collapsed";
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router   = useRouter();
-  const { user, loading } = useAuth();
+  const { user, loading, logout } = useAuth();
   const { profile, showProfileModal, openProfileModal } = useInvestorMode();
   const [sidebarOpen, setSidebarOpen]         = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const inactivityTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const isPublic = PUBLIC_ROUTES.includes(pathname);
 
@@ -48,6 +49,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     if (loading || !user || isPublic || profile) return;
     const tourSeen = (() => { try { return localStorage.getItem("capitalis_tour_seen_v1") === "1"; } catch { return false; } })();
     if (!tourSeen) return; // wait until tour is done
+    const never = (() => { try { return localStorage.getItem("capitalis_profile_modal_never") === "1"; } catch { return false; } })();
+    if (never) return;
     const dismissed = sessionStorage.getItem("capitalis_profile_modal_dismissed");
     if (!dismissed) openProfileModal();
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -70,6 +73,22 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, user, isPublic, profile]);
+
+  // Auto-logout after 15 min inactivity
+  useEffect(() => {
+    if (!user || isPublic) return;
+    const reset = () => {
+      if (inactivityTimer.current) clearTimeout(inactivityTimer.current);
+      inactivityTimer.current = setTimeout(() => { logout(); router.replace("/login"); }, 15 * 60 * 1000);
+    };
+    const events = ["mousemove", "mousedown", "keydown", "scroll", "touchstart"] as const;
+    events.forEach(e => window.addEventListener(e, reset, { passive: true }));
+    reset();
+    return () => {
+      if (inactivityTimer.current) clearTimeout(inactivityTimer.current);
+      events.forEach(e => window.removeEventListener(e, reset));
+    };
+  }, [user, isPublic, logout, router]);
 
   // Close sidebar on route change (mobile nav)
   useEffect(() => { setSidebarOpen(false); }, [pathname]);

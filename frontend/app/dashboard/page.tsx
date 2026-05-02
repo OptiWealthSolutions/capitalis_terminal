@@ -908,7 +908,7 @@ function NewsPanel() {
                         {newsTimeAgo(item.published)}
                       </span>
                       {item.tickers?.slice(0, 3).map(t => (
-                        <span key={t} style={{ fontSize: "0.56rem", fontWeight: 700, fontFamily: "JetBrains Mono, monospace", color: "var(--t3)", padding: "1px 4px", border: "1px solid var(--border)", borderRadius: "var(--r-xs)" }}>
+                        <span key={t} style={{ fontSize: "0.56rem", fontWeight: 700, fontFamily: "monospace", color: "var(--t3)", padding: "1px 4px", border: "1px solid var(--border)", borderRadius: "var(--r-xs)" }}>
                           {t}
                         </span>
                       ))}

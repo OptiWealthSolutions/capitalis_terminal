@@ -298,10 +298,8 @@ export default function ScreenerPage() {
               </div>
               <button
                 onClick={openProfileModal}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded border text-xs transition-all"
-                style={{ borderColor: "var(--border)", color: "var(--t3)", background: "var(--bg-hover)" }}
-                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = "var(--orange)"; (e.currentTarget as HTMLElement).style.color = "var(--orange)"; }}
-                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = "var(--border)"; (e.currentTarget as HTMLElement).style.color = "var(--t3)"; }}
+                className="profile-update-btn flex items-center gap-1.5 px-3 py-1.5 rounded border text-xs"
+                style={{ background: "var(--bg-hover)" }}
               >
                 <Sparkles size={11} /> Update profile
               </button>
@@ -329,15 +327,15 @@ export default function ScreenerPage() {
                         <Sparkles size={8} /> FOR YOU
                       </span>
                     )}
-                    <p className="text-sm font-bold mb-1 pr-16" style={{ color: isActive ? "var(--orange)" : "var(--t1)", fontFamily: "'JetBrains Mono', monospace" }}>
+                    <p className="text-sm font-bold mb-1 pr-16" style={{ color: isActive ? "var(--orange)" : "var(--t1)", fontFamily: "monospace" }}>
                       {qp.label}
                     </p>
                     <p className="text-xs leading-relaxed" style={{ color: "var(--t3)" }}>
                       {qp.description}
                     </p>
                     <div className="mt-3 flex flex-wrap gap-1">
-                      {qp.criteria.map((c, i) => (
-                        <span key={i} className="text-xs px-1.5 py-0.5 rounded" style={{ background: "var(--bg-hover)", color: "var(--t3)", fontFamily: "'JetBrains Mono', monospace", fontSize: 10 }}>
+                      {qp.criteria.map((c) => (
+                        <span key={`${c.metric}-${c.op}-${c.val}`} className="text-xs px-1.5 py-0.5 rounded" style={{ background: "var(--bg-hover)", color: "var(--t3)", fontFamily: "monospace", fontSize: 10 }}>
                           {c.metric} {c.op} {c.val}
                         </span>
                       ))}
@@ -408,20 +406,15 @@ export default function ScreenerPage() {
                 >
                   <button
                     onClick={() => applyApiPreset(preset)}
-                    className="px-3 py-1.5 text-xs transition-colors"
-                    style={{ color: "var(--t2)" }}
-                    onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.color = "var(--t1)")}
-                    onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.color = "var(--t2)")}
+                    className="preset-load-btn px-3 py-1.5 text-xs"
                   >
                     {name}
                   </button>
                   {!name.startsWith("SYSTEM_") && (
                     <button
                       onClick={() => deletePreset.mutate(name)}
-                      className="px-2 py-1.5 flex items-center transition-colors"
-                      style={{ borderLeft: "1px solid var(--border)", color: "var(--t3)" }}
-                      onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.color = "var(--red)")}
-                      onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.color = "var(--t3)")}
+                      className="preset-delete-btn px-2 py-1.5 flex items-center"
+                      style={{ borderLeft: "1px solid var(--border)" }}
                     >
                       <Trash2 size={9} />
                     </button>
@@ -528,10 +521,7 @@ export default function ScreenerPage() {
                         {/* Remove */}
                         <button
                           onClick={() => removeCriterion(c.id)}
-                          className="shrink-0 transition-colors"
-                          style={{ color: "var(--t3)" }}
-                          onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.color = "var(--red)")}
-                          onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.color = "var(--t3)")}
+                          className="criterion-remove-btn shrink-0"
                         >
                           <Trash2 size={12} />
                         </button>
@@ -544,16 +534,8 @@ export default function ScreenerPage() {
                 <div className="flex items-center justify-between pt-1">
                   <button
                     onClick={addCriterion}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded border text-xs transition-all"
-                    style={{ borderStyle: "dashed", borderColor: "var(--border)", color: "var(--t3)" }}
-                    onMouseEnter={(e) => {
-                      (e.currentTarget as HTMLElement).style.borderColor = "var(--orange-border)";
-                      (e.currentTarget as HTMLElement).style.color = "var(--t2)";
-                    }}
-                    onMouseLeave={(e) => {
-                      (e.currentTarget as HTMLElement).style.borderColor = "var(--border)";
-                      (e.currentTarget as HTMLElement).style.color = "var(--t3)";
-                    }}
+                    className="criterion-add-btn flex items-center gap-1.5 px-3 py-1.5 rounded border text-xs"
+                    style={{ borderStyle: "dashed" }}
                   >
                     <Plus size={11} />
                     Add criterion
@@ -622,11 +604,9 @@ export default function ScreenerPage() {
                 ))}
                 <button
                   onClick={() => downloadCSV("screener_results.csv", sortedAssets)}
-                  className="ml-auto flex items-center gap-1.5 px-2.5 py-1 rounded border text-xs transition-all"
-                  style={{ borderColor: "var(--border)", color: "var(--t3)", background: "var(--bg-hover)" }}
+                  className="csv-export-btn ml-auto flex items-center gap-1.5 px-2.5 py-1 rounded border text-xs"
+                  style={{ background: "var(--bg-hover)" }}
                   title="Export to CSV"
-                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = "var(--t1)"; (e.currentTarget as HTMLElement).style.borderColor = "var(--orange-border)"; }}
-                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = "var(--t3)"; (e.currentTarget as HTMLElement).style.borderColor = "var(--border)"; }}
                 >
                   <Download size={11} /> CSV
                 </button>
@@ -676,19 +656,18 @@ export default function ScreenerPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {sortedAssets.map((asset, i) => (
+                    {sortedAssets.map((asset) => (
                       <tr
-                        key={i}
+                        key={String(asset["Ticker"] ?? "")}
+                        className="table-row-hover"
                         style={{ borderBottom: "1px solid var(--border)" }}
-                        onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.background = "var(--bg-hover)")}
-                        onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.background = "transparent")}
                       >
                         {RESULT_COLS.map((col) => (
                           <td
                             key={col.key}
                             style={{
                               padding: "10px 20px",
-                              fontFamily: col.key !== "Sector" && col.key !== "Name" ? "JetBrains Mono, monospace" : undefined,
+                              fontFamily: col.key !== "Sector" && col.key !== "Name" ? "monospace" : undefined,
                               color: col.key === "Ticker" ? "var(--orange)"
                                 : col.key === "Sector" || col.key === "Name" ? "var(--t2)"
                                 : "var(--t1)",
@@ -698,11 +677,10 @@ export default function ScreenerPage() {
                             {col.key === "Ticker" ? (
                               <Link
                                 href={`/equity?ticker=${encodeURIComponent(String(asset[col.key] ?? ""))}`}
+                                className="link-hover-opacity"
                                 style={{ textDecoration: "none" }}
-                                onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.opacity = "0.7")}
-                                onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.opacity = "1")}
                               >
-                                <span style={{ display: "block", color: "var(--orange)", fontWeight: 700, fontFamily: "JetBrains Mono, monospace", fontSize: "0.82rem" }}>
+                                <span style={{ display: "block", color: "var(--orange)", fontWeight: 700, fontFamily: "monospace", fontSize: "0.82rem" }}>
                                   {String(asset[col.key] ?? "N/A")}
                                 </span>
                                 {(() => {
