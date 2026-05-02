@@ -36,6 +36,7 @@ For each tier:
    - `customer.subscription.created`
    - `customer.subscription.updated`
    - `customer.subscription.deleted`
+   - `customer.subscription.trial_will_end`   # fired ~3 days before trial ends
    - `invoice.payment_failed`
 4. Save → reveal **Signing secret** (`whsec_...`). Copy it.
 
@@ -70,7 +71,25 @@ STRIPE_PAYMENT_LINK_PRO=https://buy.stripe.com/test_...
 STRIPE_PAYMENT_LINK_PRO_ANNUAL=https://buy.stripe.com/test_...
 STRIPE_PAYMENT_LINK_INSTITUTIONAL=https://buy.stripe.com/test_...
 STRIPE_PAYMENT_LINK_INSTITUTIONAL_ANNUAL=https://buy.stripe.com/test_...
+
+# OPTIONAL — trial + annual discount
+STRIPE_TRIAL_DAYS=7                    # Free trial length (default 7); set 0 to disable
+STRIPE_ANNUAL_COUPON_ID=               # Coupon id (e.g. "ANNUAL_2MONTHS_FREE", 16.67% off) applied
+                                       # to annual checkouts. Create in Dashboard → Coupons.
 ```
+
+### 1.6. Free trial without CC (Free Trial No-CC)
+
+Backend automatically attaches `trial_period_days` + `payment_method_collection: "if_required"` on first-time customers (those with no past Stripe Subscription). Trial auto-cancels at end if no payment method is provided (`trial_settings.end_behavior.missing_payment_method = "cancel"`).
+
+Returning customers (any past sub on the same Stripe Customer) skip the trial.
+
+### 1.7. Annual = 2 months free coupon
+
+Two ways:
+
+1. **Cleanest**: in Dashboard, set annual price = monthly × 10 (e.g. €69.90/yr for Pro). Frontend already displays "2 mois offerts" badge.
+2. **Coupon-based**: create a Coupon (Dashboard → Coupons → +Add) with 16.67% off, copy the id, set `STRIPE_ANNUAL_COUPON_ID=<id>`. Backend attaches it on annual checkouts only.
 
 Restart backend after editing.
 

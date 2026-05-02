@@ -21,6 +21,7 @@ from ..db import (
     create_alert, get_alerts_for_user, get_all_active_alerts,
     update_alert, delete_alert,
 )
+from ..plan_gate import check_alert_count
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -64,8 +65,11 @@ def add_alert(body: AlertCreate, current_user: dict = Depends(get_current_user))
         raise HTTPException(status_code=422, detail="price required for price alerts")
     if body.alert_type == "earnings_date" and body.days_before is None:
         raise HTTPException(status_code=422, detail="days_before required for earnings_date alerts")
+    user_id = current_user.get("sub") or current_user.get("id")
+    existing_count = len(get_alerts_for_user(user_id))
+    check_alert_count(user_id, existing_count)
     alert = create_alert(
-        user_id=current_user["id"],
+        user_id=user_id,
         ticker=body.ticker.upper(),
         alert_type=body.alert_type,
         price=body.price,

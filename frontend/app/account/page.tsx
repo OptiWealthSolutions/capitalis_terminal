@@ -9,6 +9,7 @@ import {
   UserCircle, CreditCard, Shield, CheckCircle, AlertCircle,
   ExternalLink, LogOut, Key, Eye, EyeOff, Save, Zap, Building2,
   Star, Lock, Bell, Trash2, Download, ChevronRight, Check, MessageCircle,
+  Users, Copy, Gift,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { useI18n } from "@/lib/i18n";
@@ -18,7 +19,7 @@ import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
 // Types
 // ---------------------------------------------------------------------------
 type PlanId = "free" | "pro" | "premium" | "institutional";
-type Tab    = "overview" | "billing" | "security";
+type Tab    = "overview" | "billing" | "security" | "referral";
 
 // ---------------------------------------------------------------------------
 // Plan definitions
@@ -69,8 +70,8 @@ const PLANS: Plan[] = [
   },
   {
     id: "pro", name: "Pro",
-    monthlyPrice: "€6.99", annualPrice: "€75.49", annualMonthly: "€6.29",
-    discount: "–10%",
+    monthlyPrice: "€6.99", annualPrice: "€69.90", annualMonthly: "€5.83",
+    discount: "2 mois offerts",
     billing: "/ month",
     badge: "MOST POPULAR", icon: <Zap size={16} />, color: "var(--orange)",
     features: [
@@ -95,8 +96,8 @@ const PLANS: Plan[] = [
   },
   {
     id: "premium", name: "Premium",
-    monthlyPrice: "€19.99", annualPrice: "€215.89", annualMonthly: "€17.99",
-    discount: "–10%",
+    monthlyPrice: "€19.99", annualPrice: "€199.90", annualMonthly: "€16.66",
+    discount: "2 mois offerts",
     billing: "/ month",
     icon: <Building2 size={16} />, color: "#A97CC0",
     features: [
@@ -424,8 +425,13 @@ function PlanCard({
             background: plan.color, color: "var(--bg-base)",
           }}
         >
-          {isCurrent ? "Current plan" : plan.id === "free" ? "Downgrade" : "Upgrade →"}
+          {isCurrent ? "Current plan" : plan.id === "free" ? "Downgrade" : "Essai 7 jours gratuits →"}
         </button>
+        {!isCurrent && plan.id !== "free" && (
+          <p className="text-xs text-center mt-1.5" style={{ color: "var(--t3)" }}>
+            Sans carte bancaire. Annulable à tout moment.
+          </p>
+        )}
       </div>
     </div>
   );
@@ -533,6 +539,163 @@ function BillingTab({ currentPlan, onPortal }: { currentPlan: PlanId; onPortal: 
           <span style={{ color: "var(--orange)" }}>billing@capitalis.io</span>.
           Subscriptions renew automatically unless cancelled before the renewal date.
         </p>
+      </div>
+    </div>
+  );
+}
+
+function ReferralTab() {
+  type Code = { code: string; share_url: string };
+  type Stats = {
+    total_invited: number;
+    converted_count: number;
+    pending_count: number;
+    months_earned: number;
+    invitees: { email: string; display_name: string | null; status: string; created_at: string; reward_applied_at: string | null }[];
+  };
+  const [info, setInfo] = useState<Code | null>(null);
+  const [stats, setStats] = useState<Stats | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    get<Code>("/referral/code").then(setInfo).catch(() => {});
+    get<Stats>("/referral/stats").then(setStats).catch(() => {});
+  }, []);
+
+  const copy = async () => {
+    if (!info) return;
+    try {
+      await navigator.clipboard.writeText(info.share_url);
+      setCopied(true);
+      toast.success("Lien copié");
+      setTimeout(() => setCopied(false), 1800);
+    } catch {
+      toast.error("Copie impossible");
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <Card>
+        <div className="p-6">
+          <div className="flex items-center gap-2 mb-1">
+            <Gift size={16} style={{ color: "var(--orange)" }} />
+            <h3 className="text-sm font-semibold" style={{ color: "var(--t1)" }}>Programme de parrainage</h3>
+          </div>
+          <p className="text-xs mb-5" style={{ color: "var(--t3)", lineHeight: 1.6 }}>
+            Invitez vos amis. Chaque ami qui passe Premium vous offre <strong style={{ color: "var(--t1)" }}>1 mois gratuit</strong> sur votre abonnement actuel.
+          </p>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-5">
+            <Stat label="Invités" value={stats?.total_invited ?? 0} />
+            <Stat label="Conversions" value={stats?.converted_count ?? 0} />
+            <Stat label="En attente" value={stats?.pending_count ?? 0} />
+            <Stat label="Mois gagnés" value={stats?.months_earned ?? 0} accent />
+          </div>
+
+          {info && (
+            <>
+              <div className="text-xs mb-1.5" style={{ color: "var(--t3)" }}>Votre lien de parrainage</div>
+              <div
+                className="flex items-center gap-2 rounded-lg"
+                style={{
+                  padding: "10px 12px",
+                  background: "var(--bg-inner)",
+                  border: "1px solid var(--border)",
+                }}
+              >
+                <span
+                  className="flex-1 text-xs truncate"
+                  style={{ color: "var(--t2)", fontFamily: "ui-monospace, monospace" }}
+                >
+                  {info.share_url}
+                </span>
+                <button
+                  onClick={copy}
+                  aria-label="Copier"
+                  className="rounded-md flex items-center gap-1 text-xs font-medium transition-colors"
+                  style={{
+                    padding: "6px 10px",
+                    color: copied ? "#22C55E" : "var(--t1)",
+                    background: copied ? "rgba(34,197,94,0.10)" : "var(--bg-pop)",
+                  }}
+                >
+                  {copied ? <Check size={12} /> : <Copy size={12} />}
+                  {copied ? "Copié" : "Copier"}
+                </button>
+              </div>
+              <div className="text-xs mt-2" style={{ color: "var(--t3)" }}>
+                Code : <strong style={{ color: "var(--t2)", fontFamily: "ui-monospace, monospace" }}>{info.code}</strong>
+              </div>
+            </>
+          )}
+        </div>
+      </Card>
+
+      {stats && stats.invitees.length > 0 && (
+        <Card>
+          <div className="p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <Users size={14} style={{ color: "var(--t2)" }} />
+              <h3 className="text-sm font-semibold" style={{ color: "var(--t1)" }}>Invités</h3>
+            </div>
+            <div className="space-y-2">
+              {stats.invitees.map((it, i) => (
+                <div
+                  key={i}
+                  className="flex items-center justify-between rounded-lg"
+                  style={{
+                    padding: "10px 12px",
+                    background: "var(--bg-inner)",
+                    border: "1px solid var(--border)",
+                  }}
+                >
+                  <div>
+                    <div className="text-xs" style={{ color: "var(--t1)" }}>
+                      {it.display_name || it.email}
+                    </div>
+                    <div className="text-xs mt-0.5" style={{ color: "var(--t3)" }}>
+                      {new Date(it.created_at).toLocaleDateString("fr-FR")}
+                    </div>
+                  </div>
+                  <span
+                    className="text-xs px-2 py-1 rounded font-medium"
+                    style={
+                      it.status === "converted"
+                        ? { background: "rgba(34,197,94,0.12)", color: "#22C55E" }
+                        : { background: "var(--bg-pop)", color: "var(--t3)" }
+                    }
+                  >
+                    {it.status === "converted" ? "+1 mois" : "En attente"}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </Card>
+      )}
+    </div>
+  );
+}
+
+function Stat({ label, value, accent }: { label: string; value: number; accent?: boolean }) {
+  return (
+    <div
+      className="rounded-lg"
+      style={{
+        padding: "12px 14px",
+        background: "var(--bg-inner)",
+        border: "1px solid var(--border)",
+      }}
+    >
+      <div className="text-xs" style={{ color: "var(--t3)", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+        {label}
+      </div>
+      <div
+        className="text-2xl font-semibold mt-1"
+        style={{ color: accent ? "var(--orange)" : "var(--t1)" }}
+      >
+        {value}
       </div>
     </div>
   );
@@ -872,6 +1035,7 @@ export default function AccountPage() {
   const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
     { id: "overview", label: "Overview", icon: <UserCircle size={13} /> },
     { id: "billing",  label: "Billing",  icon: <CreditCard size={13} /> },
+    { id: "referral", label: "Parrainage", icon: <Gift size={13} /> },
     { id: "security", label: "Security", icon: <Shield size={13} /> },
   ];
 
@@ -1016,6 +1180,11 @@ export default function AccountPage() {
         {/* ── Billing tab ── */}
         {tab === "billing" && (
           <BillingTab currentPlan={currentPlan} onPortal={handlePortal} />
+        )}
+
+        {/* ── Referral tab ── */}
+        {tab === "referral" && (
+          <ReferralTab />
         )}
 
         {/* ── Security tab ── */}

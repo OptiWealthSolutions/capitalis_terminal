@@ -9,6 +9,8 @@ import { useRef } from "react";
 import toast from "react-hot-toast";
 import { useI18n } from "@/lib/i18n";
 import { get, post, del, errMsg } from "@/lib/api";
+import BrokerConnector from "@/components/BrokerConnector";
+import ShareButton from "@/components/ShareButton";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -113,6 +115,21 @@ export default function TrackerPage() {
     const pnl = hasAll ? mv - cost : null;
     const pct = hasAll && cost > 0 ? (pnl! / cost) * 100 : null;
     return { cost, mv: hasAll ? mv : null, pnl, pct };
+  }, [rows]);
+
+  const shareAllocation = useMemo(() => {
+    const totalMv = rows.reduce((s, r) => s + (r.mv ?? r.cost), 0);
+    if (totalMv <= 0) return { tickers: [] as string[], weights: [] as number[] };
+    const tickers: string[] = [];
+    const weights: number[] = [];
+    for (const r of rows) {
+      const v = r.mv ?? r.cost;
+      if (v > 0) {
+        tickers.push(r.p.ticker);
+        weights.push((v / totalMv) * 100);
+      }
+    }
+    return { tickers, weights };
   }, [rows]);
 
   // ── Portfolio management — server-side, user-scoped ──
@@ -249,6 +266,18 @@ export default function TrackerPage() {
           >
             <FolderPlus size={13} /> New portfolio
           </button>
+          <BrokerConnector
+            triggerLabel="Magic Import"
+            variant="secondary"
+            onImported={() => {
+              get<TrackerPortfolio[]>("/portfolio/tracker")
+                .then((pfs) => {
+                  setPortfolios(pfs);
+                  if (pfs.length > 0) setActiveId(pfs[0].id);
+                })
+                .catch(() => {});
+            }}
+          />
           {activePf && (
             <>
               <input
@@ -268,6 +297,15 @@ export default function TrackerPage() {
               <button className="btn-primary" onClick={() => setFormOpen(o => !o)}>
                 <Plus size={14} /> Add position
               </button>
+              {activePf && shareAllocation.tickers.length > 0 && (
+                <ShareButton
+                  label={activePf.name}
+                  tickers={shareAllocation.tickers}
+                  weights={shareAllocation.weights}
+                  variant="compact"
+                  text="Partager"
+                />
+              )}
             </>
           )}
         </div>

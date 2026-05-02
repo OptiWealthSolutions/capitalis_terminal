@@ -1,16 +1,20 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { BarChart2, Eye, EyeOff, UserPlus } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { useI18n } from "@/lib/i18n";
 import GoogleButton from "@/components/auth/GoogleButton";
 import toast from "react-hot-toast";
+import { post } from "@/lib/api";
+
+const REF_KEY = "capitalis_pending_referral";
 
 export default function RegisterPage() {
   const router = useRouter();
+  const search = useSearchParams();
   const { register } = useAuth();
   const { t } = useI18n();
 
@@ -19,6 +23,17 @@ export default function RegisterPage() {
   const [confirm, setConfirm] = useState("");
   const [showPw, setShowPw] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [refCode, setRefCode] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fromUrl = search?.get("ref");
+    const fromStorage = typeof window !== "undefined" ? sessionStorage.getItem(REF_KEY) : null;
+    const code = (fromUrl ?? fromStorage ?? "").trim().toUpperCase();
+    if (code) {
+      setRefCode(code);
+      try { sessionStorage.setItem(REF_KEY, code); } catch {}
+    }
+  }, [search]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -28,7 +43,18 @@ export default function RegisterPage() {
     setLoading(true);
     try {
       await register(email, password);
-      toast.success("Account created.");
+      if (refCode) {
+        try {
+          await post("/referral/redeem", { code: refCode });
+          toast.success(`Compte créé. Parrainage ${refCode} validé.`);
+          sessionStorage.removeItem(REF_KEY);
+        } catch (refErr: unknown) {
+          console.warn("[referral] redeem failed", refErr);
+          toast.success("Account created.");
+        }
+      } else {
+        toast.success("Account created.");
+      }
       router.replace("/dashboard");
     } catch (err: unknown) {
       const msg =
@@ -74,6 +100,22 @@ export default function RegisterPage() {
           <div style={{ fontSize: "0.6rem", fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--t3)", marginBottom: 24 }}>
             {t.auth.register.title}
           </div>
+
+          {refCode && (
+            <div
+              style={{
+                marginBottom: 16,
+                padding: "10px 12px",
+                borderRadius: "var(--r-sm)",
+                background: "var(--orange-dim)",
+                border: "1px solid var(--orange-border)",
+                color: "var(--orange)",
+                fontSize: "0.72rem",
+              }}
+            >
+              Parrainage actif : <strong style={{ fontFamily: "ui-monospace, monospace" }}>{refCode}</strong>
+            </div>
+          )}
 
           <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
 

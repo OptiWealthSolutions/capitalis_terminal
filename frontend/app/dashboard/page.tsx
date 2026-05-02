@@ -16,6 +16,7 @@ function rangeToStartDate(r: TimeRange): string {
 import Link from "next/link";
 import PollWidget from "@/components/community/PollWidget";
 import CommunityFeedWidget from "@/components/community/CommunityFeedWidget";
+import ShareButton from "@/components/ShareButton";
 import { useQuery, useMutation, useQueries } from "@tanstack/react-query";
 import {
   TrendingUp, TrendingDown, Briefcase, Target, Activity,
@@ -292,6 +293,16 @@ export default function DashboardPage() {
                     refreshing={perfMutation.isPending}
                     timeRange={optTimeRange}
                     onTimeRangeChange={r => { setOptTimeRange(r); setPerfResult(null); }}
+                    headerActions={portfolio && portfolio.tickers.length > 0 ? (
+                      <ShareButton
+                        label={portfolio.name}
+                        tickers={portfolio.tickers}
+                        weights={portfolio.weights}
+                        method={portfolio.method}
+                        variant="compact"
+                        text="Partager"
+                      />
+                    ) : null}
                   >
                     {perfMutation.isPending && !perfResult && (
                       <div className="px-5 py-3"><div className="skeleton" style={{ height: 200 }} /></div>
@@ -361,6 +372,22 @@ export default function DashboardPage() {
                     onRefresh={() => trackerPf && trackerMutation.mutate(trackerPf)}
                     refreshing={trackerMutation.isPending}
                     accent="#86B38A"
+                    headerActions={(() => {
+                      if (!trackerPf || trackerPf.positions.length === 0) return null;
+                      const total = trackerPf.positions.reduce((s, p) => s + p.shares * p.entry_price, 0);
+                      if (total <= 0) return null;
+                      const tickers = trackerPf.positions.map(p => p.ticker);
+                      const weights = trackerPf.positions.map(p => (p.shares * p.entry_price / total) * 100);
+                      return (
+                        <ShareButton
+                          label={trackerPf.name}
+                          tickers={tickers}
+                          weights={weights}
+                          variant="compact"
+                          text="Partager"
+                        />
+                      );
+                    })()}
                   >
                     {trackerMutation.isPending && !trackerResult && (
                       <div className="px-5 py-3"><div className="skeleton" style={{ height: 200 }} /></div>
@@ -549,11 +576,12 @@ export default function DashboardPage() {
 // ---------------------------------------------------------------------------
 function EquityCurveCard({
   title, badgeLabel, subtitle, selector, onRefresh, refreshing, accent = "#7AA7E8",
-  timeRange, onTimeRangeChange, children,
+  timeRange, onTimeRangeChange, headerActions, children,
 }: {
   title: string; badgeLabel?: string; subtitle?: string;
   selector: React.ReactNode; onRefresh: () => void; refreshing: boolean;
   accent?: string; timeRange?: TimeRange; onTimeRangeChange?: (r: TimeRange) => void;
+  headerActions?: React.ReactNode;
   children: React.ReactNode;
 }) {
   return (
@@ -587,6 +615,7 @@ function EquityCurveCard({
               ))}
             </div>
           )}
+          {headerActions}
           <button onClick={onRefresh} disabled={refreshing}
             className="flex items-center gap-1 px-2 py-1 rounded border text-xs transition-all disabled:opacity-40"
             style={{ borderColor: "var(--border)", color: "var(--t3)", background: "var(--bg-hover)" }}>

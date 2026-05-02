@@ -5,12 +5,14 @@ import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import { useInvestorMode } from "@/lib/investorMode";
 import InvestorProfileModal from "@/components/InvestorProfileModal";
+import UpgradeModal from "@/components/UpgradeModal";
 import OnboardingTour from "@/components/onboarding/OnboardingTour";
 import Sidebar from "./Sidebar";
 import TopBar from "./TopBar";
 import BottomNav from "./BottomNav";
 
 const PUBLIC_ROUTES = ["/login", "/register"];
+const PUBLIC_PREFIXES = ["/share/"];
 const COLLAPSE_KEY = "capitalis_sidebar_collapsed";
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
@@ -22,7 +24,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const inactivityTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const isPublic = PUBLIC_ROUTES.includes(pathname);
+  const isPublic = PUBLIC_ROUTES.includes(pathname)
+    || PUBLIC_PREFIXES.some((p) => pathname.startsWith(p));
 
   useEffect(() => {
     const stored = localStorage.getItem(COLLAPSE_KEY);
@@ -39,8 +42,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!loading && !user && !isPublic) router.replace("/login");
-    if (!loading && user && isPublic)   router.replace("/dashboard");
-  }, [user, loading, isPublic, router]);
+    if (!loading && user && PUBLIC_ROUTES.includes(pathname)) router.replace("/dashboard");
+  }, [user, loading, isPublic, pathname, router]);
 
   // Show profile onboarding once on first login — but ONLY after the tour
   // has been seen/dismissed. The OnboardingTour writes
@@ -113,6 +116,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     <div className="flex h-screen overflow-hidden" style={{ background: "var(--bg-base)" }}>
       {showProfileModal && <InvestorProfileModal />}
       <OnboardingTour />
+      <UpgradeModal />
       {/* Mobile backdrop */}
       {sidebarOpen && (
         <div className="fixed inset-0 z-30 bg-black/50 md:hidden" onClick={() => setSidebarOpen(false)} />

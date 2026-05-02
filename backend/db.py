@@ -27,7 +27,20 @@ _DDL_USERS = """
         stripe_customer_id  TEXT,
         display_name        TEXT,
         google_sub          TEXT UNIQUE,
-        avatar_url          TEXT
+        avatar_url          TEXT,
+        referral_code       TEXT UNIQUE
+    )
+"""
+
+_DDL_REFERRALS = """
+    CREATE TABLE IF NOT EXISTS referrals (
+        id                 TEXT PRIMARY KEY,
+        referrer_id        TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        referee_id         TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        status             TEXT NOT NULL DEFAULT 'pending',
+        reward_applied_at  TEXT,
+        created_at         TEXT NOT NULL,
+        UNIQUE(referee_id)
     )
 """
 
@@ -128,14 +141,16 @@ def init_db() -> None:
             _DDL_USERS + "; " + _DDL_SUBSCRIPTIONS + "; " +
             _DDL_BETA_REDEMPTIONS + "; " + _DDL_ALERTS + "; " +
             _DDL_POLLS + "; " + _DDL_POLL_OPTIONS + "; " + _DDL_POLL_VOTES + "; " +
-            _DDL_COMMUNITY_POSTS + "; " + _DDL_POST_UPVOTES
+            _DDL_COMMUNITY_POSTS + "; " + _DDL_POST_UPVOTES + "; " +
+            _DDL_REFERRALS
         )
         if USE_PG:
             # ADD COLUMN IF NOT EXISTS supported in PostgreSQL 9.6+
             for col, ddl in (
-                ("display_name", "ALTER TABLE users ADD COLUMN IF NOT EXISTS display_name TEXT"),
-                ("google_sub",   "ALTER TABLE users ADD COLUMN IF NOT EXISTS google_sub TEXT"),
-                ("avatar_url",   "ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT"),
+                ("display_name",   "ALTER TABLE users ADD COLUMN IF NOT EXISTS display_name TEXT"),
+                ("google_sub",     "ALTER TABLE users ADD COLUMN IF NOT EXISTS google_sub TEXT"),
+                ("avatar_url",     "ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT"),
+                ("referral_code",  "ALTER TABLE users ADD COLUMN IF NOT EXISTS referral_code TEXT"),
             ):
                 conn.execute(ddl)
         else:
@@ -144,9 +159,10 @@ def init_db() -> None:
             with _sq3.connect(str(DB_PATH)) as raw:
                 raw.row_factory = _sq3.Row
                 for col, ddl in (
-                    ("display_name", "ALTER TABLE users ADD COLUMN display_name TEXT"),
-                    ("google_sub",   "ALTER TABLE users ADD COLUMN google_sub TEXT"),
-                    ("avatar_url",   "ALTER TABLE users ADD COLUMN avatar_url TEXT"),
+                    ("display_name",   "ALTER TABLE users ADD COLUMN display_name TEXT"),
+                    ("google_sub",     "ALTER TABLE users ADD COLUMN google_sub TEXT"),
+                    ("avatar_url",     "ALTER TABLE users ADD COLUMN avatar_url TEXT"),
+                    ("referral_code",  "ALTER TABLE users ADD COLUMN referral_code TEXT"),
                 ):
                     existing = [r["name"] for r in raw.execute("PRAGMA table_info(users)").fetchall()]
                     if col not in existing:
@@ -157,6 +173,13 @@ def init_db() -> None:
 # Users
 # ---------------------------------------------------------------------------
 
+def _generate_referral_code() -> str:
+    """8-char alphanumeric, base32-style without confusable chars."""
+    import secrets
+    alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+    return "".join(secrets.choice(alphabet) for _ in range(8))
+
+
 def create_user(
     email: str,
     hashed_password: str,
@@ -166,18 +189,112 @@ def create_user(
 ) -> dict:
     user_id = str(uuid.uuid4())
     now = datetime.now(timezone.utc).isoformat()
+    referral_code = _generate_referral_code()
     with db_context(DB_PATH) as conn:
-        conn.execute(
-            """INSERT INTO users
-                   (id, email, hashed_password, created_at, display_name, google_sub, avatar_url)
-               VALUES (?, ?, ?, ?, ?, ?, ?)""",
-            (user_id, email, hashed_password, now, display_name, google_sub, avatar_url),
-        )
+        # Retry up to 5x in case of code collision
+        for _ in range(5):
+            try:
+                conn.execute(
+                    """INSERT INTO users
+                           (id, email, hashed_password, created_at, display_name,
+                            google_sub, avatar_url, referral_code)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                    (user_id, email, hashed_password, now, display_name,
+                     google_sub, avatar_url, referral_code),
+                )
+                break
+            except Exception as exc:
+                if "referral_code" in str(exc).lower():
+                    referral_code = _generate_referral_code()
+                    continue
+                raise
         conn.execute(
             "INSERT INTO subscriptions (user_id, plan, status) VALUES (?, 'free', 'active')",
             (user_id,),
         )
-    return {"id": user_id, "email": email, "created_at": now}
+    return {"id": user_id, "email": email, "created_at": now, "referral_code": referral_code}
+
+
+# ---------------------------------------------------------------------------
+# Referrals
+# ---------------------------------------------------------------------------
+
+def get_user_by_referral_code(code: str):
+    with db_context(DB_PATH) as conn:
+        return conn.execute(
+            "SELECT * FROM users WHERE referral_code = ?", (code.upper(),)
+        ).fetchone()
+
+
+def ensure_user_referral_code(user_id: str) -> str:
+    """Returns existing referral_code or generates one for legacy users."""
+    user = get_user_by_id(user_id)
+    if user and user["referral_code"]:
+        return user["referral_code"]
+    code = _generate_referral_code()
+    with db_context(DB_PATH) as conn:
+        for _ in range(5):
+            try:
+                conn.execute(
+                    "UPDATE users SET referral_code = ? WHERE id = ?",
+                    (code, user_id),
+                )
+                return code
+            except Exception:
+                code = _generate_referral_code()
+    return code
+
+
+def record_referral(referrer_id: str, referee_id: str) -> bool:
+    """Records a pending referral. No-op if referee already attributed."""
+    if referrer_id == referee_id:
+        return False
+    referral_id = str(uuid.uuid4())
+    now = datetime.now(timezone.utc).isoformat()
+    with db_context(DB_PATH) as conn:
+        existing = conn.execute(
+            "SELECT id FROM referrals WHERE referee_id = ?", (referee_id,)
+        ).fetchone()
+        if existing:
+            return False
+        conn.execute(
+            """INSERT INTO referrals (id, referrer_id, referee_id, status, created_at)
+               VALUES (?, ?, ?, 'pending', ?)""",
+            (referral_id, referrer_id, referee_id, now),
+        )
+    return True
+
+
+def get_referral_for_referee(referee_id: str):
+    with db_context(DB_PATH) as conn:
+        return conn.execute(
+            "SELECT * FROM referrals WHERE referee_id = ?", (referee_id,)
+        ).fetchone()
+
+
+def get_referrals_for_referrer(referrer_id: str) -> list[dict]:
+    with db_context(DB_PATH) as conn:
+        rows = conn.execute(
+            """SELECT r.*, u.email AS referee_email, u.display_name AS referee_display_name
+               FROM referrals r
+               JOIN users u ON u.id = r.referee_id
+               WHERE r.referrer_id = ?
+               ORDER BY r.created_at DESC""",
+            (referrer_id,),
+        ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def mark_referral_converted(referee_id: str) -> bool:
+    now = datetime.now(timezone.utc).isoformat()
+    with db_context(DB_PATH) as conn:
+        cur = conn.execute(
+            """UPDATE referrals
+               SET status = 'converted', reward_applied_at = ?
+               WHERE referee_id = ? AND status = 'pending'""",
+            (now, referee_id),
+        )
+        return (cur.rowcount or 0) > 0
 
 
 def get_user_by_email(email: str):

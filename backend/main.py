@@ -60,7 +60,7 @@ def _check_rate_limit(ip: str, path: str) -> bool:
             return True
     return True
 
-from .routers import portfolio, screener, scorer, equity, ml_predictions, reporting, billing, market
+from .routers import portfolio, screener, scorer, equity, ml_predictions, reporting, billing, market, broker, share, referral
 from .routers import auth as auth_router
 from .routers import alerts as alerts_router
 from .routers import value_chain as value_chain_router
@@ -197,6 +197,9 @@ app.include_router(market.router,  prefix="/api/market",  tags=["Market"])
 app.include_router(alerts_router.router, prefix="/api/alerts", tags=["Alerts"])
 app.include_router(value_chain_router.router, prefix="/api/value-chain", tags=["Value Chain"])
 app.include_router(community_router.router, prefix="/api/community", tags=["Community"])
+app.include_router(broker.router, prefix="/api/broker", tags=["Broker"])
+app.include_router(share.router, prefix="/api/share", tags=["Share"])
+app.include_router(referral.router, prefix="/api/referral", tags=["Referral"])
 
 
 # ---------------------------------------------------------------------------

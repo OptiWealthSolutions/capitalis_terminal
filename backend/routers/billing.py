@@ -21,9 +21,11 @@ from pydantic import BaseModel
 from ..auth.jwt_handler import get_current_user
 from ..db import (
     downgrade_to_free,
+    get_referral_for_referee,
     get_subscription,
     get_user_by_id,
     get_user_by_stripe_customer,
+    mark_referral_converted,
     set_stripe_customer,
     upsert_subscription,
 )
@@ -35,6 +37,8 @@ router = APIRouter()
 STRIPE_SECRET_KEY: str | None = os.environ.get("STRIPE_SECRET_KEY")
 STRIPE_WEBHOOK_SECRET: str | None = os.environ.get("STRIPE_WEBHOOK_SECRET")
 FRONTEND_URL: str = os.environ.get("FRONTEND_URL", "http://localhost:3000")
+STRIPE_ANNUAL_COUPON_ID: str | None = os.environ.get("STRIPE_ANNUAL_COUPON_ID")
+TRIAL_PERIOD_DAYS: int = int(os.environ.get("STRIPE_TRIAL_DAYS", "7"))
 
 def _env(*names: str, default: str = "") -> str:
     for n in names:
@@ -192,6 +196,80 @@ def get_subscription_route(current_user: dict = Depends(get_current_user)) -> An
 # ---------------------------------------------------------------------------
 # POST /billing/checkout-session
 # ---------------------------------------------------------------------------
+def _maybe_reward_referrer(referee_user_id: str, paid_price_id: str | None) -> None:
+    """If referee has a pending referral, mark converted and credit referrer's
+    Stripe customer balance with one month of their current sub price.
+    Idempotent — mark_referral_converted only updates pending rows.
+    """
+    referral = get_referral_for_referee(referee_user_id)
+    if not referral or referral["status"] != "pending":
+        return
+    referrer = get_user_by_id(referral["referrer_id"])
+    if not referrer or not referrer["stripe_customer_id"]:
+        # Referrer has no Stripe customer yet — convert anyway for stats,
+        # the next checkout will apply credits via balance.
+        mark_referral_converted(referee_user_id)
+        logger.info("referral converted (no referrer customer): %s -> %s",
+                    referrer["id"] if referrer else "?", referee_user_id)
+        return
+
+    try:
+        import stripe  # type: ignore
+    except ImportError:
+        logger.warning("stripe lib missing; cannot apply referral credit")
+        mark_referral_converted(referee_user_id)
+        return
+
+    # Determine credit amount: use referrer's active sub price; fallback to
+    # the price the referee just paid (~ symmetric reward).
+    amount_cents = 699  # default Pro monthly cents
+    try:
+        subs = stripe.Subscription.list(
+            customer=referrer["stripe_customer_id"], status="active", limit=1,
+        )
+        if subs.data:
+            item0 = subs.data[0]["items"]["data"][0]
+            amount_cents = item0["price"]["unit_amount"] or amount_cents
+            # If annual, prorate to one month
+            interval = item0["price"]["recurring"]["interval"]
+            if interval == "year":
+                amount_cents = max(1, amount_cents // 12)
+        elif paid_price_id:
+            price = stripe.Price.retrieve(paid_price_id)
+            amount_cents = price.unit_amount or amount_cents
+            if price.recurring and price.recurring.interval == "year":
+                amount_cents = max(1, amount_cents // 12)
+    except Exception as exc:
+        logger.warning("could not derive referral credit amount: %s", exc)
+
+    try:
+        stripe.Customer.create_balance_transaction(
+            referrer["stripe_customer_id"],
+            amount=-amount_cents,  # negative = credit
+            currency="eur",
+            description=f"Capitalis referral reward (1 month, referee={referee_user_id})",
+        )
+        mark_referral_converted(referee_user_id)
+        logger.info("referral converted: referrer=%s credited %dc", referrer["id"], amount_cents)
+    except Exception as exc:
+        logger.error("could not credit referrer %s: %s", referrer["id"], exc, exc_info=True)
+
+
+def _user_has_used_trial(customer_id: str | None) -> bool:
+    """True if customer already had any subscription (paid or trialled).
+    Stripe lets customers re-trial across plans by default; gate it here.
+    """
+    if not customer_id:
+        return False
+    try:
+        import stripe  # type: ignore
+        subs = stripe.Subscription.list(customer=customer_id, status="all", limit=1)
+        return bool(subs.data)
+    except Exception as exc:
+        logger.warning("trial-check failed for %s: %s", customer_id, exc)
+        return False
+
+
 @router.post("/checkout-session")
 def create_checkout_session(
     req: CheckoutRequest,
@@ -219,14 +297,31 @@ def create_checkout_session(
             customer_id = customer.id
             set_stripe_customer(user["id"], customer_id)
 
-        session = stripe.checkout.Session.create(
-            customer=customer_id,
-            payment_method_types=["card"],
-            line_items=[{"price": price_id, "quantity": 1}],
-            mode="subscription",
-            success_url=req.success_url or f"{FRONTEND_URL}/account?checkout=success",
-            cancel_url=req.cancel_url or f"{FRONTEND_URL}/account",
-        )
+        session_kwargs: dict[str, Any] = {
+            "customer": customer_id,
+            "payment_method_types": ["card"],
+            "line_items": [{"price": price_id, "quantity": 1}],
+            "mode": "subscription",
+            "success_url": req.success_url or f"{FRONTEND_URL}/account?checkout=success",
+            "cancel_url": req.cancel_url or f"{FRONTEND_URL}/account",
+        }
+
+        # 7-day free trial without requiring CC at checkout (Free Trial No-CC).
+        # Subscription auto-cancels if no payment method is added by trial end.
+        if not _user_has_used_trial(customer_id):
+            session_kwargs["payment_method_collection"] = "if_required"
+            session_kwargs["subscription_data"] = {
+                "trial_period_days": TRIAL_PERIOD_DAYS,
+                "trial_settings": {
+                    "end_behavior": {"missing_payment_method": "cancel"},
+                },
+            }
+
+        # Annual = 2 months free coupon (16.67%) when configured + selected.
+        if annual and STRIPE_ANNUAL_COUPON_ID:
+            session_kwargs["discounts"] = [{"coupon": STRIPE_ANNUAL_COUPON_ID}]
+
+        session = stripe.checkout.Session.create(**session_kwargs)
         return {"url": session.url, "session_id": session.id}
     except Exception as exc:
         logger.error("Stripe checkout session error: %s", exc, exc_info=True)
@@ -314,6 +409,13 @@ async def stripe_webhook(
                 )
                 logger.info("Subscription updated user=%s plan=%s status=%s", user["id"], plan, sub["status"])
 
+                # Referral conversion: trigger reward only when sub becomes active (paid).
+                if sub["status"] == "active":
+                    try:
+                        _maybe_reward_referrer(user["id"], price_id)
+                    except Exception as exc:
+                        logger.error("referral reward failed: %s", exc, exc_info=True)
+
     elif event_type == "customer.subscription.deleted":
         sub = event["data"]["object"]
         customer_id = sub.get("customer")
@@ -322,6 +424,15 @@ async def stripe_webhook(
             if user:
                 downgrade_to_free(user["id"])
                 logger.info("Subscription cancelled — user %s downgraded to free", user["id"])
+
+    elif event_type == "customer.subscription.trial_will_end":
+        # Fired ~3 days before trial ends. Hook for email/in-app nudge.
+        sub = event["data"]["object"]
+        customer_id = sub.get("customer")
+        if customer_id:
+            user = get_user_by_stripe_customer(customer_id)
+            if user:
+                logger.info("Trial ends soon for user %s sub=%s", user["id"], sub.get("id"))
 
     elif event_type == "invoice.payment_failed":
         invoice = event["data"]["object"]

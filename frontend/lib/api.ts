@@ -6,6 +6,7 @@
 
 import axios, { AxiosError, AxiosInstance, AxiosResponse } from "axios";
 import toast from "react-hot-toast";
+import { showUpgradeModal } from "@/lib/upgradeModal";
 
 // In prod (static export): NEXT_PUBLIC_API_URL=https://api.capitalis.io → calls backend directly
 // In dev: no env var set → "/api" is proxied by Next.js rewrite to localhost:8000
@@ -60,6 +61,18 @@ apiClient.interceptors.response.use(
           sessionStorage.removeItem("access_token");
         }
         toast.error(IS_PROD ? GENERIC_ERROR_MSG : "Session expired. Please log in again.");
+      } else if (status === 402) {
+        const url = error.config?.url ?? "";
+        const suggestedPlan: "pro" | "premium" = /predict|ml_alpha|max_sharpe|alert/i.test(url + " " + detail)
+          ? "premium"
+          : "pro";
+        showUpgradeModal({
+          title: "Fonctionnalité réservée aux abonnés",
+          message: IS_PROD
+            ? "Passez à Pro ou Premium pour débloquer cette fonctionnalité. Essai 7 jours gratuits, sans carte bancaire."
+            : detail,
+          suggestedPlan,
+        });
       } else if (status === 429) {
         toast.error(IS_PROD ? GENERIC_ERROR_MSG : "Rate limit reached. Please wait before retrying.");
       } else if (status >= 500) {

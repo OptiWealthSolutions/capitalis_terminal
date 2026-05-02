@@ -16,6 +16,7 @@ import {
   ChevronDown, ChevronUp, TrendingUp, Activity, Target, Lock,
   Sparkles, Shield, Zap,
 } from "lucide-react";
+import ShareButton from "@/components/ShareButton";
 import toast from "react-hot-toast";
 import { useTheme } from "@/lib/theme";
 import { useI18n } from "@/lib/i18n";
@@ -401,6 +402,16 @@ export default function PortfolioPage() {
               <Save size={12} />
               Save
             </button>
+            {optResult && (
+              <ShareButton
+                label={`Allocation ${watchedMethod || ""}`.trim()}
+                tickers={Object.keys(optResult.weights)}
+                weights={Object.values(optResult.weights)}
+                method={watchedMethod}
+                variant="compact"
+                text="Partager"
+              />
+            )}
           </div>
         </div>
 
@@ -450,6 +461,14 @@ export default function PortfolioPage() {
                       >
                         Load
                       </button>
+                      <ShareButton
+                        label={pf.name}
+                        tickers={pf.tickers}
+                        weights={pf.weights}
+                        method={pf.method}
+                        variant="compact"
+                        text="Partager"
+                      />
                       <button onClick={() => deletePortfolio(pf.name)} style={{ color: "var(--t3)" }}>
                         <Trash2 size={11} />
                       </button>

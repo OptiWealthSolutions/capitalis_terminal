@@ -26,6 +26,8 @@ PLAN_LIMITS: dict[str, dict[str, Any]] = {
         "max_portfolios":       1,
         "optimization_methods": ["EqualWeights", "MinVol"],
         "screener_runs_per_day": 3,
+        "screener_top_n":       50,      # only top 50 by market cap
+        "max_alerts":           3,
         "pdf_export":           False,
         "monte_carlo":          False,
         "market_map":           False,
@@ -39,11 +41,13 @@ PLAN_LIMITS: dict[str, dict[str, Any]] = {
         "max_portfolios":       5,
         "optimization_methods": ["EqualWeights", "MinVol", "MeanVar", "HRP"],
         "screener_runs_per_day": None,   # unlimited
+        "screener_top_n":       None,    # full universe
+        "max_alerts":           20,
         "pdf_export":           True,
         "monte_carlo":          True,
         "market_map":           True,
         "predictions":          False,
-        "custom_alerts":        False,
+        "custom_alerts":        True,
         "ml_alpha":             False,
         "ml_alpha_conviction":  False,
         "tracker_portfolios":   None,    # unlimited
@@ -52,6 +56,8 @@ PLAN_LIMITS: dict[str, dict[str, Any]] = {
         "max_portfolios":       None,    # unlimited
         "optimization_methods": ["EqualWeights", "MinVol", "MeanVar", "HRP", "Max_Sharpe"],
         "screener_runs_per_day": None,
+        "screener_top_n":       None,
+        "max_alerts":           None,    # unlimited
         "pdf_export":           True,
         "monte_carlo":          True,
         "market_map":           True,
@@ -67,6 +73,8 @@ PLAN_LIMITS: dict[str, dict[str, Any]] = {
         "max_portfolios":       None,
         "optimization_methods": ["EqualWeights", "MinVol", "MeanVar", "HRP", "Max_Sharpe"],
         "screener_runs_per_day": None,
+        "screener_top_n":       None,
+        "max_alerts":           None,
         "pdf_export":           True,
         "monte_carlo":          True,
         "market_map":           True,
@@ -148,3 +156,24 @@ def check_portfolio_count(user_id: str, current_count: int) -> None:
             status_code=status.HTTP_402_PAYMENT_REQUIRED,
             detail=f"Portfolio limit reached ({max_pf}) on plan '{plan}'. Upgrade to add more.",
         )
+
+
+def check_alert_count(user_id: str, current_count: int) -> None:
+    plan = get_plan_for_user(user_id)
+    max_alerts = get_limits(plan).get("max_alerts")
+    if max_alerts is not None and current_count >= max_alerts:
+        raise HTTPException(
+            status_code=status.HTTP_402_PAYMENT_REQUIRED,
+            detail=f"Alert limit reached ({max_alerts}) on plan '{plan}'. Upgrade for more.",
+        )
+
+
+def apply_screener_top_n(user_id: str, df):
+    """Returns df sliced to plan's screener_top_n (sorted by market_cap desc)."""
+    plan = get_plan_for_user(user_id)
+    top_n = get_limits(plan).get("screener_top_n")
+    if top_n is None or df is None or df.empty:
+        return df
+    if "market_cap" in df.columns:
+        df = df.sort_values("market_cap", ascending=False, na_position="last")
+    return df.head(top_n)

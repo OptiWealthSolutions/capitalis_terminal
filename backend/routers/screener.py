@@ -13,7 +13,7 @@ from typing import Any
 import pandas as pd
 from fastapi import APIRouter, HTTPException, Depends
 from ..auth.jwt_handler import get_current_user
-from ..plan_gate import get_limits, get_plan_for_user
+from ..plan_gate import apply_screener_top_n, get_limits, get_plan_for_user
 
 # Daily screener run counter: {user_id: (count, day_str)}
 _screener_daily: dict[str, tuple[int, str]] = {}
@@ -166,6 +166,9 @@ def run_screener(req: ScreenerRunRequest, current_user: dict = Depends(get_curre
         df_result.to_csv(settings.SCREENED_ASSETS_PATH, index=False)
     except Exception as exc:
         logger.warning("Failed to save screened assets: %s", exc)
+
+    # Free plan: cap to top N by market cap
+    df_result = apply_screener_top_n(current_user["sub"], df_result)
 
     records = df_result.to_dict(orient="records")
     result = {"count": len(records), "assets": records}
