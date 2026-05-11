@@ -17,6 +17,8 @@ import {
   Sparkles, Shield, Zap,
 } from "lucide-react";
 import ShareButton from "@/components/ShareButton";
+import { Card, CardHeader, KpiCard, SectionLabel } from "@/components/ui/Card";
+import TickerLogo from "@/components/ui/TickerLogo";
 import toast from "react-hot-toast";
 import { useTheme } from "@/lib/theme";
 import { useI18n } from "@/lib/i18n";
@@ -52,10 +54,10 @@ interface SavedPortfolio {
 }
 
 const METHODS = [
-  { value: "HRP",          label: "HRP",          desc: "Hierarchical Risk Parity",     fullDesc: "Cluster-based risk budgeting. No return estimates needed — robust to estimation error. Best for diversification." },
-  { value: "MeanVar",      label: "Mean-Variance", desc: "Markowitz Efficient Frontier", fullDesc: "Maximises return per unit of risk. Can produce concentrated positions. Sensitive to input assumptions." },
-  { value: "MinVol",       label: "Min Vol",       desc: "Minimum Volatility",           fullDesc: "Finds the lowest possible variance portfolio regardless of return. Defensive, capital-preservation focused." },
-  { value: "EqualWeights", label: "Equal",         desc: "Equal Weights",                fullDesc: "Splits capital equally across all assets. Simple, transparent, and surprisingly hard to beat long-term." },
+  { value: "HRP",          label: "HRP",           desc: "Hierarchical Risk Parity",     fullDesc: "Cluster-based risk budgeting. No return estimates needed — robust to estimation error. Best for diversification." },
+  { value: "MeanVar",      label: "Mean-Variance",  desc: "Markowitz Efficient Frontier", fullDesc: "Maximises return per unit of risk. Can produce concentrated positions. Sensitive to input assumptions." },
+  { value: "MinVol",       label: "Min Vol",        desc: "Minimum Volatility",           fullDesc: "Finds the lowest possible variance portfolio regardless of return. Defensive, capital-preservation focused." },
+  { value: "EqualWeights", label: "Equal Weights",  desc: "Equal Weights",                fullDesc: "Splits capital equally across all assets. Simple, transparent, and surprisingly hard to beat long-term." },
 ];
 
 const CHART_COLORS = [
@@ -184,7 +186,7 @@ export default function PortfolioPage() {
       toast.success("Optimization complete — running Monte Carlo…");
       monteCarlo.mutate(data);
     },
-    onError: () => toast.error("Optimization failed."),
+    onError: (e: Error) => toast.error(e.message || "Optimization failed."),
   });
 
   const monteCarlo = useMutation({
@@ -347,10 +349,10 @@ export default function PortfolioPage() {
     const p95_last   = mcResult.percentiles.p95[mcResult.percentiles.p95.length - 1];
     const p5_last    = mcResult.percentiles.p5[mcResult.percentiles.p5.length - 1];
     const mc_return  = (mcResult.risk_metrics.expected_final_value / capital) - 1;
-    // GBM implied vol: σ = ln(P95 / P5) / (2 × 1.645) for 1-year horizon
+    // GBM implied vol: sigma = ln(P95 / P5) / (2 x 1.645) for 1-year horizon
     const mc_vol     = Math.log(Math.max(p95_last, 1e-9) / Math.max(p5_last, 1e-9)) / (2 * 1.645);
     const mc_sharpe  = mc_vol > 0 ? (mc_return - 0.03) / mc_vol : 0;
-    // Downside vol from VaR: σ_d ≈ VaR_95 / (capital × 1.645)
+    // Downside vol from VaR: sigma_d approx VaR_95 / (capital x 1.645)
     const mc_sortino = mcResult.risk_metrics.var_95 > 0
       ? (mc_return - 0.03) / (mcResult.risk_metrics.var_95 / capital / 1.645) : 0;
     const mc_worst   = (mcResult.risk_metrics.worst_case_p5 / capital) - 1;
@@ -363,32 +365,43 @@ export default function PortfolioPage() {
   return (
     <ErrorBoundary>
       <div
-        className="fade-in p-4 sm:p-6 xl:px-8"
-        style={{ maxWidth: 2000, margin: "0 auto" }}
+        className="fade-in"
+        style={{ padding: "28px 32px", maxWidth: 1600, margin: "0 auto", fontFamily: "Manrope, DM Sans, sans-serif" }}
       >
 
         {/* ── Page header ── */}
         <div
-          className="flex items-end justify-between pb-5 border-b"
-          style={{ borderColor: "var(--border)" }}
+          style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", flexWrap: "wrap", gap: 14, paddingBottom: 20, borderBottom: "1px solid var(--card-border)", marginBottom: 24 }}
         >
           <div>
-            <p className="text-xs tracking-widest uppercase mb-1" style={{ color: "var(--t3)" }}>
-              {t.portfolio.breadcrumb}
-            </p>
-            <h1 className="text-xl font-semibold tracking-tight" style={{ color: "var(--t1)" }}>
-              {t.portfolio.pageTitle}
+            <h1 style={{ fontFamily: "Manrope, DM Sans, sans-serif", fontSize: "1.75rem", fontWeight: 700, color: "var(--t1)", letterSpacing: "-0.015em", lineHeight: 1.15 }}>
+              Portfolio Allocation
             </h1>
+            <p style={{ fontSize: "0.78rem", color: "var(--t3)", marginTop: 5, maxWidth: 560, lineHeight: 1.5 }}>
+              Construct, analyze, and optimize institutional-grade portfolios with multi-asset class precision and risk constraints.
+            </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+            <button
+              onClick={() => { setTickers([]); setValue("method", "HRP"); setValue("capital", 20000); }}
+              style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", fontSize: "0.72rem", borderRadius: "var(--r-md)", border: "1px solid var(--card-border)", color: "var(--t2)", background: "var(--bg-card)", cursor: "pointer" }}
+            >
+              <X size={11} />
+              Clear All
+            </button>
+            <button
+              onClick={() => {
+                const val = watch("tickerInput");
+                if (val) { addTicker(val); setValue("tickerInput", ""); }
+              }}
+              style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", fontSize: "0.72rem", borderRadius: "var(--r-md)", border: "1px solid var(--card-border)", color: "var(--t2)", background: "var(--bg-card)", cursor: "pointer" }}
+            >
+              <Plus size={11} />
+              + Add Asset
+            </button>
             <button
               onClick={() => setLoadPanelOpen((o) => !o)}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded border transition-colors"
-              style={{
-                color: "var(--t2)",
-                background: "var(--bg-card)",
-                borderColor: "var(--border)",
-              }}
+              style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", fontSize: "0.72rem", borderRadius: "var(--r-md)", border: "1px solid var(--card-border)", color: "var(--t2)", background: "var(--bg-card)", cursor: "pointer" }}
             >
               <FolderOpen size={12} />
               {savedPortfolios.length > 0 ? `${savedPortfolios.length} saved` : "Load"}
@@ -396,8 +409,7 @@ export default function PortfolioPage() {
             <button
               onClick={() => { setSaveNameInput(""); setSaveModalOpen(true); }}
               disabled={!optResult}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded font-medium transition-all disabled:opacity-40"
-              style={{ background: "var(--orange)", color: isDark ? "#0A0A0A" : "#ffffff" }}
+              style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", fontSize: "0.72rem", borderRadius: "var(--r-md)", fontWeight: 600, background: "var(--orange)", color: isDark ? "#0A0A0A" : "#ffffff", cursor: !optResult ? "not-allowed" : "pointer", opacity: !optResult ? 0.4 : 1, border: "none" }}
             >
               <Save size={12} />
               Save
@@ -418,33 +430,31 @@ export default function PortfolioPage() {
         {/* ── Load panel ── */}
         {loadPanelOpen && (
           <div
-            className="mt-4 rounded border"
-            style={{ background: "var(--bg-card)", borderColor: "var(--border)" }}
+            style={{ marginBottom: 20, background: "var(--bg-card)", border: "1px solid var(--card-border)", borderRadius: "var(--r-xl)", overflow: "hidden" }}
           >
             <div
-              className="flex items-center justify-between px-5 py-3 border-b"
-              style={{ borderColor: "var(--border)" }}
+              style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 20px", borderBottom: "1px solid var(--card-border)" }}
             >
-              <span className="text-xs font-semibold tracking-widest uppercase" style={{ color: "var(--t2)" }}>
+              <span style={{ fontSize: "0.7rem", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--t2)" }}>
                 Saved Portfolios
               </span>
-              <button onClick={() => setLoadPanelOpen(false)} style={{ color: "var(--t3)" }}>
+              <button onClick={() => setLoadPanelOpen(false)} style={{ color: "var(--t3)", background: "none", border: "none", cursor: "pointer" }}>
                 <X size={13} />
               </button>
             </div>
             {savedPortfolios.length === 0 ? (
-              <p className="px-5 py-4 text-xs" style={{ color: "var(--t3)" }}>No saved portfolios.</p>
+              <p style={{ padding: "16px 20px", fontSize: "0.72rem", color: "var(--t3)" }}>No saved portfolios.</p>
             ) : (
-              <div className="divide-y" style={{ borderColor: "var(--border)" }}>
+              <div>
                 {savedPortfolios.map((pf) => (
-                  <div key={pf.id} className="flex items-center justify-between px-5 py-3">
+                  <div key={pf.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 20px", borderBottom: "1px solid var(--card-border)" }}>
                     <div>
-                      <p className="text-xs font-medium" style={{ color: "var(--t1)" }}>{pf.name}</p>
-                      <p className="text-xs mt-0.5" style={{ color: "var(--t3)" }}>
+                      <p style={{ fontSize: "0.75rem", fontWeight: 500, color: "var(--t1)" }}>{pf.name}</p>
+                      <p style={{ fontSize: "0.7rem", marginTop: 2, color: "var(--t3)" }}>
                         {pf.method} · {pf.tickers.join(", ")} · {pf.capital.toLocaleString()}€
                       </p>
                       {pf.result && (
-                        <p className="text-xs mt-0.5" style={{ color: "var(--t2)" }}>
+                        <p style={{ fontSize: "0.7rem", marginTop: 2, color: "var(--t2)" }}>
                           Sharpe {formatNumber(pf.result.metrics.sharpe_ratio, 2)} ·{" "}
                           <span style={{ color: "var(--green)" }}>
                             {formatPercent(pf.result.metrics.expected_annual_return)}
@@ -453,11 +463,10 @@ export default function PortfolioPage() {
                         </p>
                       )}
                     </div>
-                    <div className="flex items-center gap-3">
+                    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                       <button
                         onClick={() => loadPortfolio(pf)}
-                        className="text-xs font-medium"
-                        style={{ color: "var(--orange)" }}
+                        style={{ fontSize: "0.72rem", fontWeight: 500, color: "var(--orange)", background: "none", border: "none", cursor: "pointer" }}
                       >
                         Load
                       </button>
@@ -469,7 +478,7 @@ export default function PortfolioPage() {
                         variant="compact"
                         text="Partager"
                       />
-                      <button onClick={() => deletePortfolio(pf.name)} style={{ color: "var(--t3)" }}>
+                      <button onClick={() => deletePortfolio(pf.name)} style={{ color: "var(--t3)", background: "none", border: "none", cursor: "pointer" }}>
                         <Trash2 size={11} />
                       </button>
                     </div>
@@ -483,172 +492,32 @@ export default function PortfolioPage() {
         {/* ── 1-Click Templates ── */}
         <PortfolioTemplates onSelect={handleTemplateSelect} />
 
-        {/* ── SIMPLE MODE: simplified config ── */}
-        {isSimple && (
-          <div className="mt-4 rounded-xl border overflow-hidden" style={{ background: "var(--surface)", borderColor: "var(--border)" }}>
-            <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: "var(--border)", background: "var(--bg-hover)" }}>
-              <span className="text-xs font-semibold tracking-widest uppercase flex items-center gap-2" style={{ color: "var(--t2)" }}>
-                <Sparkles size={12} style={{ color: "var(--orange)" }} />
-                Build Your Portfolio
-              </span>
-              <button
-                onClick={openProfileModal}
-                className="text-xs transition-opacity hover:opacity-70"
-                style={{ color: "var(--t3)" }}
-              >
-                Edit profile
-              </button>
-            </div>
-            <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Left: tickers + capital */}
-              <div className="space-y-4">
-                <div>
-                  <p className="text-xs font-semibold tracking-widest uppercase mb-2" style={{ color: "var(--t3)" }}>Add Stocks</p>
-                  <div className="flex gap-2">
+        {/* ════════════════════════════════════════════════
+            STRATEGY CONSTRUCTION — two-column layout
+        ════════════════════════════════════════════════ */}
+        <div style={{ display: "grid", gridTemplateColumns: "3fr 2fr", gap: 16, marginTop: 20, alignItems: "start" }}>
+
+          {/* ── Left: Strategy Construction panel — dark institutional panel ── */}
+          <Card variant="dark" pad="none" style={{ overflow: "hidden" }}>
+            <CardHeader
+              title="Strategy Construction"
+              icon={<Target size={13} />}
+              bordered
+            />
+
+            <div style={{ padding: "20px", display: "flex", flexDirection: "column", gap: 20 }}>
+
+              {/* ── Section: Asset Universe ── */}
+              <div>
+                <SectionLabel style={{ marginBottom: 10 }}>Asset Universe</SectionLabel>
+                {/* Global Asset Search */}
+                <div style={{ marginBottom: 12 }}>
+                  <div style={{ display: "flex", gap: 8 }}>
                     <input
                       {...register("tickerInput")}
-                      placeholder="e.g. AAPL, MSFT, GOOG"
-                      className="flex-1 text-xs px-3 py-2 rounded border outline-none uppercase placeholder:normal-case placeholder:opacity-50 transition-colors"
-                      style={{ background: "var(--bg-hover)", borderColor: "var(--border)", color: "var(--t1)" }}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          e.preventDefault();
-                          addTicker((e.target as HTMLInputElement).value);
-                          setValue("tickerInput", "");
-                        }
-                      }}
-                    />
-                    <button type="button" onClick={() => { addTicker(watch("tickerInput")); setValue("tickerInput", ""); }}
-                      className="px-3 py-2 rounded text-xs font-medium transition-all"
-                      style={{ background: "var(--orange)", color: isDark ? "#0A0A0A" : "#ffffff" }}>
-                      <Plus size={13} />
-                    </button>
-                  </div>
-                  <div className="flex flex-wrap gap-1.5 mt-2">
-                    {tickers.map((t) => (
-                      <span key={t} className="flex items-center gap-1 px-2 py-0.5 rounded text-xs border"
-                        style={{ background: "var(--bg-hover)", borderColor: "var(--border)", color: "var(--t1)" }}>
-                        {t}
-                        <button onClick={() => removeTicker(t)} style={{ color: "var(--t3)" }}><X size={10} /></button>
-                      </span>
-                    ))}
-                  </div>
-                </div>
-                <div>
-                  <p className="text-xs font-semibold tracking-widest uppercase mb-2" style={{ color: "var(--t3)" }}>Capital (€)</p>
-                  <input
-                    type="number" min={100} step={100}
-                    {...register("capital", { valueAsNumber: true })}
-                    className="w-full text-xs px-3 py-2 rounded border outline-none transition-colors"
-                    style={{ background: "var(--bg-hover)", borderColor: "var(--border)", color: "var(--t1)" }}
-                  />
-                </div>
-              </div>
-
-              {/* Right: risk level + optimize */}
-              <div className="space-y-4">
-                <div>
-                  <p className="text-xs font-semibold tracking-widest uppercase mb-2" style={{ color: "var(--t3)" }}>Risk Level</p>
-                  <div className="grid grid-cols-3 gap-2">
-                    {([
-                      { value: "conservative", label: "Conservative", sub: "Capital preservation", icon: <Shield size={14} /> },
-                      { value: "balanced",     label: "Balanced",     sub: "Growth & stability",  icon: <BarChart2 size={14} /> },
-                      { value: "aggressive",   label: "Aggressive",   sub: "Maximum growth",      icon: <Zap size={14} /> },
-                    ] as const).map((opt) => {
-                      const isActive = simpleRisk === opt.value;
-                      const isRec    = recommendations?.allocationMethod === SIMPLE_RISK_METHODS[opt.value];
-                      return (
-                        <button
-                          key={opt.value}
-                          type="button"
-                          onClick={() => {
-                            setSimpleRisk(opt.value);
-                            setValue("method", SIMPLE_RISK_METHODS[opt.value]);
-                          }}
-                          className="text-left p-3 rounded-xl border transition-all relative"
-                          style={{
-                            background: isActive ? "var(--orange-dim)" : isRec ? "rgba(249,115,22,0.03)" : "var(--bg-hover)",
-                            borderColor: isActive ? "var(--orange)" : isRec ? "rgba(249,115,22,0.25)" : "var(--border)",
-                          }}
-                        >
-                          <div className="flex items-center gap-1.5 mb-1" style={{ color: isActive ? "var(--orange)" : "var(--t2)" }}>
-                            {opt.icon}
-                            <span className="text-xs font-bold" style={{ fontSize: 10 }}>{opt.label}</span>
-                          </div>
-                          <p className="text-xs leading-tight" style={{ color: "var(--t3)", fontSize: 10 }}>{opt.sub}</p>
-                          {isRec && !isActive && (
-                            <span className="absolute top-1.5 right-1.5" style={{ color: "var(--orange)", fontSize: 8 }}>★</span>
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-                  <p className="text-xs mt-2" style={{ color: "var(--t3)" }}>
-                    Method: <span style={{ color: "var(--t2)", }}>{SIMPLE_RISK_METHODS[simpleRisk]}</span>
-                  </p>
-                </div>
-                <form id="opt-form" onSubmit={handleSubmit((d) => { d.method = SIMPLE_RISK_METHODS[simpleRisk]; optimize.mutate(d); })}>
-                  <button
-                    type="submit"
-                    disabled={optimize.isPending || (tickers.length === 0 && !useTopScored)}
-                    className="btn-primary w-full"
-                  >
-                    {optimize.isPending ? <LoadingSpinner size="sm" /> : <Play size={12} />}
-                    {optimize.isPending ? "Optimizing…" : "Optimize Portfolio"}
-                  </button>
-                </form>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* ── ADVANCED MODE: Configuration panel ── */}
-        {!isSimple && (
-        <div
-          className="mt-4 rounded border overflow-hidden"
-          style={{ background: "var(--bg-card)", borderColor: "var(--border)" }}
-        >
-          <button
-            type="button"
-            onClick={() => setConfigOpen((o) => !o)}
-            className="w-full flex items-center justify-between px-5 py-3.5 text-left"
-          >
-            <span
-              className="text-xs font-semibold tracking-widest uppercase flex items-center gap-2"
-              style={{ color: "var(--t2)" }}
-            >
-              <BarChart2 size={13} style={{ color: "var(--orange)" }} />
-              Configuration
-            </span>
-            {configOpen
-              ? <ChevronUp size={13} style={{ color: "var(--t3)" }} />
-              : <ChevronDown size={13} style={{ color: "var(--t3)" }} />
-            }
-          </button>
-
-          {configOpen && (
-            <div className="border-t" style={{ borderColor: "var(--border)" }}>
-              <div className="grid grid-cols-1 md:grid-cols-12">
-
-                {/* Left: Universe */}
-                <div
-                  className="col-span-1 md:col-span-5 px-4 sm:px-6 py-5 space-y-4"
-                  style={{ borderRight: "1px solid var(--border)" }}
-                >
-                  <p className="text-xs font-semibold tracking-widest uppercase" style={{ color: "var(--t3)" }}>
-                    Asset Universe
-                  </p>
-
-                  <div className="flex gap-2">
-                    <input
-                      {...register("tickerInput")}
-                      placeholder="Add ticker (e.g. AAPL)"
-                      className="flex-1 text-xs px-3 py-2 rounded border outline-none uppercase placeholder:normal-case placeholder:opacity-50 transition-colors"
-                      style={{
-                        background: "var(--bg-hover)",
-                        borderColor: "var(--border)",
-                        color: "var(--t1)",
-                      }}
+                      placeholder="Search ticker — e.g. AAPL, MSFT, GOOG"
+                      style={{ flex: 1, fontSize: "0.8rem", padding: "8px 12px", borderRadius: "var(--r-md)", border: "1px solid var(--card-border)", background: "var(--bg-inner)", color: "var(--t1)", outline: "none", textTransform: "uppercase" }}
+                      className="placeholder:normal-case placeholder:opacity-50"
                       onKeyDown={(e) => {
                         if (e.key === "Enter") {
                           e.preventDefault();
@@ -660,206 +529,303 @@ export default function PortfolioPage() {
                     <button
                       type="button"
                       onClick={() => { addTicker(watch("tickerInput")); setValue("tickerInput", ""); }}
-                      className="px-3 py-2 rounded text-xs font-medium transition-all"
-                      style={{ background: "var(--orange)", color: isDark ? "#0A0A0A" : "#ffffff" }}
+                      style={{ padding: "8px 14px", borderRadius: "var(--r-md)", background: "var(--orange)", color: isDark ? "#0A0A0A" : "#ffffff", border: "none", cursor: "pointer", fontWeight: 600 }}
                     >
                       <Plus size={13} />
                     </button>
                   </div>
-
-                  <div className="flex items-center gap-3 flex-wrap">
-                    <label className="flex items-center gap-2.5 cursor-pointer select-none">
-                      <input
-                        type="checkbox"
-                        checked={useTopScored}
-                        onChange={(e) => setUseTopScored(e.target.checked)}
-                        className="w-3.5 h-3.5 rounded"
-                      />
-                      <span className="text-xs" style={{ color: "var(--t2)" }}>
-                        Include Top Scored Assets
-                      </span>
-                    </label>
-                    {useTopScored && (
-                      <div className="flex items-center gap-1.5">
-                        <input
-                          type="number"
-                          min={1}
-                          max={100}
-                          value={topScoredPct}
-                          onChange={(e) => setTopScoredPct(Math.min(100, Math.max(1, Number(e.target.value))))}
-                          className="w-14 rounded border px-1.5 py-0.5 text-xs text-center"
-                          style={{
-                            background: "var(--bg-hover)",
-                            borderColor: "var(--border)",
-                            color: "var(--t1)",
-                          }}
-                        />
-                        <span className="text-xs" style={{ color: "var(--t3)" }}>%</span>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="flex flex-wrap gap-1.5">
-                    {tickers.map((t) => (
-                      <span
-                        key={t}
-                        className="flex items-center gap-1 px-2 py-0.5 rounded text-xs border"
-                        style={{
-                          background: "var(--bg-hover)",
-                          borderColor: "var(--border)",
-                          color: "var(--t1)",
-                        }}
-                      >
-                        {t}
-                        <button onClick={() => removeTicker(t)} style={{ color: "var(--t3)" }}>
-                          <X size={10} />
-                        </button>
-                      </span>
-                    ))}
-                    {useTopScored && (
-                      <span
-                        className="px-2 py-0.5 rounded text-xs border font-medium"
-                        style={{
-                          background: "var(--orange-dim)",
-                          borderColor: "var(--orange-border)",
-                          color: "var(--orange)",
-                        }}
-                      >
-                        + TOP {topScoredPct}%
-                      </span>
-                    )}
-                  </div>
                 </div>
 
-                {/* Right: Parameters */}
-                <div className="col-span-1 md:col-span-7 px-4 sm:px-6 py-5">
-                  <form id="opt-form" onSubmit={handleSubmit((d) => optimize.mutate(d))}>
-                    <p className="text-xs font-semibold tracking-widest uppercase mb-4" style={{ color: "var(--t3)" }}>
-                      Optimization Method
-                    </p>
-
-                    {/* Method pill cards (disabled if locked by plan) */}
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-5">
-                      {METHODS.map((m) => {
-                        const active = watchedMethod === m.value;
-                        const locked = !canUseMethod(m.value);
+                {/* Active Basket */}
+                <div>
+                  <p style={{ fontSize: "0.62rem", fontWeight: 700, letterSpacing: "0.07em", textTransform: "uppercase", color: "var(--t3)", marginBottom: 6 }}>
+                    Active Basket{tickers.length > 0 ? ` (${tickers.length})` : ""}
+                  </p>
+                  {tickers.length === 0 && !useTopScored ? (
+                    <Card variant="ghost" pad="md">
+                      <p style={{ fontSize: "0.78rem", fontWeight: 600, color: "var(--t2)", margin: 0, fontFamily: "Manrope, DM Sans, sans-serif" }}>
+                        Aucun actif
+                      </p>
+                      <p style={{ fontSize: "0.7rem", color: "var(--t3)", margin: "3px 0 0 0", lineHeight: 1.5 }}>
+                        Ajoutez un ticker via la recherche, ou choisissez un modèle.
+                      </p>
+                    </Card>
+                  ) : (
+                    <Card variant="inner" pad="md" style={{ display: "flex", flexWrap: "wrap", gap: 6, minHeight: 36, alignItems: "center" }}>
+                      {tickers.map((tk) => {
+                        const w = optResult?.weights[tk];
                         return (
-                          <button
-                            key={m.value}
-                            type="button"
-                            disabled={locked}
-                            title={locked ? `Locked — upgrade to unlock ${m.label}` : ""}
-                            onClick={() => !locked && setValue("method", m.value)}
-                            className="text-left px-3 py-2.5 rounded border transition-all relative"
-                            style={{
-                              background: locked
-                                ? "var(--bg-hover)"
-                                : active ? "var(--orange-dim)" : "var(--bg-hover)",
-                              borderColor: active && !locked ? "var(--orange-border)" : "var(--border)",
-                              opacity: locked ? 0.45 : 1,
-                              cursor: locked ? "not-allowed" : "pointer",
-                            }}
+                          <span
+                            key={tk}
+                            style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "4px 10px", borderRadius: "var(--r-full)", border: "1px solid var(--orange-border)", background: "var(--orange-dim)", fontSize: "0.72rem", fontWeight: 600, color: "var(--orange)", fontVariantNumeric: "tabular-nums" }}
                           >
-                            {locked && (
-                              <Lock
-                                size={10}
-                                style={{ position: "absolute", top: 6, right: 6, color: "var(--t3)" }}
-                              />
+                            {tk}
+                            {w !== undefined && (
+                              <span style={{ fontSize: "0.65rem", color: "var(--t3)", fontWeight: 400 }}>{formatPercent(w)}</span>
                             )}
-                            <p
-                              className="text-xs font-semibold"
-                              style={{ color: active && !locked ? "var(--orange)" : "var(--t1)" }}
+                            <button
+                              type="button"
+                              onClick={() => removeTicker(tk)}
+                              style={{ color: "var(--t3)", background: "none", border: "none", cursor: "pointer", lineHeight: 1, padding: 0 }}
                             >
-                              {m.label}
-                            </p>
-                            <p
-                              className="text-xs mt-0.5 leading-snug"
-                              style={{
-                                color: active && !locked ? "var(--orange)" : "var(--t3)",
-                                opacity: active && !locked ? 0.8 : 1,
-                              }}
-                            >
-                              {m.desc}
-                            </p>
-                          </button>
+                              <X size={9} />
+                            </button>
+                          </span>
                         );
                       })}
-                    </div>
-                    {/* Method description */}
-                    {(() => {
-                      const m = METHODS.find(m => m.value === watchedMethod);
-                      return m ? (
-                        <p className="text-xs mb-3 mt-1" style={{ color: "var(--t3)", lineHeight: 1.55 }}>
-                          <span style={{ color: "var(--orange)", fontWeight: 600 }}>{m.label}: </span>
-                          {m.fullDesc}
-                        </p>
-                      ) : null;
-                    })()}
+                      {useTopScored && (
+                        <span
+                          style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "4px 10px", borderRadius: "var(--r-full)", border: "1px solid var(--card-border)", background: "var(--bg-hover)", fontSize: "0.72rem", color: "var(--t3)" }}
+                        >
+                          + TOP {topScoredPct}%
+                        </span>
+                      )}
+                    </Card>
+                  )}
+                </div>
 
-                    {plan === "free" && (
-                      <p className="text-xs mb-4" style={{ color: "var(--t3)" }}>
-                        Free plan — only Equal Weights is available.{" "}
-                        <Link href="/account" style={{ color: "var(--orange)" }}>Upgrade →</Link>
-                      </p>
-                    )}
-                    {plan === "pro" && (
-                      <p className="text-xs mb-4" style={{ color: "var(--t3)" }}>
-                        HRP locked — included in Institutional plan.{" "}
-                        <Link href="/account" style={{ color: "var(--orange)" }}>Upgrade →</Link>
-                      </p>
-                    )}
-
-                    <p className="text-xs font-semibold tracking-widest uppercase mb-3" style={{ color: "var(--t3)" }}>
-                      Parameters
-                    </p>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-x-4 gap-y-3">
-                      <FieldInput label="Capital (€)" name="capital" register={register} />
-                      <FieldInput label="Min weight" name="min_weight" register={register} step={0.01} />
-                      <FieldInput label="Max weight" name="max_weight" register={register} step={0.01} />
-                      <FieldInput label="Risk aversion" name="risk_aversion" register={register} step={0.1} />
-                      <div className="space-y-1">
-                        <label className="text-xs" style={{ color: "var(--t3)" }}>Max assets</label>
-                        <input
-                          type="number" min={2} max={50} step={1} placeholder="All"
-                          {...register("max_assets", {
-                            setValueAs: (v) => (v === "" || v === null) ? null : Number(v),
-                          })}
-                          className="w-full text-xs px-3 py-2 rounded border outline-none transition-colors placeholder:opacity-40"
-                          style={{ background: "var(--bg-hover)", borderColor: "var(--border)", color: "var(--t1)" }}
-                        />
-                      </div>
+                {/* Top Scored toggle */}
+                <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 10 }}>
+                  <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontSize: "0.73rem", color: "var(--t2)", userSelect: "none" }}>
+                    <input
+                      type="checkbox"
+                      checked={useTopScored}
+                      onChange={(e) => setUseTopScored(e.target.checked)}
+                      style={{ width: 14, height: 14, borderRadius: 4 }}
+                    />
+                    Include Top Scored Assets
+                  </label>
+                  {useTopScored && (
+                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <input
+                        type="number" min={1} max={100}
+                        value={topScoredPct}
+                        onChange={(e) => setTopScoredPct(Math.min(100, Math.max(1, Number(e.target.value))))}
+                        style={{ width: 52, fontSize: "0.75rem", padding: "4px 6px", borderRadius: "var(--r-md)", border: "1px solid var(--card-border)", background: "var(--bg-inner)", color: "var(--t1)", outline: "none", textAlign: "center" }}
+                      />
+                      <span style={{ fontSize: "0.72rem", color: "var(--t3)" }}>%</span>
                     </div>
-
-                    <div className="flex justify-end mt-4">
-                      <button
-                        type="submit"
-                        disabled={optimize.isPending || (tickers.length === 0 && !useTopScored)}
-                        className="btn-primary"
-                      >
-                        {optimize.isPending ? <LoadingSpinner size="sm" /> : <Play size={12} />}
-                        {optimize.isPending ? "Optimizing…" : "Run Optimization"}
-                      </button>
-                    </div>
-                  </form>
+                  )}
                 </div>
               </div>
+
+              {/* ── Section: Capital ── */}
+              <div>
+                <SectionLabel style={{ marginBottom: 10 }}>Capital</SectionLabel>
+                <div style={{ position: "relative" }}>
+                  <span style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", fontSize: "1rem", fontWeight: 700, color: "var(--t3)", pointerEvents: "none", fontFamily: "Manrope, DM Sans, sans-serif" }}>€</span>
+                  <input
+                    type="number" min={100} step={100}
+                    {...register("capital", { valueAsNumber: true })}
+                    style={{ width: "100%", fontSize: "1.25rem", fontWeight: 700, fontFamily: "Manrope, DM Sans, sans-serif", padding: "12px 14px 12px 30px", borderRadius: "var(--r-md)", border: "1px solid var(--card-border)", background: "var(--bg-inner)", color: "var(--t1)", outline: "none", boxSizing: "border-box", letterSpacing: "-0.01em", fontVariantNumeric: "tabular-nums" }}
+                  />
+                </div>
+              </div>
+
+              {/* ── Section: Optimization Method ── */}
+              <div>
+                <SectionLabel style={{ marginBottom: 10 }}>Optimization Method</SectionLabel>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                  {METHODS.map((m) => {
+                    const active = watchedMethod === m.value;
+                    const locked = !canUseMethod(m.value);
+                    return (
+                      <button
+                        key={m.value}
+                        type="button"
+                        disabled={locked}
+                        onClick={() => { if (!locked) setValue("method", m.value); }}
+                        title={locked ? "Locked — upgrade plan" : m.desc}
+                        style={{
+                          height: 26,
+                          padding: "0 10px",
+                          borderRadius: "var(--r-md)",
+                          border: active ? "none" : "1px solid var(--card-border)",
+                          background: active ? "var(--orange)" : "var(--bg-inner)",
+                          color: active ? (isDark ? "#0A0A0A" : "#ffffff") : locked ? "var(--t3)" : "var(--t2)",
+                          fontSize: "0.72rem",
+                          fontWeight: active ? 700 : 500,
+                          fontFamily: "Manrope, DM Sans, sans-serif",
+                          cursor: locked ? "not-allowed" : "pointer",
+                          opacity: locked ? 0.45 : 1,
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 4,
+                          transition: "background 0.12s, color 0.12s",
+                          letterSpacing: "0.01em",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {locked && <Lock size={9} />}
+                        {m.label}
+                      </button>
+                    );
+                  })}
+                </div>
+                {(() => {
+                  const m = METHODS.find(x => x.value === watchedMethod);
+                  return m ? (
+                    <p style={{ fontSize: "0.67rem", color: "var(--t3)", marginTop: 7, lineHeight: 1.45 }}>{m.desc}</p>
+                  ) : null;
+                })()}
+              </div>
+
+              {/* ── Section: Risk Constraints ── */}
+              <div>
+                <SectionLabel style={{ marginBottom: 10 }}>Risk Constraints</SectionLabel>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                  <div>
+                    <label style={{ display: "block", fontSize: "0.63rem", color: "var(--t3)", marginBottom: 5, letterSpacing: "0.05em", textTransform: "uppercase" }}>Min Weight</label>
+                    <input type="number" step={0.01} {...register("min_weight", { valueAsNumber: true })}
+                      style={{ width: "100%", fontSize: "0.8rem", padding: "7px 10px", borderRadius: "var(--r-md)", border: "1px solid var(--card-border)", background: "var(--bg-inner)", color: "var(--t1)", outline: "none", boxSizing: "border-box" }} />
+                  </div>
+                  <div>
+                    <label style={{ display: "block", fontSize: "0.63rem", color: "var(--t3)", marginBottom: 5, letterSpacing: "0.05em", textTransform: "uppercase" }}>Max Weight</label>
+                    <input type="number" step={0.01} {...register("max_weight", { valueAsNumber: true })}
+                      style={{ width: "100%", fontSize: "0.8rem", padding: "7px 10px", borderRadius: "var(--r-md)", border: "1px solid var(--card-border)", background: "var(--bg-inner)", color: "var(--t1)", outline: "none", boxSizing: "border-box" }} />
+                  </div>
+                  <div>
+                    <label style={{ display: "block", fontSize: "0.63rem", color: "var(--t3)", marginBottom: 5, letterSpacing: "0.05em", textTransform: "uppercase" }}>Risk Aversion</label>
+                    <input type="number" step={0.1} {...register("risk_aversion", { valueAsNumber: true })}
+                      style={{ width: "100%", fontSize: "0.8rem", padding: "7px 10px", borderRadius: "var(--r-md)", border: "1px solid var(--card-border)", background: "var(--bg-inner)", color: "var(--t1)", outline: "none", boxSizing: "border-box" }} />
+                  </div>
+                  <div>
+                    <label style={{ display: "block", fontSize: "0.63rem", color: "var(--t3)", marginBottom: 5, letterSpacing: "0.05em", textTransform: "uppercase" }}>Max Assets</label>
+                    <input type="number" min={2} max={50} step={1} placeholder="All"
+                      {...register("max_assets", { setValueAs: (v) => (v === "" || v === null) ? null : Number(v) })}
+                      style={{ width: "100%", fontSize: "0.8rem", padding: "7px 10px", borderRadius: "var(--r-md)", border: "1px solid var(--card-border)", background: "var(--bg-inner)", color: "var(--t1)", outline: "none", boxSizing: "border-box" }} />
+                  </div>
+                </div>
+              </div>
+
+              {/* Plan warnings */}
+              {plan === "free" && (
+                <p style={{ fontSize: "0.72rem", color: "var(--t3)", marginTop: -8 }}>
+                  Free plan — only Equal Weights available.{" "}
+                  <Link href="/account" style={{ color: "var(--orange)" }}>Upgrade →</Link>
+                </p>
+              )}
+              {plan === "pro" && (
+                <p style={{ fontSize: "0.72rem", color: "var(--t3)", marginTop: -8 }}>
+                  HRP locked — included in Institutional plan.{" "}
+                  <Link href="/account" style={{ color: "var(--orange)" }}>Upgrade →</Link>
+                </p>
+              )}
+
+              {/* ── Run button ── */}
+              <form id="opt-form" onSubmit={handleSubmit((d) => optimize.mutate(d))}>
+                {(() => {
+                  const tooFew = tickers.length < 2 && !useTopScored;
+                  const disabled = optimize.isPending || tooFew;
+                  return (
+                    <>
+                      <button
+                        type="submit"
+                        disabled={disabled}
+                        title={tooFew ? "2 actifs minimum" : undefined}
+                        style={{ width: "100%", padding: "12px 0", borderRadius: "var(--r-md)", background: "var(--orange)", color: isDark ? "#0A0A0A" : "#ffffff", border: "none", fontSize: "0.85rem", fontWeight: 700, fontFamily: "Manrope, DM Sans, sans-serif", cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.55 : 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, letterSpacing: "0.03em" }}
+                      >
+                        {optimize.isPending ? <LoadingSpinner size="sm" /> : <Play size={13} />}
+                        {optimize.isPending ? "Optimisation…" : "Run Simulation"}
+                      </button>
+                      {tooFew && (
+                        <p style={{ fontSize: "0.68rem", color: "var(--t3)", marginTop: 8, textAlign: "center" }}>
+                          2 actifs minimum
+                        </p>
+                      )}
+                    </>
+                  );
+                })()}
+              </form>
             </div>
-          )}
+          </Card>
+
+          {/* ── Right: Risk sidebar — dark contrast Scorer-style ── */}
+          <Card variant="dark" pad="none" style={{ overflow: "hidden" }}>
+            <CardHeader
+              title="Risk"
+              icon={<Shield size={13} />}
+              bordered
+            />
+
+            <div style={{ padding: "20px" }}>
+              {optimize.isPending ? (
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 120 }}>
+                  <LoadingSpinner label="Computing…" size="lg" />
+                </div>
+              ) : optResult ? (
+                <>
+                  {/* 3 key KPI tiles, varied */}
+                  <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 12 }}>
+                    <KpiCard
+                      variant="inner"
+                      label={mcMetrics ? "Expected Return (10Y, MC)" : "Expected Return (10Y)"}
+                      value={formatPercent(mcMetrics ? mcMetrics.mc_return : optResult.metrics.expected_annual_return)}
+                      accent="green"
+                    >
+                      {mcMetrics && (
+                        <span style={{ alignSelf: "flex-start", fontSize: "0.6rem", padding: "1px 6px", borderRadius: "var(--r-full)", background: "var(--orange-dim)", color: "var(--orange)", fontWeight: 600 }}>
+                          GBM
+                        </span>
+                      )}
+                    </KpiCard>
+                    <KpiCard
+                      variant="inner"
+                      label={mcMetrics ? "Volatility Ann. (MC)" : "Volatility (Ann.)"}
+                      value={formatPercent(mcMetrics ? mcMetrics.mc_vol : optResult.metrics.annual_volatility)}
+                      accent="neutral"
+                      hint="Annualized standard deviation"
+                    />
+                    <KpiCard
+                      variant="inner"
+                      label={mcMetrics ? "Sharpe Ratio (MC)" : "Sharpe Ratio"}
+                      value={formatNumber(mcMetrics ? mcMetrics.mc_sharpe : optResult.metrics.sharpe_ratio, 3)}
+                      accent="orange"
+                    />
+                  </div>
+
+                  {/* Secondary metrics — denser grid */}
+                  <SectionLabel style={{ marginBottom: 8 }}>Secondary</SectionLabel>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                    {[
+                      { label: "Sortino", value: formatNumber(mcMetrics ? mcMetrics.mc_sortino : optResult.metrics.sortino_ratio, 3), color: "var(--orange)" },
+                      { label: "Calmar", value: formatNumber(optResult.metrics.calmar_ratio, 3), color: "var(--orange)" },
+                      { label: "Beta vs S&P", value: formatNumber(optResult.metrics.beta, 3), color: "var(--t2)" },
+                      { label: "Max Drawdown", value: formatPercent(mcMetrics ? mcMetrics.mc_worst : optResult.metrics.max_drawdown), color: "var(--red)" },
+                    ].map((m) => (
+                      <Card key={m.label} variant="inner" pad="sm">
+                        <p style={{ fontSize: "0.62rem", color: "var(--t3)", marginBottom: 3, textTransform: "uppercase", letterSpacing: "0.06em" }}>{m.label}</p>
+                        <p style={{ fontSize: "0.9rem", fontWeight: 600, color: m.color, fontVariantNumeric: "tabular-nums", margin: 0 }}>{m.value}</p>
+                      </Card>
+                    ))}
+                  </div>
+
+                  {monteCarlo.isPending && (
+                    <div style={{ marginTop: 12, display: "flex", alignItems: "center", gap: 6, padding: "8px 12px", borderRadius: "var(--r-md)", background: "var(--orange-dim)", border: "1px solid var(--orange-border)", fontSize: "0.72rem", color: "var(--orange)" }}>
+                      <LoadingSpinner size="sm" />
+                      Running 1 000 simulations…
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: 160, gap: 8 }}>
+                  <TrendingUp size={24} style={{ color: "var(--t3)" }} />
+                  <p style={{ fontSize: "0.72rem", color: "var(--t3)", textAlign: "center" }}>
+                    Run a simulation to see risk metrics.
+                  </p>
+                </div>
+              )}
+            </div>
+          </Card>
         </div>
-        )}
 
         {/* ── Tab bar ── */}
-        <div className="flex gap-0 mt-6 border-b" style={{ borderColor: "var(--border)" }}>
+        <div style={{ display: "flex", gap: 0, marginTop: 28, borderBottom: "1px solid var(--card-border)" }}>
           {(["optimize", "montecarlo", "compare", "performance"] as Tab[]).map((tabKey) => (
             <button
               key={tabKey}
               onClick={() => setActiveTab(tabKey)}
-              className="pb-3 px-1 mr-7 text-xs tracking-widest uppercase border-b-2 -mb-px transition-colors"
-              style={{
-                borderColor: activeTab === tabKey ? "var(--orange)" : "transparent",
-                color: activeTab === tabKey ? "var(--orange)" : "var(--t3)",
-                fontWeight: activeTab === tabKey ? 600 : 400,
-              }}
+              style={{ paddingBottom: 12, paddingLeft: 4, paddingRight: 4, marginRight: 28, fontSize: "0.7rem", letterSpacing: "0.08em", textTransform: "uppercase", borderBottom: `2px solid ${activeTab === tabKey ? "var(--orange)" : "transparent"}`, marginBottom: -1, color: activeTab === tabKey ? "var(--orange)" : "var(--t3)", fontWeight: activeTab === tabKey ? 600 : 400, background: "none", border: "none", borderBottomStyle: "solid", borderBottomWidth: 2, borderBottomColor: activeTab === tabKey ? "var(--orange)" : "transparent", cursor: "pointer" }}
             >
               {t.portfolio.tabs[tabKey]}
             </button>
@@ -870,170 +836,65 @@ export default function PortfolioPage() {
             OPTIMIZE TAB
         ════════════════════════════════════════════════ */}
         {activeTab === "optimize" && (
-          <div className="pt-5 space-y-5">
+          <div style={{ paddingTop: 20 }}>
             {optimize.isPending && (
-              <div className="flex items-center justify-center h-52">
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 208 }}>
                 <LoadingSpinner label="Optimizing portfolio…" size="lg" />
               </div>
             )}
 
             {optResult && !optimize.isPending && (
-              <>
-                {/* ── Key metrics — 2 rows ── */}
-                {(monteCarlo.isPending) && (
-                  <div className="flex items-center gap-2 px-4 py-2 rounded border text-xs"
-                    style={{ borderColor: "var(--orange-border)", background: "var(--orange-dim)", color: "var(--orange)" }}>
-                    <LoadingSpinner size="sm" />
-                    Running 1 000 Monte Carlo simulations…
-                  </div>
-                )}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-0 rounded border overflow-hidden" style={{ borderColor: "var(--border)" }}>
-                  {[
-                    {
-                      label: mcMetrics ? "Expected Return (MC)" : "Expected Return",
-                      value: formatPercent(mcMetrics ? mcMetrics.mc_return : optResult.metrics.expected_annual_return),
-                      color: "var(--green)",
-                    },
-                    {
-                      label: mcMetrics ? "Annualized Vol. (MC)" : "Annualized Vol.",
-                      value: formatPercent(mcMetrics ? mcMetrics.mc_vol : optResult.metrics.annual_volatility),
-                      color: "var(--yellow)",
-                    },
-                    {
-                      label: mcMetrics ? "Sharpe (MC)" : "Sharpe Ratio",
-                      value: formatNumber(mcMetrics ? mcMetrics.mc_sharpe : optResult.metrics.sharpe_ratio, 3),
-                      color: "var(--orange)",
-                    },
-                    {
-                      label: mcMetrics ? "Worst Case P5 (MC)" : "Max Drawdown",
-                      value: mcMetrics
-                        ? formatPercent(mcMetrics.mc_worst)
-                        : formatPercent(optResult.metrics.max_drawdown),
-                      color: "var(--red)",
-                    },
-                  ].map((m, i) => (
-                    <div
-                      key={m.label}
-                      className="px-5 py-4"
-                      style={{
-                        background: "var(--bg-card)",
-                        borderRight: i < 3 ? "1px solid var(--border)" : "none",
-                      }}
-                    >
-                      <p className="text-xs mb-1.5 flex items-center gap-1" style={{ color: "var(--t3)" }}>
-                        {m.label}
-                        {mcMetrics && (
-                          <span className="px-1 rounded text-xs"
-                            style={{ background: "var(--orange-dim)", color: "var(--orange)", fontSize: 9 }}>
-                            GBM
-                          </span>
-                        )}
-                      </p>
-                      <p className="text-base font-semibold" style={{ color: m.color }}>{m.value}</p>
-                    </div>
-                  ))}
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-0 rounded border overflow-hidden" style={{ borderColor: "var(--border)" }}>
-                  {[
-                    {
-                      label: mcMetrics ? "Sortino (MC)" : "Sortino Ratio",
-                      value: formatNumber(mcMetrics ? mcMetrics.mc_sortino : optResult.metrics.sortino_ratio, 3),
-                      color: "var(--orange)",
-                    },
-                    {
-                      label: "Calmar Ratio",
-                      value: formatNumber(optResult.metrics.calmar_ratio, 3),
-                      color: "var(--orange)",
-                    },
-                    {
-                      label: "Beta vs S&P",
-                      value: formatNumber(optResult.metrics.beta, 3),
-                      color: "var(--t2)",
-                    },
-                  ].map((m, i) => (
-                    <div
-                      key={m.label}
-                      className="px-5 py-4"
-                      style={{
-                        background: "var(--bg-card)",
-                        borderRight: i < 2 ? "1px solid var(--border)" : "none",
-                      }}
-                    >
-                      <p className="text-xs mb-1.5 flex items-center gap-1" style={{ color: "var(--t3)" }}>
-                        {m.label}
-                        {mcMetrics && i < 1 && (
-                          <span className="px-1 rounded text-xs"
-                            style={{ background: "var(--orange-dim)", color: "var(--orange)", fontSize: 9 }}>
-                            GBM
-                          </span>
-                        )}
-                      </p>
-                      <p className="text-base font-semibold" style={{ color: m.color }}>{m.value}</p>
-                    </div>
-                  ))}
-                </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
 
-                {/* ── Diversification breakdowns (top) ── */}
+                {/* ── Sector Exposure + Geographic Diversification donuts ── */}
                 {optResult.diversification && (
-                  <div className="grid grid-cols-2 gap-4">
-                    <DonutChart
-                      title="Sector Breakdown"
-                      data={optResult.diversification.sectors}
-                    />
-                    <DonutChart
-                      title="Geographic Breakdown"
-                      data={optResult.diversification.countries}
-                    />
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+                    <DonutChart title="Sector Exposure" data={optResult.diversification.sectors} />
+                    <DonutChart title="Geographic Diversification" data={optResult.diversification.countries} />
                   </div>
                 )}
 
-                {/* ── Weight distribution — horizontal CSS bars ── */}
-                <div className="rounded border" style={{ borderColor: "var(--border)", background: "var(--bg-card)" }}>
-                  <div className="px-5 py-3 border-b" style={{ borderColor: "var(--border)" }}>
-                    <span className="text-xs font-semibold tracking-widest uppercase" style={{ color: "var(--t2)" }}>
-                      Weight Distribution
-                    </span>
-                  </div>
-                  <WeightBarChart weights={optResult.weights} />
-                </div>
-
-                {/* ── Allocation table ── */}
-                <div className="rounded border overflow-hidden" style={{ borderColor: "var(--border)" }}>
-                  <div
-                    className="px-5 py-3 border-b flex items-center gap-2"
-                    style={{ borderColor: "var(--border)", background: "var(--bg-card)" }}
-                  >
+                {/* ── Portfolio Constituents table ── */}
+                <div style={{ border: "1px solid var(--card-border)", borderRadius: "var(--r-xl)", overflow: "hidden" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "12px 20px", borderBottom: "1px solid var(--card-border)", background: "var(--bg-card)" }}>
                     <Target size={13} style={{ color: "var(--orange)" }} />
-                    <span className="text-xs font-semibold tracking-widest uppercase" style={{ color: "var(--t2)" }}>
-                      Capital Allocation — {optResult.method}
+                    <span style={{ fontSize: "0.7rem", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--t2)" }}>
+                      Portfolio Constituents — {optResult.method}
                     </span>
                   </div>
                   {(() => {
                     const allRows = Object.entries(optResult.weights).sort(([, a], [, b]) => b - a);
                     const rows = allocShowAll ? allRows : allRows.slice(0, TABLE_PAGE);
+                    const totalCapital = Object.values(optResult.allocation_eur ?? {}).reduce((a, b) => a + b, 0);
                     return (
                       <>
-                        <table className="w-full text-xs" style={{ background: "var(--bg-card)" }}>
+                        <table style={{ width: "100%", fontSize: "0.75rem", background: "var(--bg-card)", borderCollapse: "collapse" }}>
                           <thead>
-                            <tr style={{ borderBottom: "1px solid var(--border)" }}>
-                              {["Ticker", "Weight", "Allocation (EUR)", "Distribution"].map((h) => (
-                                <th key={h} className="px-5 py-2.5 text-left font-semibold tracking-widest"
-                                  style={{ color: "var(--t3)", fontSize: 10 }}>
-                                  {h.toUpperCase()}
+                            <tr style={{ borderBottom: "1px solid var(--card-border)" }}>
+                              {["Ticker", "Asset Name", "Weight (%)", "Allocation (EUR)", "Distribution"].map((h) => (
+                                <th key={h} style={{ padding: "10px 20px", textAlign: "left", fontWeight: 600, letterSpacing: "0.07em", textTransform: "uppercase", color: "var(--t3)", fontSize: "0.62rem" }}>
+                                  {h}
                                 </th>
                               ))}
                             </tr>
                           </thead>
                           <tbody>
-                            {rows.map(([t, w], i) => (
-                              <tr key={t} style={{ borderBottom: "1px solid var(--border)" }}>
-                                <td className="px-5 py-3 font-semibold" style={{ color: "var(--orange)" }}>{t}</td>
-                                <td className="px-5 py-3" style={{ color: "var(--t1)" }}>{formatPercent(w)}</td>
-                                <td className="px-5 py-3" style={{ color: "var(--t2)" }}>{formatCurrency(optResult.allocation_eur[t])}</td>
-                                <td className="px-5 py-3 w-48">
-                                  <div className="rounded-full overflow-hidden" style={{ height: 4, background: "var(--bg-hover)" }}>
-                                    <div className="h-full rounded-full"
-                                      style={{ width: `${w * 100}%`, background: CHART_COLORS[i % CHART_COLORS.length] }} />
+                            {rows.map(([tk, w], i) => (
+                              <tr key={tk} style={{ borderBottom: "1px solid var(--card-border)" }}>
+                                <td style={{ padding: "10px 20px" }}>
+                                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                    <TickerLogo ticker={tk} size={22} />
+                                    <span style={{ fontWeight: 700, color: "var(--t1)", fontSize: "0.78rem" }}>{tk}</span>
+                                  </div>
+                                </td>
+                                <td style={{ padding: "10px 20px", color: "var(--t3)", fontSize: "0.72rem" }}>
+                                  {tk.replace(/[-.].*/, "")}
+                                </td>
+                                <td style={{ padding: "10px 20px", color: "var(--orange)", fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>{formatPercent(w)}</td>
+                                <td style={{ padding: "10px 20px", color: "var(--t2)", fontVariantNumeric: "tabular-nums" }}>{formatCurrency(optResult.allocation_eur?.[tk] ?? 0)}</td>
+                                <td style={{ padding: "10px 20px", width: 140 }}>
+                                  <div style={{ borderRadius: 999, overflow: "hidden", height: 4, background: "var(--card-border)" }}>
+                                    <div style={{ width: `${Math.min(w * 100, 100)}%`, height: "100%", borderRadius: 999, background: CHART_COLORS[i % CHART_COLORS.length] }} />
                                   </div>
                                 </td>
                               </tr>
@@ -1043,148 +904,143 @@ export default function PortfolioPage() {
                         {allRows.length > TABLE_PAGE && (
                           <button
                             onClick={() => setAllocShowAll((v) => !v)}
-                            className="toggle-show-all-btn w-full py-2.5 text-xs border-t"
-                            style={{ borderColor: "var(--border)", background: "var(--bg-card)" }}
+                            style={{ width: "100%", padding: "10px 0", fontSize: "0.72rem", background: "var(--bg-card)", color: "var(--t3)", border: "none", borderTop: "1px solid var(--card-border)", cursor: "pointer" }}
                           >
-                            {allocShowAll
-                              ? `Show top ${TABLE_PAGE}`
-                              : `Show all ${allRows.length} assets`}
+                            {allocShowAll ? `Show top ${TABLE_PAGE}` : `Show all ${allRows.length} assets`}
                           </button>
                         )}
                       </>
                     );
                   })()}
                 </div>
-              </>
-            )}
 
-            {/* ── DCA Calculator ── */}
-            {optResult && !optimize.isPending && (() => {
-              const freqLabel: Record<string, string> = {
-                daily: "Daily", weekly: "Weekly", monthly: "Monthly", quarterly: "Quarterly",
-              };
-              const rows = Object.entries(optResult.weights)
-                .sort(([, a], [, b]) => b - a)
-                .map(([ticker, w]) => {
-                  const perPeriod = dcaAmount * w;
-                  const total     = perPeriod * dcaIter;
-                  return { ticker, w, perPeriod, total };
-                });
-              const grandTotal = dcaAmount * dcaIter;
-              return (
-                <div className="rounded border overflow-hidden" style={{ borderColor: "var(--border)" }}>
-                  <div
-                    className="px-5 py-3 border-b flex items-center justify-between"
-                    style={{ borderColor: "var(--border)", background: "var(--bg-card)" }}
-                  >
-                    <span className="text-xs font-semibold tracking-widest uppercase" style={{ color: "var(--t2)" }}>
-                      DCA Calculator
+                {/* ── Weight distribution bar chart ── */}
+                <div style={{ border: "1px solid var(--card-border)", borderRadius: "var(--r-xl)", background: "var(--bg-card)", overflow: "hidden" }}>
+                  <div style={{ padding: "12px 20px", borderBottom: "1px solid var(--card-border)" }}>
+                    <span style={{ fontSize: "0.7rem", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--t2)" }}>
+                      Weight Distribution
                     </span>
-                    <div className="flex items-center gap-3">
-                      {/* Amount per period */}
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-xs" style={{ color: "var(--t3)" }}>Amount / period</span>
-                        <input
-                          type="number" min={1} step={50} value={dcaAmount}
-                          onChange={(e) => setDcaAmount(Math.max(1, Number(e.target.value)))}
-                          className="text-xs px-2 py-1 rounded border outline-none w-20"
-                          style={{ background: "var(--bg-hover)", borderColor: "var(--border)", color: "var(--t1)" }}
-                        />
-                        <span className="text-xs" style={{ color: "var(--t3)" }}>€</span>
-                      </div>
-                      {/* Frequency pills */}
-                      <div className="flex items-center gap-1">
-                        {(["daily", "weekly", "monthly", "quarterly"] as const).map((f) => (
-                          <button
-                            key={f}
-                            onClick={() => setDcaFreq(f)}
-                            className="px-2.5 py-1 rounded text-xs border transition-all"
-                            style={{
-                              background: dcaFreq === f ? "var(--orange-dim)" : "var(--bg-hover)",
-                              borderColor: dcaFreq === f ? "var(--orange-border)" : "var(--border)",
-                              color: dcaFreq === f ? "var(--orange)" : "var(--t3)",
-                            }}
-                          >
-                            {freqLabel[f]}
-                          </button>
-                        ))}
-                      </div>
-                      {/* Iterations */}
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-xs" style={{ color: "var(--t3)" }}>Periods</span>
-                        <input
-                          type="number" min={1} max={1000} step={1} value={dcaIter}
-                          onChange={(e) => setDcaIter(Math.max(1, Number(e.target.value)))}
-                          className="text-xs px-2 py-1 rounded border outline-none w-16"
-                          style={{ background: "var(--bg-hover)", borderColor: "var(--border)", color: "var(--t1)" }}
-                        />
-                      </div>
-                    </div>
                   </div>
-                  {(() => {
-                    const visRows = dcaShowAll ? rows : rows.slice(0, TABLE_PAGE);
-                    return (
-                      <>
-                        <table className="w-full text-xs" style={{ background: "var(--bg-card)" }}>
-                          <thead>
-                            <tr style={{ borderBottom: "1px solid var(--border)" }}>
-                              {["Ticker", "Weight", `Per ${freqLabel[dcaFreq]} (€)`, `After ${dcaIter}× (€)`, "Distribution"].map((h) => (
-                                <th key={h} className="px-5 py-2.5 text-left font-semibold tracking-widest"
-                                  style={{ color: "var(--t3)", fontSize: 10 }}>
-                                  {h.toUpperCase()}
-                                </th>
-                              ))}
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {visRows.map(({ ticker, w, perPeriod, total }, i) => (
-                              <tr key={ticker} style={{ borderBottom: "1px solid var(--border)" }}>
-                                <td className="px-5 py-3 font-semibold" style={{ color: "var(--orange)" }}>{ticker}</td>
-                                <td className="px-5 py-3" style={{ color: "var(--t1)" }}>{formatPercent(w)}</td>
-                                <td className="px-5 py-3" style={{ color: "var(--t2)" }}>{formatCurrency(perPeriod)}</td>
-                                <td className="px-5 py-3" style={{ color: "var(--green)" }}>{formatCurrency(total)}</td>
-                                <td className="px-5 py-3 w-40">
-                                  <div className="rounded-full overflow-hidden" style={{ height: 4, background: "var(--bg-hover)" }}>
-                                    <div className="h-full rounded-full"
-                                      style={{ width: `${w * 100}%`, background: CHART_COLORS[i % CHART_COLORS.length] }} />
-                                  </div>
-                                </td>
-                              </tr>
-                            ))}
-                            <tr style={{ borderTop: "2px solid var(--border)" }}>
-                              <td className="px-5 py-3 font-semibold text-xs" colSpan={2} style={{ color: "var(--t3)" }}>
-                                TOTAL ({dcaIter} {freqLabel[dcaFreq].toLowerCase()} periods)
-                              </td>
-                              <td className="px-5 py-3 font-semibold" style={{ color: "var(--t1)" }}>{formatCurrency(dcaAmount)}</td>
-                              <td className="px-5 py-3 font-semibold" style={{ color: "var(--green)" }}>{formatCurrency(grandTotal)}</td>
-                              <td />
-                            </tr>
-                          </tbody>
-                        </table>
-                        {rows.length > TABLE_PAGE && (
-                          <button
-                            onClick={() => setDcaShowAll((v) => !v)}
-                            className="toggle-show-all-btn w-full py-2.5 text-xs border-t"
-                            style={{ borderColor: "var(--border)", background: "var(--bg-card)" }}
-                          >
-                            {dcaShowAll ? `Show top ${TABLE_PAGE}` : `Show all ${rows.length} assets`}
-                          </button>
-                        )}
-                      </>
-                    );
-                  })()}
+                  <WeightBarChart weights={optResult.weights} />
                 </div>
-              );
-            })()}
+
+                {/* ── DCA Calculator ── */}
+                {(() => {
+                  const freqLabel: Record<string, string> = {
+                    daily: "Daily", weekly: "Weekly", monthly: "Monthly", quarterly: "Quarterly",
+                  };
+                  const dcaRows = Object.entries(optResult.weights)
+                    .sort(([, a], [, b]) => b - a)
+                    .map(([ticker, w]) => {
+                      const perPeriod = dcaAmount * w;
+                      const total     = perPeriod * dcaIter;
+                      return { ticker, w, perPeriod, total };
+                    });
+                  const grandTotal = dcaAmount * dcaIter;
+                  return (
+                    <div style={{ border: "1px solid var(--card-border)", borderRadius: "var(--r-xl)", overflow: "hidden" }}>
+                      <div style={{ padding: "12px 20px", borderBottom: "1px solid var(--card-border)", background: "var(--bg-card)", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
+                        <span style={{ fontSize: "0.7rem", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--t2)" }}>
+                          DCA Calculator
+                        </span>
+                        <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                            <span style={{ fontSize: "0.7rem", color: "var(--t3)" }}>Amount / period</span>
+                            <input
+                              type="number" min={1} step={50} value={dcaAmount}
+                              onChange={(e) => setDcaAmount(Math.max(1, Number(e.target.value)))}
+                              style={{ fontSize: "0.72rem", padding: "4px 8px", borderRadius: "var(--r-md)", border: "1px solid var(--card-border)", background: "var(--bg-hover)", color: "var(--t1)", outline: "none", width: 72 }}
+                            />
+                            <span style={{ fontSize: "0.7rem", color: "var(--t3)" }}>€</span>
+                          </div>
+                          <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                            {(["daily", "weekly", "monthly", "quarterly"] as const).map((f) => (
+                              <button
+                                key={f}
+                                onClick={() => setDcaFreq(f)}
+                                style={{ padding: "4px 10px", borderRadius: "var(--r-md)", fontSize: "0.68rem", border: "1px solid", borderColor: dcaFreq === f ? "var(--orange-border)" : "var(--card-border)", background: dcaFreq === f ? "var(--orange-dim)" : "var(--bg-hover)", color: dcaFreq === f ? "var(--orange)" : "var(--t3)", cursor: "pointer" }}
+                              >
+                                {freqLabel[f]}
+                              </button>
+                            ))}
+                          </div>
+                          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                            <span style={{ fontSize: "0.7rem", color: "var(--t3)" }}>Periods</span>
+                            <input
+                              type="number" min={1} max={1000} step={1} value={dcaIter}
+                              onChange={(e) => setDcaIter(Math.max(1, Number(e.target.value)))}
+                              style={{ fontSize: "0.72rem", padding: "4px 8px", borderRadius: "var(--r-md)", border: "1px solid var(--card-border)", background: "var(--bg-hover)", color: "var(--t1)", outline: "none", width: 56 }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                      {(() => {
+                        const visRows = dcaShowAll ? dcaRows : dcaRows.slice(0, TABLE_PAGE);
+                        return (
+                          <>
+                            <table style={{ width: "100%", fontSize: "0.75rem", background: "var(--bg-card)", borderCollapse: "collapse" }}>
+                              <thead>
+                                <tr style={{ borderBottom: "1px solid var(--card-border)" }}>
+                                  {["Ticker", "Weight", `Per ${freqLabel[dcaFreq]} (€)`, `After ${dcaIter}x (€)`, "Distribution"].map((h) => (
+                                    <th key={h} style={{ padding: "10px 20px", textAlign: "left", fontWeight: 600, letterSpacing: "0.07em", textTransform: "uppercase", color: "var(--t3)", fontSize: "0.62rem" }}>
+                                      {h}
+                                    </th>
+                                  ))}
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {visRows.map(({ ticker, w, perPeriod, total }, i) => (
+                                  <tr key={ticker} style={{ borderBottom: "1px solid var(--card-border)" }}>
+                                    <td style={{ padding: "10px 20px" }}>
+                                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                        <TickerLogo ticker={ticker} size={20} />
+                                        <span style={{ fontWeight: 700, color: "var(--t1)", fontSize: "0.76rem" }}>{ticker}</span>
+                                      </div>
+                                    </td>
+                                    <td style={{ padding: "10px 20px", color: "var(--orange)", fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>{formatPercent(w)}</td>
+                                    <td style={{ padding: "10px 20px", color: "var(--t2)", fontVariantNumeric: "tabular-nums" }}>{formatCurrency(perPeriod)}</td>
+                                    <td style={{ padding: "10px 20px", color: "var(--green)", fontVariantNumeric: "tabular-nums" }}>{formatCurrency(total)}</td>
+                                    <td style={{ padding: "10px 20px", width: 140 }}>
+                                      <div style={{ borderRadius: 999, overflow: "hidden", height: 4, background: "var(--card-border)" }}>
+                                        <div style={{ width: `${Math.min(w * 100, 100)}%`, height: "100%", borderRadius: 999, background: CHART_COLORS[i % CHART_COLORS.length] }} />
+                                      </div>
+                                    </td>
+                                  </tr>
+                                ))}
+                                <tr style={{ borderTop: "2px solid var(--card-border)" }}>
+                                  <td colSpan={2} style={{ padding: "10px 20px", fontWeight: 600, fontSize: "0.72rem", color: "var(--t3)" }}>
+                                    TOTAL ({dcaIter} {freqLabel[dcaFreq].toLowerCase()} periods)
+                                  </td>
+                                  <td style={{ padding: "10px 20px", fontWeight: 600, color: "var(--t1)" }}>{formatCurrency(dcaAmount)}</td>
+                                  <td style={{ padding: "10px 20px", fontWeight: 600, color: "var(--green)" }}>{formatCurrency(grandTotal)}</td>
+                                  <td />
+                                </tr>
+                              </tbody>
+                            </table>
+                            {dcaRows.length > TABLE_PAGE && (
+                              <button
+                                onClick={() => setDcaShowAll((v) => !v)}
+                                style={{ width: "100%", padding: "10px 0", fontSize: "0.72rem", borderTop: "1px solid var(--card-border)", background: "var(--bg-card)", color: "var(--t3)", border: "none", cursor: "pointer" }}
+                              >
+                                {dcaShowAll ? `Show top ${TABLE_PAGE}` : `Show all ${dcaRows.length} assets`}
+                              </button>
+                            )}
+                          </>
+                        );
+                      })()}
+                    </div>
+                  );
+                })()}
+              </div>
+            )}
 
             {!optResult && !optimize.isPending && (
               <div
-                className="flex flex-col items-center justify-center h-52 rounded border text-center space-y-2"
-                style={{ borderColor: "var(--border)", borderStyle: "dashed", background: "var(--bg-card)" }}
+                style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: 208, borderRadius: "var(--r-xl)", border: "1px dashed var(--card-border)", background: "var(--bg-card)", gap: 8, textAlign: "center" }}
               >
                 <TrendingUp size={22} style={{ color: "var(--t3)" }} />
-                <p className="text-xs" style={{ color: "var(--t3)" }}>
-                  Configure parameters above and run optimization.
+                <p style={{ fontSize: "0.75rem", color: "var(--t3)" }}>
+                  Configure parameters above and run the simulation.
                 </p>
               </div>
             )}
@@ -1195,27 +1051,25 @@ export default function PortfolioPage() {
             RISK SIM TAB
         ════════════════════════════════════════════════ */}
         {activeTab === "montecarlo" && (
-          <div className="pt-5 space-y-4">
+          <div style={{ paddingTop: 20, display: "flex", flexDirection: "column", gap: 16 }}>
             {!optResult ? (
               <div
-                className="flex items-center justify-center h-40 rounded border text-center"
-                style={{ borderColor: "var(--border)", borderStyle: "dashed", background: "var(--bg-card)" }}
+                style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 160, borderRadius: "var(--r-xl)", border: "1px dashed var(--card-border)", background: "var(--bg-card)" }}
               >
-                <p className="text-xs" style={{ color: "var(--t3)" }}>
+                <p style={{ fontSize: "0.75rem", color: "var(--t3)" }}>
                   Run portfolio optimization first.
                 </p>
               </div>
             ) : (
               <>
-                <div className="flex items-center justify-between">
-                  <p className="text-xs" style={{ color: "var(--t2)" }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <p style={{ fontSize: "0.75rem", color: "var(--t2)" }}>
                     {optResult.method} · {Object.keys(optResult.weights).length} assets · 1 000 simulations · 252 trading days
                   </p>
                   <button
                     onClick={() => monteCarlo.mutate(undefined)}
                     disabled={monteCarlo.isPending}
-                    className="flex items-center gap-2 px-4 py-2 rounded text-xs font-semibold transition-all disabled:opacity-50"
-                    style={{ background: "var(--orange)", color: isDark ? "#0A0A0A" : "#ffffff" }}
+                    style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 16px", borderRadius: "var(--r-md)", fontSize: "0.75rem", fontWeight: 600, background: "var(--orange)", color: isDark ? "#0A0A0A" : "#ffffff", border: "none", cursor: monteCarlo.isPending ? "not-allowed" : "pointer", opacity: monteCarlo.isPending ? 0.5 : 1 }}
                   >
                     {monteCarlo.isPending ? <LoadingSpinner size="sm" /> : <Activity size={12} />}
                     {monteCarlo.isPending ? "Simulating…" : "Run Monte Carlo"}
@@ -1227,32 +1081,27 @@ export default function PortfolioPage() {
                 {mcResult && !monteCarlo.isPending && (
                   <>
                     <div
-                      className="grid grid-cols-2 md:grid-cols-4 gap-0 rounded border overflow-hidden"
-                      style={{ borderColor: "var(--border)" }}
+                      style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", border: "1px solid var(--card-border)", borderRadius: "var(--r-xl)", overflow: "hidden" }}
                     >
                       {[
                         { label: "Expected Final Value", value: formatCurrency(mcResult.risk_metrics.expected_final_value), color: "var(--green)" },
-                        { label: "VaR 95% (1Y)",         value: mcResult.risk_metrics.var_95 > 0 ? `-${formatCurrency(mcResult.risk_metrics.var_95)}` : "—",         color: "var(--red)" },
-                        { label: "CVaR 95% (1Y)",        value: mcResult.risk_metrics.cvar_95 > 0 ? `-${formatCurrency(mcResult.risk_metrics.cvar_95)}` : "—",        color: "var(--red)" },
-                        { label: "Worst Case P5",        value: formatCurrency(mcResult.risk_metrics.worst_case_p5),        color: "var(--yellow)" },
+                        { label: "VaR 95% (1Y)",         value: mcResult.risk_metrics.var_95 > 0 ? `-${formatCurrency(mcResult.risk_metrics.var_95)}` : "—",  color: "var(--red)" },
+                        { label: "CVaR 95% (1Y)",        value: mcResult.risk_metrics.cvar_95 > 0 ? `-${formatCurrency(mcResult.risk_metrics.cvar_95)}` : "—", color: "var(--red)" },
+                        { label: "Worst Case P5",        value: formatCurrency(mcResult.risk_metrics.worst_case_p5), color: "var(--yellow, #C9B178)" },
                       ].map((m, i) => (
                         <div
                           key={m.label}
-                          className="px-5 py-4"
-                          style={{
-                            background: "var(--bg-card)",
-                            borderRight: i < 3 ? "1px solid var(--border)" : "none",
-                          }}
+                          style={{ padding: "16px 20px", background: "var(--bg-card)", borderRight: i < 3 ? "1px solid var(--card-border)" : "none" }}
                         >
-                          <p className="text-xs mb-1.5" style={{ color: "var(--t3)" }}>{m.label}</p>
-                          <p className="text-base font-semibold" style={{ color: m.color }}>{m.value}</p>
+                          <p style={{ fontSize: "0.7rem", marginBottom: 6, color: "var(--t3)" }}>{m.label}</p>
+                          <p style={{ fontSize: "1rem", fontWeight: 600, color: m.color }}>{m.value}</p>
                         </div>
                       ))}
                     </div>
 
-                    <div className="rounded border" style={{ borderColor: "var(--border)", background: "var(--bg-card)" }}>
-                      <div className="px-5 py-3 border-b" style={{ borderColor: "var(--border)" }}>
-                        <span className="text-xs font-semibold tracking-widest uppercase" style={{ color: "var(--t2)" }}>
+                    <div style={{ borderRadius: "var(--r-xl)", border: "1px solid var(--card-border)", background: "var(--bg-card)" }}>
+                      <div style={{ padding: "12px 20px", borderBottom: "1px solid var(--card-border)" }}>
+                        <span style={{ fontSize: "0.7rem", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--t2)" }}>
                           Simulation Fan Chart
                         </span>
                       </div>
@@ -1260,9 +1109,18 @@ export default function PortfolioPage() {
                         data={mcData}
                         layout={{
                           yaxis: { title: { text: "Portfolio Value (EUR)", font: { size: 10, color: axisCol } }, gridcolor: gridCol, color: axisCol },
-                          xaxis: { title: { text: "Trading Days", font: { size: 10, color: axisCol } }, gridcolor: gridCol, color: axisCol },
+                          xaxis: {
+                            title: { text: "Trading Days", font: { size: 10, color: axisCol } },
+                            gridcolor: gridCol,
+                            color: axisCol,
+                            range: mcResult.days.length > 0
+                              ? [mcResult.days[0], mcResult.days[mcResult.days.length - 1]]
+                              : undefined,
+                            autorange: false,
+                          },
                           paper_bgcolor: paperBg,
                           plot_bgcolor: paperBg,
+                          margin: { l: 56, r: 16, t: 8, b: 40 },
                           legend: { orientation: "h", y: -0.2, font: { size: 10, color: axisCol } },
                         }}
                         height={420}
@@ -1279,25 +1137,24 @@ export default function PortfolioPage() {
             COMPARE TAB
         ════════════════════════════════════════════════ */}
         {activeTab === "compare" && (
-          <div className="pt-5 space-y-4">
+          <div style={{ paddingTop: 20, display: "flex", flexDirection: "column", gap: 16 }}>
             {savedPortfolios.length < 2 ? (
               <div
-                className="flex items-center justify-center h-40 rounded border text-center"
-                style={{ borderColor: "var(--border)", borderStyle: "dashed", background: "var(--bg-card)" }}
+                style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 160, borderRadius: "var(--r-xl)", border: "1px dashed var(--card-border)", background: "var(--bg-card)" }}
               >
-                <p className="text-xs" style={{ color: "var(--t3)" }}>
+                <p style={{ fontSize: "0.75rem", color: "var(--t3)" }}>
                   Save at least 2 optimized portfolios to compare.
                 </p>
               </div>
             ) : (
               <>
-                <div className="rounded border" style={{ borderColor: "var(--border)", background: "var(--bg-card)" }}>
-                  <div className="px-5 py-3 border-b" style={{ borderColor: "var(--border)" }}>
-                    <span className="text-xs font-semibold tracking-widest uppercase" style={{ color: "var(--t2)" }}>
+                <div style={{ borderRadius: "var(--r-xl)", border: "1px solid var(--card-border)", background: "var(--bg-card)" }}>
+                  <div style={{ padding: "12px 20px", borderBottom: "1px solid var(--card-border)" }}>
+                    <span style={{ fontSize: "0.7rem", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--t2)" }}>
                       Select Portfolios
                     </span>
                   </div>
-                  <div className="px-5 py-4 flex flex-wrap gap-2">
+                  <div style={{ padding: "16px 20px", display: "flex", flexWrap: "wrap", gap: 8 }}>
                     {savedPortfolios.map((pf) => (
                       <button
                         key={pf.id}
@@ -1311,12 +1168,7 @@ export default function PortfolioPage() {
                             compareOptimize.mutate(pf);
                           }
                         }}
-                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded border transition-all"
-                        style={{
-                          background: compareSel.includes(pf.id) ? "var(--orange-dim)" : "var(--bg-hover)",
-                          borderColor: compareSel.includes(pf.id) ? "var(--orange-border)" : "var(--border)",
-                          color: compareSel.includes(pf.id) ? "var(--orange)" : "var(--t2)",
-                        }}
+                        style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", fontSize: "0.72rem", borderRadius: "var(--r-md)", border: "1px solid", borderColor: compareSel.includes(pf.id) ? "var(--orange-border)" : "var(--card-border)", background: compareSel.includes(pf.id) ? "var(--orange-dim)" : "var(--bg-hover)", color: compareSel.includes(pf.id) ? "var(--orange)" : "var(--t2)", cursor: "pointer" }}
                       >
                         {comparingIds.has(pf.id) && <LoadingSpinner size="sm" />}
                         {pf.name}
@@ -1327,50 +1179,43 @@ export default function PortfolioPage() {
 
                 {comparePortfolios.length >= 2 && (
                   <>
-                    <div className="rounded border overflow-hidden" style={{ borderColor: "var(--border)" }}>
-                      <div
-                        className="px-5 py-3 border-b"
-                        style={{ borderColor: "var(--border)", background: "var(--bg-card)" }}
-                      >
-                        <span className="text-xs font-semibold tracking-widest uppercase" style={{ color: "var(--t2)" }}>
+                    <div style={{ borderRadius: "var(--r-xl)", border: "1px solid var(--card-border)", overflow: "hidden" }}>
+                      <div style={{ padding: "12px 20px", borderBottom: "1px solid var(--card-border)", background: "var(--bg-card)" }}>
+                        <span style={{ fontSize: "0.7rem", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--t2)" }}>
                           Performance Comparison
                         </span>
                       </div>
-                      <table className="w-full text-xs" style={{ background: "var(--bg-card)" }}>
+                      <table style={{ width: "100%", fontSize: "0.75rem", background: "var(--bg-card)", borderCollapse: "collapse" }}>
                         <thead>
-                          <tr style={{ borderBottom: "1px solid var(--border)" }}>
+                          <tr style={{ borderBottom: "1px solid var(--card-border)" }}>
                             {["Portfolio", "Method", "Return", "Vol", "Sharpe", "Sortino", "Calmar", "Max DD", "Beta"].map((h) => (
-                              <th
-                                key={h}
-                                className="px-4 py-2.5 text-left font-semibold tracking-widest"
-                                style={{ color: "var(--t3)", fontSize: 10 }}
-                              >
-                                {h.toUpperCase()}
+                              <th key={h} style={{ padding: "10px 16px", textAlign: "left", fontWeight: 600, letterSpacing: "0.07em", textTransform: "uppercase", color: "var(--t3)", fontSize: "0.62rem" }}>
+                                {h}
                               </th>
                             ))}
                           </tr>
                         </thead>
                         <tbody>
                           {comparePortfolios.map((pf, i) => (
-                            <tr key={pf.id} style={{ borderBottom: "1px solid var(--border)" }}>
-                              <td className="px-4 py-3 font-medium" style={{ color: CHART_COLORS[i % CHART_COLORS.length] }}>{pf.name}</td>
-                              <td className="px-4 py-3" style={{ color: "var(--t2)" }}>{pf.method}</td>
-                              <td className="px-4 py-3" style={{ color: "var(--green)" }}>{formatPercent(pf.result!.metrics.expected_annual_return)}</td>
-                              <td className="px-4 py-3" style={{ color: "var(--yellow)" }}>{formatPercent(pf.result!.metrics.annual_volatility)}</td>
-                              <td className="px-4 py-3" style={{ color: "var(--t1)" }}>{formatNumber(pf.result!.metrics.sharpe_ratio, 3)}</td>
-                              <td className="px-4 py-3" style={{ color: "var(--t1)" }}>{formatNumber(pf.result!.metrics.sortino_ratio, 3)}</td>
-                              <td className="px-4 py-3" style={{ color: "var(--t1)" }}>{formatNumber(pf.result!.metrics.calmar_ratio, 3)}</td>
-                              <td className="px-4 py-3" style={{ color: "var(--red)" }}>{formatPercent(pf.result!.metrics.max_drawdown)}</td>
-                              <td className="px-4 py-3" style={{ color: "var(--t1)" }}>{formatNumber(pf.result!.metrics.beta, 3)}</td>
+                            <tr key={pf.id} style={{ borderBottom: "1px solid var(--card-border)" }}>
+                              <td style={{ padding: "12px 16px", fontWeight: 500, color: CHART_COLORS[i % CHART_COLORS.length] }}>{pf.name}</td>
+                              <td style={{ padding: "12px 16px", color: "var(--t2)" }}>{pf.method}</td>
+                              <td style={{ padding: "12px 16px", color: "var(--green)" }}>{formatPercent(pf.result!.metrics.expected_annual_return)}</td>
+                              <td style={{ padding: "12px 16px", color: "var(--yellow, #C9B178)" }}>{formatPercent(pf.result!.metrics.annual_volatility)}</td>
+                              <td style={{ padding: "12px 16px", color: "var(--t1)" }}>{formatNumber(pf.result!.metrics.sharpe_ratio, 3)}</td>
+                              <td style={{ padding: "12px 16px", color: "var(--t1)" }}>{formatNumber(pf.result!.metrics.sortino_ratio, 3)}</td>
+                              <td style={{ padding: "12px 16px", color: "var(--t1)" }}>{formatNumber(pf.result!.metrics.calmar_ratio, 3)}</td>
+                              <td style={{ padding: "12px 16px", color: "var(--red)" }}>{formatPercent(pf.result!.metrics.max_drawdown)}</td>
+                              <td style={{ padding: "12px 16px", color: "var(--t1)" }}>{formatNumber(pf.result!.metrics.beta, 3)}</td>
                             </tr>
                           ))}
                         </tbody>
                       </table>
                     </div>
 
-                    <div className="rounded border" style={{ borderColor: "var(--border)", background: "var(--bg-card)" }}>
-                      <div className="px-5 py-3 border-b" style={{ borderColor: "var(--border)" }}>
-                        <span className="text-xs font-semibold tracking-widest uppercase" style={{ color: "var(--t2)" }}>
+                    <div style={{ borderRadius: "var(--r-xl)", border: "1px solid var(--card-border)", background: "var(--bg-card)" }}>
+                      <div style={{ padding: "12px 20px", borderBottom: "1px solid var(--card-border)" }}>
+                        <span style={{ fontSize: "0.7rem", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--t2)" }}>
                           Grouped Metrics Chart
                         </span>
                       </div>
@@ -1397,24 +1242,23 @@ export default function PortfolioPage() {
             TRACK PERFORMANCE TAB
         ════════════════════════════════════════════════ */}
         {activeTab === "performance" && (
-          <div className="pt-5 space-y-4">
-            <div className="rounded border" style={{ borderColor: "var(--border)", background: "var(--bg-card)" }}>
-              <div className="px-5 py-3 border-b" style={{ borderColor: "var(--border)" }}>
-                <span className="text-xs font-semibold tracking-widest uppercase" style={{ color: "var(--t2)" }}>
+          <div style={{ paddingTop: 20, display: "flex", flexDirection: "column", gap: 16 }}>
+            <div style={{ borderRadius: "var(--r-xl)", border: "1px solid var(--card-border)", background: "var(--bg-card)" }}>
+              <div style={{ padding: "12px 20px", borderBottom: "1px solid var(--card-border)" }}>
+                <span style={{ fontSize: "0.7rem", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--t2)" }}>
                   Track Portfolio Performance
                 </span>
               </div>
-              <div className="px-5 py-5 grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
-                <div className="col-span-1 md:col-span-5 space-y-1">
-                  <label className="text-xs" style={{ color: "var(--t3)" }}>Saved Portfolio</label>
+              <div style={{ padding: "20px", display: "grid", gridTemplateColumns: "5fr 3fr 4fr", gap: 16, alignItems: "end" }}>
+                <div>
+                  <label style={{ display: "block", fontSize: "0.68rem", color: "var(--t3)", marginBottom: 4 }}>Saved Portfolio</label>
                   {savedPortfolios.length === 0 ? (
-                    <p className="text-xs py-2" style={{ color: "var(--t3)" }}>No saved portfolios.</p>
+                    <p style={{ fontSize: "0.72rem", color: "var(--t3)" }}>No saved portfolios.</p>
                   ) : (
                     <select
                       value={perfPortfolioId}
                       onChange={(e) => { setPerfPortfolioId(e.target.value); setPerfResult(null); }}
-                      className="w-full text-xs px-3 py-2 rounded border outline-none transition-colors"
-                      style={{ background: "var(--bg-hover)", borderColor: "var(--border)", color: "var(--t1)" }}
+                      style={{ width: "100%", fontSize: "0.8rem", padding: "8px 12px", borderRadius: "var(--r-md)", border: "1px solid var(--card-border)", background: "var(--bg-hover)", color: "var(--t1)", outline: "none" }}
                     >
                       <option value="">— select —</option>
                       {savedPortfolios.map((pf) => (
@@ -1423,17 +1267,16 @@ export default function PortfolioPage() {
                     </select>
                   )}
                 </div>
-                <div className="col-span-3 space-y-1">
-                  <label className="text-xs" style={{ color: "var(--t3)" }}>Start date</label>
+                <div>
+                  <label style={{ display: "block", fontSize: "0.68rem", color: "var(--t3)", marginBottom: 4 }}>Start date</label>
                   <input
                     type="date"
                     value={perfStartDate}
                     onChange={(e) => { setPerfStartDate(e.target.value); setPerfResult(null); }}
-                    className="w-full text-xs px-3 py-2 rounded border outline-none transition-colors"
-                    style={{ background: "var(--bg-hover)", borderColor: "var(--border)", color: "var(--t1)" }}
+                    style={{ width: "100%", fontSize: "0.8rem", padding: "8px 12px", borderRadius: "var(--r-md)", border: "1px solid var(--card-border)", background: "var(--bg-hover)", color: "var(--t1)", outline: "none" }}
                   />
                 </div>
-                <div className="col-span-4 flex justify-end">
+                <div style={{ display: "flex", justifyContent: "flex-end" }}>
                   <button
                     onClick={() => performance.mutate()}
                     disabled={performance.isPending || !perfPortfolioId}
@@ -1459,20 +1302,19 @@ export default function PortfolioPage() {
                     ? Math.pow(perfResult.metrics.current_value / Math.max(capital, 1), 1 / nYears) - 1
                     : 0;
                   const kpis = [
-                    { label: "P&L (€)",       value: `${pnl >= 0 ? "+" : ""}${formatCurrency(pnl)}`,                     color: pnl >= 0 ? "var(--green)" : "var(--red)" },
-                    { label: "Total Return",   value: formatPercent(perfResult.metrics.total_return),                      color: perfResult.metrics.total_return >= 0 ? "var(--green)" : "var(--red)" },
-                    { label: "CAGR",           value: formatPercent(cagr),                                                 color: cagr >= 0 ? "var(--green)" : "var(--red)" },
-                    { label: "Current Value",  value: formatCurrency(perfResult.metrics.current_value),                    color: "var(--orange)" },
-                    { label: "Max Drawdown",   value: formatPercent(perfResult.metrics.max_drawdown),                      color: "var(--red)" },
-                    { label: "Duration",       value: `${perfResult.n_days}d`,                                             color: "var(--t2)" },
+                    { label: "P&L (€)",       value: `${pnl >= 0 ? "+" : ""}${formatCurrency(pnl)}`,                   color: pnl >= 0 ? "var(--green)" : "var(--red)" },
+                    { label: "Total Return",   value: formatPercent(perfResult.metrics.total_return),                    color: perfResult.metrics.total_return >= 0 ? "var(--green)" : "var(--red)" },
+                    { label: "CAGR",           value: formatPercent(cagr),                                               color: cagr >= 0 ? "var(--green)" : "var(--red)" },
+                    { label: "Current Value",  value: formatCurrency(perfResult.metrics.current_value),                  color: "var(--orange)" },
+                    { label: "Max Drawdown",   value: formatPercent(perfResult.metrics.max_drawdown),                    color: "var(--red)" },
+                    { label: "Duration",       value: `${perfResult.n_days}d`,                                           color: "var(--t2)" },
                   ];
                   return (
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-0 rounded border overflow-hidden" style={{ borderColor: "var(--border)" }}>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", border: "1px solid var(--card-border)", borderRadius: "var(--r-xl)", overflow: "hidden" }}>
                       {kpis.map((m, i) => (
-                        <div key={m.label} className="px-5 py-4"
-                          style={{ background: "var(--bg-card)", borderRight: i < kpis.length - 1 ? "1px solid var(--border)" : "none" }}>
-                          <p className="text-xs mb-1.5" style={{ color: "var(--t3)" }}>{m.label}</p>
-                          <p className="text-base font-semibold" style={{ color: m.color }}>{m.value}</p>
+                        <div key={m.label} style={{ padding: "16px 20px", background: "var(--bg-card)", borderRight: i < kpis.length - 1 ? "1px solid var(--card-border)" : "none" }}>
+                          <p style={{ fontSize: "0.7rem", marginBottom: 6, color: "var(--t3)" }}>{m.label}</p>
+                          <p style={{ fontSize: "1rem", fontWeight: 600, color: m.color }}>{m.value}</p>
                         </div>
                       ))}
                     </div>
@@ -1480,52 +1322,38 @@ export default function PortfolioPage() {
                 })()}
 
                 {perfResult.metrics.ann_return !== undefined && (
-                  <div
-                    className="grid grid-cols-1 sm:grid-cols-3 gap-0 rounded border overflow-hidden"
-                    style={{ borderColor: "var(--border)" }}
-                  >
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", border: "1px solid var(--card-border)", borderRadius: "var(--r-xl)", overflow: "hidden" }}>
                     {[
                       { label: "Ann. Return",     value: formatPercent(perfResult.metrics.ann_return!),     color: perfResult.metrics.ann_return! >= 0 ? "var(--green)" : "var(--red)" },
-                      { label: "Ann. Volatility", value: formatPercent(perfResult.metrics.ann_volatility!), color: "var(--yellow)" },
+                      { label: "Ann. Volatility", value: formatPercent(perfResult.metrics.ann_volatility!), color: "var(--yellow, #C9B178)" },
                       { label: "Beta (vs SPY)",   value: perfResult.metrics.beta !== undefined ? formatNumber(perfResult.metrics.beta, 3) : "—", color: "var(--t1)" },
                     ].map((m, i) => (
-                      <div
-                        key={m.label}
-                        className="px-5 py-4"
-                        style={{ background: "var(--bg-card)", borderRight: i < 2 ? "1px solid var(--border)" : "none" }}
-                      >
-                        <p className="text-xs mb-1.5" style={{ color: "var(--t3)" }}>{m.label}</p>
-                        <p className="text-base font-semibold" style={{ color: m.color }}>{m.value}</p>
+                      <div key={m.label} style={{ padding: "16px 20px", background: "var(--bg-card)", borderRight: i < 2 ? "1px solid var(--card-border)" : "none" }}>
+                        <p style={{ fontSize: "0.7rem", marginBottom: 6, color: "var(--t3)" }}>{m.label}</p>
+                        <p style={{ fontSize: "1rem", fontWeight: 600, color: m.color }}>{m.value}</p>
                       </div>
                     ))}
                   </div>
                 )}
 
                 {perfResult.metrics.sharpe_ratio !== undefined && (
-                  <div
-                    className="grid grid-cols-1 sm:grid-cols-3 gap-0 rounded border overflow-hidden"
-                    style={{ borderColor: "var(--border)" }}
-                  >
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", border: "1px solid var(--card-border)", borderRadius: "var(--r-xl)", overflow: "hidden" }}>
                     {[
                       { label: "Sharpe Ratio",  value: formatNumber(perfResult.metrics.sharpe_ratio!, 4) },
                       { label: "Sortino Ratio", value: formatNumber(perfResult.metrics.sortino_ratio!, 4) },
                       { label: "Calmar Ratio",  value: formatNumber(perfResult.metrics.calmar_ratio!, 4) },
                     ].map((m, i) => (
-                      <div
-                        key={m.label}
-                        className="px-5 py-4"
-                        style={{ background: "var(--bg-card)", borderRight: i < 2 ? "1px solid var(--border)" : "none" }}
-                      >
-                        <p className="text-xs mb-1.5" style={{ color: "var(--t3)" }}>{m.label}</p>
-                        <p className="text-base font-semibold" style={{ color: "var(--orange)" }}>{m.value}</p>
+                      <div key={m.label} style={{ padding: "16px 20px", background: "var(--bg-card)", borderRight: i < 2 ? "1px solid var(--card-border)" : "none" }}>
+                        <p style={{ fontSize: "0.7rem", marginBottom: 6, color: "var(--t3)" }}>{m.label}</p>
+                        <p style={{ fontSize: "1rem", fontWeight: 600, color: "var(--orange)" }}>{m.value}</p>
                       </div>
                     ))}
                   </div>
                 )}
 
-                <div className="rounded border" style={{ borderColor: "var(--border)", background: "var(--bg-card)" }}>
-                  <div className="px-5 py-3 border-b" style={{ borderColor: "var(--border)" }}>
-                    <span className="text-xs font-semibold tracking-widest uppercase" style={{ color: "var(--t2)" }}>
+                <div style={{ borderRadius: "var(--r-xl)", border: "1px solid var(--card-border)", background: "var(--bg-card)" }}>
+                  <div style={{ padding: "12px 20px", borderBottom: "1px solid var(--card-border)" }}>
+                    <span style={{ fontSize: "0.7rem", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--t2)" }}>
                       Portfolio vs SPY — since {perfStartDate} ({perfResult.n_days} trading days)
                     </span>
                   </div>
@@ -1548,9 +1376,17 @@ export default function PortfolioPage() {
                     ]}
                     layout={{
                       yaxis: { gridcolor: gridCol, color: axisCol },
-                      xaxis: { gridcolor: gridCol, color: axisCol },
+                      xaxis: {
+                        gridcolor: gridCol,
+                        color: axisCol,
+                        range: perfResult.dates.length > 0
+                          ? [perfResult.dates[0], perfResult.dates[perfResult.dates.length - 1]]
+                          : undefined,
+                        autorange: false,
+                      },
                       paper_bgcolor: paperBg,
                       plot_bgcolor: paperBg,
+                      margin: { l: 56, r: 16, t: 8, b: 40 },
                       legend: { orientation: "h", y: -0.2, font: { size: 10, color: axisCol } },
                     }}
                     height={380}
@@ -1560,20 +1396,19 @@ export default function PortfolioPage() {
                 {(() => {
                   const pf = savedPortfolios.find((p) => p.id === perfPortfolioId);
                   return pf?.result ? (
-                    <div className="rounded border" style={{ borderColor: "var(--border)", background: "var(--bg-card)" }}>
-                      <div className="px-5 py-3 border-b" style={{ borderColor: "var(--border)" }}>
-                        <span className="text-xs font-semibold tracking-widest uppercase" style={{ color: "var(--t2)" }}>
+                    <div style={{ borderRadius: "var(--r-xl)", border: "1px solid var(--card-border)", background: "var(--bg-card)" }}>
+                      <div style={{ padding: "12px 20px", borderBottom: "1px solid var(--card-border)" }}>
+                        <span style={{ fontSize: "0.7rem", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--t2)" }}>
                           Composition at t = {perfStartDate}
                         </span>
                       </div>
-                      <div className="px-5 py-4 flex flex-wrap gap-2">
+                      <div style={{ padding: "16px 20px", display: "flex", flexWrap: "wrap", gap: 8 }}>
                         {Object.entries(pf.result.weights)
                           .sort(([, a], [, b]) => b - a)
                           .map(([tk, w]) => (
                             <span
                               key={tk}
-                              className="flex items-center gap-1.5 px-2.5 py-1 rounded border text-xs"
-                              style={{ background: "var(--bg-hover)", borderColor: "var(--border)" }}
+                              style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "4px 10px", borderRadius: "var(--r-full)", border: "1px solid var(--card-border)", background: "var(--bg-hover)", fontSize: "0.72rem" }}
                             >
                               <span style={{ color: "var(--orange)", fontWeight: 600 }}>{tk}</span>
                               <span style={{ color: "var(--t3)" }}>{formatPercent(w)}</span>
@@ -1588,10 +1423,9 @@ export default function PortfolioPage() {
 
             {!perfResult && !performance.isPending && (
               <div
-                className="flex items-center justify-center h-40 rounded border text-center"
-                style={{ borderColor: "var(--border)", borderStyle: "dashed", background: "var(--bg-card)" }}
+                style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 160, borderRadius: "var(--r-xl)", border: "1px dashed var(--card-border)", background: "var(--bg-card)" }}
               >
-                <p className="text-xs" style={{ color: "var(--t3)" }}>
+                <p style={{ fontSize: "0.75rem", color: "var(--t3)" }}>
                   Select a portfolio and start date, then click Track.
                 </p>
               </div>
@@ -1604,44 +1438,40 @@ export default function PortfolioPage() {
       {/* ── Save modal ── */}
       {saveModalOpen && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center"
-          style={{ background: "rgba(0,0,0,0.55)", backdropFilter: "blur(4px)" }}
+          style={{ position: "fixed", inset: 0, zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.55)", backdropFilter: "blur(4px)" }}
         >
           <div
-            className="w-80 rounded-lg border p-6 space-y-4"
-            style={{ background: "var(--bg-card)", borderColor: "var(--border)" }}
+            style={{ width: 320, borderRadius: "var(--r-xl)", border: "1px solid var(--card-border)", padding: 24, background: "var(--bg-card)" }}
           >
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-semibold tracking-wider" style={{ color: "var(--t1)" }}>Save Portfolio</span>
-              <button onClick={() => setSaveModalOpen(false)} style={{ color: "var(--t3)" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+              <span style={{ fontSize: "0.875rem", fontWeight: 600, letterSpacing: "0.02em", color: "var(--t1)" }}>Save Portfolio</span>
+              <button onClick={() => setSaveModalOpen(false)} style={{ color: "var(--t3)", background: "none", border: "none", cursor: "pointer" }}>
                 <X size={14} />
               </button>
             </div>
 
-            <div className="space-y-1">
-              <label className="text-xs" style={{ color: "var(--t3)" }}>Portfolio name</label>
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ display: "block", fontSize: "0.72rem", color: "var(--t3)", marginBottom: 4 }}>Portfolio name</label>
               <input
                 autoFocus
                 value={saveNameInput}
                 onChange={(e) => setSaveNameInput(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && savePortfolio()}
                 placeholder="e.g. Tech Growth Q2"
-                className="w-full text-xs px-3 py-2 rounded border outline-none transition-colors"
-                style={{ background: "var(--bg-hover)", borderColor: "var(--border)", color: "var(--t1)" }}
+                style={{ width: "100%", fontSize: "0.8rem", padding: "8px 12px", borderRadius: "var(--r-md)", border: "1px solid var(--card-border)", background: "var(--bg-hover)", color: "var(--t1)", outline: "none", boxSizing: "border-box" }}
               />
             </div>
 
             {optResult && (
-              <div className="rounded border divide-y text-xs" style={{ borderColor: "var(--border)" }}>
+              <div style={{ borderRadius: "var(--r-md)", border: "1px solid var(--card-border)", overflow: "hidden", marginBottom: 16 }}>
                 {[
                   { label: "Tickers", value: Object.keys(optResult.weights).join(", "), color: "var(--t1)" },
                   { label: "Return",  value: formatPercent(optResult.metrics.expected_annual_return), color: "var(--green)" },
                   { label: "Sharpe",  value: formatNumber(optResult.metrics.sharpe_ratio, 3), color: "var(--t1)" },
-                ].map((r) => (
+                ].map((r, i) => (
                   <div
                     key={r.label}
-                    className="flex justify-between px-3 py-2"
-                    style={{ background: "var(--bg-hover)" }}
+                    style={{ display: "flex", justifyContent: "space-between", padding: "8px 12px", background: "var(--bg-hover)", borderTop: i > 0 ? "1px solid var(--card-border)" : "none", fontSize: "0.75rem" }}
                   >
                     <span style={{ color: "var(--t3)" }}>{r.label}</span>
                     <span style={{ color: r.color }}>{r.value}</span>
@@ -1653,8 +1483,7 @@ export default function PortfolioPage() {
             <button
               onClick={savePortfolio}
               disabled={!saveNameInput.trim() || saving}
-              className="w-full py-2.5 rounded text-xs font-semibold transition-all disabled:opacity-40 flex items-center justify-center gap-2"
-              style={{ background: "var(--orange)", color: isDark ? "#0A0A0A" : "#ffffff" }}
+              style={{ width: "100%", padding: "10px 0", borderRadius: "var(--r-md)", fontSize: "0.8rem", fontWeight: 600, background: "var(--orange)", color: isDark ? "#0A0A0A" : "#ffffff", border: "none", cursor: !saveNameInput.trim() || saving ? "not-allowed" : "pointer", opacity: !saveNameInput.trim() || saving ? 0.4 : 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}
             >
               {saving ? <LoadingSpinner size="sm" /> : null}
               {saving ? "Saving…" : "Save"}
@@ -1686,7 +1515,7 @@ function FieldInput({
         type="number"
         step={step}
         className="w-full text-xs px-3 py-2 rounded border outline-none transition-colors"
-        style={{ background: "var(--bg-hover)", borderColor: "var(--border)", color: "var(--t1)" }}
+        style={{ background: "var(--bg-hover)", borderColor: "var(--card-border)", color: "var(--t1)" }}
       />
     </div>
   );
@@ -1720,9 +1549,9 @@ function DonutChart({ title, data }: { title: string; data: Record<string, numbe
   const top1 = segments[0];
 
   return (
-    <div className="rounded border" style={{ borderColor: "var(--border)", background: "var(--bg-card)" }}>
-      <div className="px-5 py-3 border-b" style={{ borderColor: "var(--border)" }}>
-        <span className="text-xs font-semibold tracking-widest uppercase" style={{ color: "var(--t2)" }}>{title}</span>
+    <div style={{ borderRadius: "var(--r-xl)", border: "1px solid var(--card-border)", background: "var(--bg-card)" }}>
+      <div style={{ padding: "12px 20px", borderBottom: "1px solid var(--card-border)" }}>
+        <span style={{ fontSize: "0.7rem", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--t2)" }}>{title}</span>
       </div>
       <div style={{ padding: "16px 20px", display: "flex", alignItems: "center", gap: 20 }}>
         {/* Donut */}
@@ -1793,10 +1622,7 @@ function WeightBarChart({ weights }: { weights: Record<string, number> }) {
               key={ticker}
               style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-end", height: "100%" }}
             >
-              <span style={{
-                fontSize: 9, 
-                color: "var(--t3)", marginBottom: 3, userSelect: "none",
-              }}>
+              <span style={{ fontSize: 9, color: "var(--t3)", marginBottom: 3, userSelect: "none" }}>
                 {(w * 100).toFixed(1)}%
               </span>
               <div style={{
@@ -1811,7 +1637,7 @@ function WeightBarChart({ weights }: { weights: Record<string, number> }) {
         })}
       </div>
       {/* Baseline */}
-      <div style={{ height: 1, background: "var(--border)", marginBottom: 8 }} />
+      <div style={{ height: 1, background: "var(--card-border)", marginBottom: 8 }} />
       {/* X-axis ticker labels */}
       <div style={{ display: "flex", gap: 6 }}>
         {sorted.map(([ticker]) => (
@@ -1819,7 +1645,7 @@ function WeightBarChart({ weights }: { weights: Record<string, number> }) {
             key={ticker}
             style={{
               flex: 1, textAlign: "center",
-              fontSize: 10, 
+              fontSize: 10,
               fontWeight: 600, color: "var(--orange)",
               overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
             }}
@@ -1856,7 +1682,7 @@ function buildMcChartData(mc: MonteCarloResult) {
   ];
 }
 
-// ─── 1-Click Portfolio Templates ─────────────────────────────────────────────
+// --- 1-Click Portfolio Templates ---
 interface PortfolioTemplate {
   id:          string;
   name:        string;
@@ -1910,12 +1736,11 @@ function PortfolioTemplates({ onSelect }: { onSelect: (t: PortfolioTemplate) => 
   const [open, setOpen] = useState(false);
 
   return (
-    <div className="mt-4">
+    <div style={{ marginTop: 16 }}>
       <button
         type="button"
         onClick={() => setOpen(o => !o)}
-        className="flex items-center gap-2 text-xs transition-opacity hover:opacity-80"
-        style={{ color: "var(--orange)" }}
+        style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "0.72rem", color: "var(--orange)", background: "none", border: "none", cursor: "pointer", opacity: 0.9 }}
       >
         <Sparkles size={11} />
         <span style={{ letterSpacing: "0.06em" }}>
@@ -1927,45 +1752,40 @@ function PortfolioTemplates({ onSelect }: { onSelect: (t: PortfolioTemplate) => 
       </button>
 
       {open && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mt-3">
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginTop: 12 }}>
           {PORTFOLIO_TEMPLATES.map((tmpl) => (
             <button
               key={tmpl.id}
               type="button"
               onClick={() => { onSelect(tmpl); setOpen(false); }}
-              className="portfolio-template-card text-left p-4 rounded-lg border"
-              style={{
-                background: "var(--bg-card)",
-                borderColor: "var(--border)",
-                borderTop: `2px solid ${tmpl.color}`,
-              }}
+              className="portfolio-template-card text-left"
+              style={{ padding: 16, borderRadius: "var(--r-xl)", border: "1px solid var(--card-border)", background: "var(--bg-card)", cursor: "pointer", textAlign: "left" }}
             >
-              <div className="font-semibold mb-1" style={{ color: tmpl.color, fontSize: "0.82rem", }}>
-                {tmpl.name}
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                <span style={{ width: 8, height: 8, borderRadius: "50%", background: tmpl.color, flexShrink: 0 }} />
+                <div style={{ fontWeight: 600, color: tmpl.color, fontSize: "0.82rem" }}>
+                  {tmpl.name}
+                </div>
+                <span style={{ fontSize: "0.6rem", color: "var(--t3)", letterSpacing: "0.04em", marginLeft: "auto" }}>{tmpl.theme}</span>
               </div>
-              <div className="text-xs mb-2" style={{ color: "var(--t3)", fontSize: "0.65rem", letterSpacing: "0.04em" }}>
-                {tmpl.theme}
-              </div>
-              <p className="text-xs mb-3 leading-relaxed" style={{ color: "var(--t2)", fontSize: "0.72rem", lineHeight: 1.5 }}>
+              <p style={{ fontSize: "0.72rem", color: "var(--t2)", lineHeight: 1.5, marginBottom: 10 }}>
                 {tmpl.description}
               </p>
-              <div className="flex flex-wrap gap-1 mb-2">
-                {tmpl.tickers.slice(0, 5).map(t => (
-                  <span key={t} className="px-1.5 py-0.5 rounded text-xs" style={{ background: "var(--bg-hover)", color: "var(--t3)", fontSize: "0.6rem", border: "1px solid var(--border)", }}>
-                    {t}
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginBottom: 8 }}>
+                {tmpl.tickers.slice(0, 5).map(tk => (
+                  <span key={tk} style={{ padding: "2px 6px", borderRadius: "var(--r-md)", background: "var(--bg-hover)", color: "var(--t3)", fontSize: "0.6rem", border: "1px solid var(--card-border)" }}>
+                    {tk}
                   </span>
                 ))}
                 {tmpl.tickers.length > 5 && (
-                  <span className="px-1.5 py-0.5 rounded text-xs" style={{ color: "var(--t3)", fontSize: "0.6rem" }}>
+                  <span style={{ fontSize: "0.6rem", color: "var(--t3)" }}>
                     +{tmpl.tickers.length - 5}
                   </span>
                 )}
               </div>
-              <div className="flex items-center justify-between">
-                <span className="text-xs" style={{ color: "var(--t3)", fontSize: "0.6rem" }}>{tmpl.method}</span>
-                <span className="text-xs opacity-0 group-hover:opacity-100 transition-opacity" style={{ color: tmpl.color, fontSize: "0.65rem" }}>
-                  Use →
-                </span>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <span style={{ fontSize: "0.6rem", color: "var(--t3)" }}>{tmpl.method}</span>
+                <span style={{ fontSize: "0.65rem", color: tmpl.color }}>Use →</span>
               </div>
             </button>
           ))}

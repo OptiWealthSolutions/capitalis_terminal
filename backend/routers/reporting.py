@@ -23,6 +23,7 @@ from fastapi import APIRouter, Depends, HTTPException, Response
 from pydantic import BaseModel, Field
 from ..auth.jwt_handler import get_current_user
 from ..plan_gate import get_limits, get_plan_for_user
+from ..yf_safe import safe_download
 
 ROOT = Path(__file__).resolve().parent.parent.parent
 if str(ROOT) not in sys.path:
@@ -57,6 +58,17 @@ class PrecomputedMetrics(BaseModel):
     beta: float | None = None
 
 
+class ReportingKpis(BaseModel):
+    total_return_pct:   float | None = None
+    alpha_bps:          float | None = None
+    info_ratio:         float | None = None
+    tracking_error_pct: float | None = None
+    sharpe:             float | None = None
+    sortino:            float | None = None
+    max_drawdown_pct:   float | None = None
+    volatility_pct:     float | None = None
+
+
 class ReportRequest(BaseModel):
     portfolio_name: str = Field(..., min_length=1, max_length=64)
     method: str = Field(default="Custom", max_length=32)
@@ -65,6 +77,10 @@ class ReportRequest(BaseModel):
     capital: float = Field(..., gt=0)
     n_simulations: int = Field(default=500, ge=100, le=5000)
     precomputed_metrics: PrecomputedMetrics | None = None
+    # New optional fields driven from /reporting page
+    date_range: str | None = Field(default=None, max_length=8)
+    benchmark: str | None = Field(default=None, max_length=16)
+    kpis: ReportingKpis | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -169,10 +185,11 @@ def _alloc_chart(tickers: list[str], weights: list[float]) -> bytes:
 
 def _fetch_meta(tickers: list[str]) -> dict[str, dict[str, str]]:
     """Bulk fetch sector + country per ticker via yfinance. Cached side-effect: best-effort."""
+    from ..yf_safe import safe_ticker_info
     out: dict[str, dict[str, str]] = {}
     for t in tickers:
         try:
-            info = yf.Ticker(t).info or {}
+            info = safe_ticker_info(t, cache_fallback=True)
             out[t] = {
                 "sector":  info.get("sector")  or "Unknown",
                 "country": info.get("country") or "Unknown",
@@ -263,20 +280,29 @@ def _equity_curve_chart(tickers: list[str], weights: list[float], capital: float
         w_arr = np.array(weights, dtype=float)
         all_tickers = list(set(tickers + ["SPY"]))
 
-        raw = yf.download(all_tickers, period="1y", interval="1d", progress=False, auto_adjust=True)
+        raw = safe_download(all_tickers, period="1y", interval="1d")
+        if raw.empty:
+            return b""
         if isinstance(raw.columns, pd.MultiIndex):
             close = raw["Close"]
         else:
             close = raw
 
-        # Align to portfolio tickers
-        pf_close = close[tickers].dropna()
+        # Align to available portfolio tickers (gracefully skip missing)
+        available = [t for t in tickers if t in close.columns]
+        if not available:
+            return b""
+        pf_close = close[available].dropna(how="all").ffill(limit=5).dropna()
         if pf_close.empty:
             return b""
 
+        # Realign weights to available tickers
+        avail_w = np.array([weights[tickers.index(t)] for t in available], dtype=float)
+        avail_w = avail_w / avail_w.sum()
+
         # Normalize returns
         norm = pf_close / pf_close.iloc[0]
-        port_vals = (norm.values @ w_arr) * capital
+        port_vals = (norm.values @ avail_w) * capital
         dates = pf_close.index
 
         # SPY benchmark
@@ -493,7 +519,51 @@ def _build_pdf(
         0, "C"
     )
 
-    # ── PAGE 2: Risk Metrics + Allocation table ── ───────────────────────────
+    # ── PAGE 2 (optional): Reporting Period + Performance KPIs ──────────────
+    if req.date_range or req.benchmark or req.kpis:
+        pdf.add_page()
+        pdf.section_title("REPORTING PERIOD")
+
+        period_rows = [
+            ("Date Range", req.date_range or "—"),
+            ("Benchmark",  req.benchmark  or "—"),
+            ("Generated",  date_str),
+        ]
+        for i, (k, v) in enumerate(period_rows):
+            pdf.kv_row(k, v, shade=(i % 2 == 0))
+        pdf.ln(4)
+
+        pdf.section_title("PERFORMANCE KPIs")
+        k = req.kpis or ReportingKpis()
+
+        def _fmt_or_dash(val: float | None, suffix: str = "", digits: int = 2) -> str:
+            if val is None:
+                return "—"
+            return f"{val:.{digits}f}{suffix}"
+
+        kpi_rows: list[tuple[str, str, tuple[int, int, int] | None]] = [
+            ("Total Return",       _fmt_or_dash(k.total_return_pct, "%"),
+             GREEN if (k.total_return_pct or 0) >= 0 else RED),
+            ("Alpha vs Benchmark", _fmt_or_dash(k.alpha_bps, " bps", 0),
+             GREEN if (k.alpha_bps or 0) >= 0 else RED),
+            ("Information Ratio",  _fmt_or_dash(k.info_ratio, "", 2),         None),
+            ("Tracking Error",     _fmt_or_dash(k.tracking_error_pct, "%"),   None),
+        ]
+        for i, (lbl, val, vc) in enumerate(kpi_rows):
+            pdf.kv_row(lbl, val, shade=(i % 2 == 0), value_color=vc)
+        pdf.ln(4)
+
+        pdf.section_title("RISK METRICS (REALIZED)")
+        risk_rows: list[tuple[str, str, tuple[int, int, int] | None]] = [
+            ("Sharpe Ratio",       _fmt_or_dash(k.sharpe,  "", 2),  None),
+            ("Sortino Ratio",      _fmt_or_dash(k.sortino, "", 2),  None),
+            ("Max Drawdown",       _fmt_or_dash(k.max_drawdown_pct, "%"), RED),
+            ("Volatility (Ann.)",  _fmt_or_dash(k.volatility_pct,   "%"), None),
+        ]
+        for i, (lbl, val, vc) in enumerate(risk_rows):
+            pdf.kv_row(lbl, val, shade=(i % 2 == 0), value_color=vc)
+
+    # ── Risk Metrics + Allocation table ─────────────────────────────────────
     pdf.add_page()
 
     pdf.section_title("RISK METRICS")
@@ -639,16 +709,32 @@ def generate_pdf_report(req: ReportRequest, current_user: dict = Depends(get_cur
 
     # ── Fetch market data ────────────────────────────────────────────────────
     try:
-        raw   = yf.download(req.tickers, period="5y", interval="1d", progress=False, auto_adjust=True)
+        raw   = safe_download(req.tickers, period="5y", interval="1d")
+        if raw.empty:
+            raise ValueError("No data returned for tickers.")
         close = raw["Close"] if isinstance(raw.columns, pd.MultiIndex) else raw
-        if hasattr(close, "columns") and len(close.columns) == 0:
-            raise ValueError("No data returned.")
-        rets   = np.log(close / close.shift(1)).dropna()
+        if isinstance(close, pd.Series):
+            close = close.to_frame(name=req.tickers[0])
+        # Drop tickers with no data at all
+        available = [t for t in req.tickers if t in close.columns and close[t].notna().any()]
+        if not available:
+            raise ValueError("All requested tickers have no price data.")
+        close = close[available]
+        # Align weights to available tickers
+        avail_idx = [req.tickers.index(t) for t in available]
+        w_arr = np.array([req.weights[i] for i in avail_idx], dtype=float)
+        w_arr = w_arr / w_arr.sum()
+        # Log-returns with inf cleanup
+        log_rets = np.log(close / close.shift(1))
+        log_rets.replace([np.inf, -np.inf], np.nan, inplace=True)
+        rets   = log_rets.dropna()
+        if len(rets) < 30:
+            raise ValueError(f"Insufficient data ({len(rets)} obs) after cleaning.")
         mu_vec = rets.mean().values * 252
         cov    = rets.cov().values * 252
     except Exception as exc:
         logger.error("Data fetch failed: %s", exc)
-        raise HTTPException(status_code=503, detail="Market data unavailable.")
+        raise HTTPException(status_code=503, detail=f"Market data unavailable: {exc}")
 
     # ── Compute basic metrics (used if no precomputed) ───────────────────────
     port_ret = float(w_arr @ mu_vec)

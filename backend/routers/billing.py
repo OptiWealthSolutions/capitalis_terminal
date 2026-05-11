@@ -365,6 +365,7 @@ async def stripe_webhook(
 
     try:
         import stripe  # type: ignore
+        stripe.api_key = STRIPE_SECRET_KEY  # ensure key set before any API calls
         event = stripe.Webhook.construct_event(payload, stripe_signature, STRIPE_WEBHOOK_SECRET)
     except ImportError:
         raise HTTPException(status_code=503, detail="stripe package not installed.")
@@ -378,11 +379,31 @@ async def stripe_webhook(
     if event_type == "checkout.session.completed":
         session = event["data"]["object"]
         customer_id = session.get("customer")
+        sub_id = session.get("subscription")
         if customer_id:
             user = get_user_by_stripe_customer(customer_id)
             if user:
-                # Subscription object not always expanded here; handled by subscription.updated
-                logger.info("Checkout completed for user %s", user["id"])
+                logger.info("Checkout completed for user %s sub=%s", user["id"], sub_id)
+                # Eagerly provision from the subscription ID if available
+                # (subscription.updated fires async — this handles same-request provisioning)
+                if sub_id:
+                    try:
+                        sub_obj = stripe.Subscription.retrieve(sub_id)
+                        item0 = sub_obj["items"]["data"][0]
+                        price_id = item0["price"]["id"]
+                        plan = _PRICE_TO_PLAN.get(price_id, "pro")
+                        ts_end = sub_obj.get("current_period_end")
+                        period_end = datetime.fromtimestamp(ts_end, tz=timezone.utc).isoformat() if ts_end else None
+                        upsert_subscription(
+                            user_id=user["id"], plan=plan,
+                            status=sub_obj["status"],
+                            stripe_subscription_id=sub_id,
+                            current_period_end=period_end,
+                            cancel_at_period_end=sub_obj.get("cancel_at_period_end", False),
+                        )
+                        logger.info("Checkout provisioned user=%s plan=%s", user["id"], plan)
+                    except Exception as exc:
+                        logger.warning("Checkout eager-provision failed (will retry via subscription.updated): %s", exc)
 
     elif event_type in ("customer.subscription.updated", "customer.subscription.created"):
         sub = event["data"]["object"]

@@ -44,7 +44,13 @@ def get_historical_returns(tickers, period="10y", interval="1d"):
     def _safe(t: str) -> str:
         return t.replace("/", "-").replace("\\", "-").replace(":", "-")
 
-    ticker_str = "_".join(sorted(_safe(t) for t in tickers))
+    sorted_tickers = sorted(_safe(t) for t in tickers)
+    ticker_str = "_".join(sorted_tickers)
+    # macOS/ext4 filename limit ~255 chars. Hash when too long.
+    if len(ticker_str) > 180:
+        import hashlib
+        digest = hashlib.sha1(ticker_str.encode()).hexdigest()[:12]
+        ticker_str = f"{sorted_tickers[0]}_n{len(sorted_tickers)}_{digest}"
     cache_filename = f"logreturns_{ticker_str}_{period}_{interval}.csv"
     cache_path = CACHE_DIR / cache_filename
 

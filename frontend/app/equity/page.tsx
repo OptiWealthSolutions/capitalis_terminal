@@ -9,6 +9,7 @@ import type {
   EquityFinancials, FinancialPeriod,
 } from "@/lib/types";
 import TVChart from "@/components/charts/TVChart";
+import PlotlyChart from "@/components/charts/PlotlyChart";
 import { LoadingSpinner, SkeletonBlock, SkeletonChart } from "@/components/ui/LoadingSpinner";
 import { QueryError } from "@/components/ui/ErrorBoundary";
 import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
@@ -168,11 +169,14 @@ export default function EquityPage() {
 
   return (
     <ErrorBoundary>
-      <div className="p-4 sm:p-6 xl:px-8 max-w-[2000px] mx-auto fade-in" style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+      <div className="fade-in" style={{ padding: "28px 32px", maxWidth: 1600, margin: "0 auto", display: "flex", flexDirection: "column", gap: 0 }}>
 
         {/* ── Page header ── */}
         <div style={{ marginBottom: 20, display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
-          <h1 style={{ fontSize: "1.5rem", fontWeight: 600, color: "var(--t1)" }}>{t.equity.title}</h1>
+          <div>
+            <p style={{ fontSize: "0.7rem", fontWeight: 500, letterSpacing: "0.06em", color: "var(--t3)", marginBottom: 4, textTransform: "uppercase" }}>Deep dive</p>
+            <h1 style={{ fontFamily: "Manrope, DM Sans, sans-serif", fontSize: "1.75rem", fontWeight: 700, color: "var(--t1)", letterSpacing: "-0.015em", lineHeight: 1.15 }}>{t.equity.title}</h1>
+          </div>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           {/* Watchlist heart button */}
           <button
@@ -181,11 +185,11 @@ export default function EquityPage() {
             style={{
               display: "flex", alignItems: "center", justifyContent: "center",
               width: 34, height: 34, borderRadius: "var(--r-sm)",
-              border: "1px solid var(--border)", background: "var(--bg-hover)",
+              border: "1px solid var(--card-border)", background: "var(--bg-hover)",
               cursor: "pointer", transition: "all 0.15s", flexShrink: 0,
             }}
             onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = "var(--red)"; }}
-            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = "var(--border)"; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = "var(--card-border)"; }}
           >
             <Heart
               size={14}
@@ -195,7 +199,7 @@ export default function EquityPage() {
           </button>
           <div style={{ position: "relative" }}>
             <div style={{
-              display: "flex", border: "1px solid var(--border)",
+              display: "flex", border: "1px solid var(--card-border)",
               borderRadius: "var(--r-sm)", overflow: "visible",
             }}>
               <input
@@ -229,7 +233,7 @@ export default function EquityPage() {
             {showSuggestions && suggestions.length > 0 && (
               <div style={{
                 position: "absolute", top: "100%", left: 0, right: 0,
-                background: "var(--bg-card)", border: "1px solid var(--border)",
+                background: "var(--bg-card)", border: "1px solid var(--card-border)",
                 borderRadius: "var(--r-sm)", marginTop: 4, zIndex: 50,
                 maxHeight: 280, overflowY: "auto",
                 boxShadow: "0 8px 24px rgba(0,0,0,0.25)",
@@ -247,7 +251,7 @@ export default function EquityPage() {
                       display: "flex", alignItems: "center", gap: 10,
                       width: "100%", padding: "8px 14px", background: "none",
                       border: "none", cursor: "pointer", textAlign: "left",
-                      borderBottom: "1px solid var(--border)",
+                      borderBottom: "1px solid var(--card-border)",
                     }}
                     onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.background = "var(--bg-hover)")}
                     onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.background = "none")}
@@ -272,49 +276,85 @@ export default function EquityPage() {
 
         {/* ── Ticker band (always visible) ── */}
         {fundamentals.isLoading ? (
-          <div style={{ marginBottom: 2 }}><SkeletonBlock className="h-16" /></div>
+          <div style={{ marginBottom: 16 }}><SkeletonBlock className="h-24" /></div>
         ) : fund ? (
           <div style={{
-            display: "flex", alignItems: "center", gap: 16, padding: "14px 20px",
-            background: "var(--bg-card)", border: "1px solid var(--border)",
-            borderLeft: "3px solid var(--orange)", borderRadius: "var(--r-sm)",
+            background: "var(--bg-card)", border: "1px solid var(--card-border)",
+            borderRadius: "var(--r-xl)", overflow: "hidden", marginBottom: 4,
           }}>
-            <span style={{
-              fontSize: "1.1rem",
-              fontWeight: 700, color: "var(--orange)",
-            }}>
-              {ticker}
-            </span>
-            <div>
-              <div style={{ fontSize: "0.84rem", fontWeight: 500, color: "var(--t1)" }}>
-                {String(fund.longName ?? "")}
-              </div>
-              <div style={{ fontSize: "0.68rem", color: "var(--t3)", marginTop: 2 }}>
-                {String(fund.sector ?? "")} · {String(fund.industry ?? "")}
-              </div>
-            </div>
-            {currentPrice != null && (
-              <div style={{ marginLeft: "auto", display: "flex", alignItems: "baseline", gap: 12 }}>
-                <span style={{
-                  fontSize: "1.35rem", fontWeight: 700,
-                  color: "var(--t1)", 
-                }}>
-                  {formatCurrency(currentPrice, (fund.currency as string) ?? "USD")}
+            {/* Identity + price row */}
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 22px", gap: 16, flexWrap: "wrap" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 14, minWidth: 0 }}>
+                <span style={{ fontFamily: "Manrope, DM Sans, sans-serif", fontSize: "1.5rem", fontWeight: 800, color: "var(--orange)", letterSpacing: "-0.01em", flexShrink: 0 }}>
+                  {ticker}
                 </span>
-                {dayChange !== null && dayChangePct !== null && (
-                  <span style={{
-                    fontSize: "0.88rem", fontWeight: 600,
-                    color: dayChange >= 0 ? "var(--green)" : "var(--red)",
-                    
-                  }}>
-                    {dayChange >= 0 ? "+" : ""}{formatNumber(dayChange, 2)}{" "}
-                    <span style={{ opacity: 0.7 }}>
-                      ({dayChangePct >= 0 ? "+" : ""}{formatPercent(dayChangePct)})
-                    </span>
-                  </span>
-                )}
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: "0.9rem", fontWeight: 600, color: "var(--t1)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {String(fund.longName ?? "")}
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4, flexWrap: "wrap" }}>
+                    {fund.sector && <span style={{ fontSize: "0.6rem", fontWeight: 700, letterSpacing: "0.05em", padding: "2px 8px", borderRadius: "9999px", background: "var(--orange-dim)", color: "var(--orange)", border: "1px solid var(--orange-border)" }}>{String(fund.sector)}</span>}
+                    {fund.industry && <span style={{ fontSize: "0.62rem", color: "var(--t3)" }}>{String(fund.industry)}</span>}
+                    {!!fund.exchange && <span style={{ fontSize: "0.62rem", color: "var(--t3)" }}>· {String(fund.exchange)}</span>}
+                  </div>
+                </div>
               </div>
-            )}
+              {currentPrice != null && (
+                <div style={{ display: "flex", alignItems: "baseline", gap: 10, flexShrink: 0 }}>
+                  <span style={{ fontFamily: "Manrope, DM Sans, sans-serif", fontSize: "1.9rem", fontWeight: 700, color: "var(--t1)", letterSpacing: "-0.02em", fontVariantNumeric: "tabular-nums" }}>
+                    {formatCurrency(currentPrice, (fund.currency as string) ?? "USD")}
+                  </span>
+                  {dayChange !== null && dayChangePct !== null && (
+                    <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
+                      <span style={{ fontSize: "0.9rem", fontWeight: 700, color: dayChange >= 0 ? "var(--green)" : "var(--red)", fontVariantNumeric: "tabular-nums" }}>
+                        {dayChange >= 0 ? "+" : ""}{formatNumber(dayChange, 2)}
+                      </span>
+                      <span style={{ fontSize: "0.72rem", fontWeight: 600, color: dayChange >= 0 ? "var(--green)" : "var(--red)", opacity: 0.8 }}>
+                        {dayChangePct >= 0 ? "+" : ""}{formatPercent(dayChangePct)}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+            {/* Metrics strip */}
+            {(() => {
+              const low52 = n(fund?.fiftyTwoWeekLow);
+              const high52 = n(fund?.fiftyTwoWeekHigh);
+              const cur = currentPrice;
+              const range52 = (high52 ?? 0) - (low52 ?? 0);
+              const pos52 = range52 > 0 && cur != null ? Math.max(0, Math.min(1, (cur - (low52 ?? 0)) / range52)) : null;
+              const strip = [
+                { label: "Market Cap",  value: fund?.marketCap      != null ? formatLargeNumber(n(fund.marketCap))      : "—" },
+                { label: "Volume",      value: fund?.volume         != null ? formatLargeNumber(n(fund.volume))         : "—" },
+                { label: "Avg Vol",     value: fund?.averageVolume  != null ? formatLargeNumber(n(fund.averageVolume))  : "—" },
+                { label: "Fwd P/E",     value: fund?.forwardPE      != null ? formatNumber(n(fund.forwardPE), 1)        : "—" },
+                { label: "Beta",        value: fund?.beta           != null ? formatNumber(n(fund.beta), 2)             : "—" },
+              ];
+              return (
+                <div style={{ borderTop: "1px solid var(--card-border)", padding: "10px 22px", display: "flex", alignItems: "center", gap: 0, background: "var(--bg-inner)", flexWrap: "wrap", rowGap: 8 }}>
+                  {strip.map((m) => (
+                    <div key={m.label} style={{ display: "flex", flexDirection: "column", paddingRight: 28 }}>
+                      <span style={{ fontSize: "0.56rem", fontWeight: 700, letterSpacing: "0.07em", textTransform: "uppercase", color: "var(--t3)" }}>{m.label}</span>
+                      <span style={{ fontFamily: "Manrope, sans-serif", fontSize: "0.8rem", fontWeight: 600, color: "var(--t1)", fontVariantNumeric: "tabular-nums", marginTop: 2 }}>{m.value}</span>
+                    </div>
+                  ))}
+                  {low52 != null && high52 != null && pos52 != null && (
+                    <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 140, maxWidth: 240 }}>
+                      <span style={{ fontSize: "0.56rem", fontWeight: 700, letterSpacing: "0.07em", textTransform: "uppercase", color: "var(--t3)", marginBottom: 5 }}>52W Range</span>
+                      <div style={{ position: "relative", height: 3, background: "var(--card-border)", borderRadius: 2 }}>
+                        <div style={{ position: "absolute", left: 0, top: 0, width: `${pos52 * 100}%`, height: "100%", background: "var(--orange)", borderRadius: 2 }} />
+                        <div style={{ position: "absolute", top: -4, left: `calc(${pos52 * 100}% - 5px)`, width: 11, height: 11, borderRadius: "50%", background: "var(--orange)", border: "2px solid var(--bg-inner)" }} />
+                      </div>
+                      <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4 }}>
+                        <span style={{ fontSize: "0.56rem", color: "var(--t3)", fontVariantNumeric: "tabular-nums" }}>{formatCurrency(low52, (fund.currency as string) ?? "USD")}</span>
+                        <span style={{ fontSize: "0.56rem", color: "var(--t3)", fontVariantNumeric: "tabular-nums" }}>{formatCurrency(high52, (fund.currency as string) ?? "USD")}</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
           </div>
         ) : null}
 
@@ -334,7 +374,7 @@ export default function EquityPage() {
 
         {/* ── Tab bar (advanced mode only) ── */}
         {!isSimple && (
-          <div style={{ display: "flex", borderBottom: "1px solid var(--border)", marginBottom: 24, marginTop: 4, overflowX: "auto" }}>
+          <div style={{ display: "flex", borderBottom: "1px solid var(--card-border)", marginBottom: 24, marginTop: 4, overflowX: "auto" }}>
             {TABS.map(({ id, label, Icon }) => (
               <button key={id} onClick={() => setTab(id)}
                 style={{ display: "flex", alignItems: "center", gap: 7, padding: "11px 20px", background: "none", border: "none", borderBottom: `2px solid ${tab === id ? "var(--orange)" : "transparent"}`, marginBottom: -1, cursor: "pointer", color: tab === id ? "var(--orange)" : "var(--t2)", fontSize: "0.8rem", fontWeight: tab === id ? 600 : 400, letterSpacing: "0.01em", transition: "all 0.12s" }}>
@@ -345,196 +385,210 @@ export default function EquityPage() {
         )}
 
         {/* ════ Tab: Overview ════ */}
-        {!isSimple && tab === "overview" && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-            {stats.isLoading || fundamentals.isLoading ? (
-              <div className="grid grid-cols-5 gap-3">
-                {[...Array(5)].map((_, i) => <SkeletonBlock key={i} className="h-20" />)}
-              </div>
-            ) : (
-              <>
-                {/* Performance KPIs */}
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
-                  <StatKPI label="Ann. Return (5Y)" value={s ? formatPercent(s.ann_return) : "—"} tone={s && s.ann_return > 0 ? "up" : "down"} />
-                  <StatKPI label="Ann. Volatility"  value={s ? formatPercent(s.ann_volatility) : "—"} />
-                  <StatKPI label="Sharpe Ratio"     value={s ? formatNumber(s.sharpe_ratio, 3) : "—"} tone={s && s.sharpe_ratio > 1 ? "up" : undefined} />
-                  <StatKPI label="Max Drawdown"     value={s ? formatPercent(s.max_drawdown) : "—"} tone="down" />
-                  <StatKPI label="CAGR (5Y)"        value={s ? formatPercent(s.cagr) : "—"} tone={s && s.cagr > 0 ? "up" : "down"} />
-                </div>
+        {!isSimple && tab === "overview" && (() => {
+          const ann = financials.data?.annual;
+          const lastIdx = ann && ann.dates.length > 0 ? ann.dates.length - 1 : -1;
+          const prevIdx = lastIdx > 0 ? lastIdx - 1 : -1;
+          const recMean = n(fund?.recommendationMean);
+          const recLabel = recMean == null ? null : recMean <= 1.5 ? "STRONG BUY" : recMean <= 2.5 ? "BUY" : recMean <= 3.5 ? "HOLD" : recMean <= 4.5 ? "UNDERPERFORM" : "SELL";
+          const recColor = recMean == null ? "var(--t3)" : recMean <= 2.5 ? "var(--green)" : recMean <= 3.5 ? "var(--orange)" : "var(--red)";
+          const recBarPct = recMean != null ? Math.max(0, Math.min(100, ((5 - recMean) / 4) * 100)) : 0;
+          const insiders = holders.data?.insider_transactions?.slice(0, 4) ?? [];
+          const OV_PERIODS: { label: string; value: Period }[] = [
+            { label: "1M", value: "1mo" }, { label: "3M", value: "3mo" },
+            { label: "6M", value: "6mo" }, { label: "1Y", value: "1y"  },
+            { label: "2Y", value: "2y"  }, { label: "5Y", value: "5y"  },
+          ];
+          function fmtGrowth(cur: number | null, prev: number | null): number | null {
+            if (cur == null || prev == null) return null;
+            // Sign change (neg → pos or pos → neg): meaningful but uncappable, return null (N/M)
+            if (prev === 0 || (prev < 0 && cur > 0) || (prev > 0 && cur < 0)) return null;
+            const g = ((cur - prev) / Math.abs(prev)) * 100;
+            // Cap at ±999% — beyond that, figure is misleading
+            if (!isFinite(g) || Math.abs(g) > 999) return null;
+            return g;
+          }
+          const incomeRows = lastIdx >= 0 && ann ? [
+            { label: "Total Revenue",    cur: ann.revenue[lastIdx],          prev: ann.revenue[prevIdx]          },
+            { label: "Gross Profit",     cur: ann.gross_profit[lastIdx],     prev: ann.gross_profit[prevIdx]     },
+            { label: "Operating Income", cur: ann.operating_income[lastIdx], prev: ann.operating_income[prevIdx] },
+            { label: "Net Income",       cur: ann.net_income[lastIdx],       prev: ann.net_income[prevIdx],       bold: true },
+          ] : [];
+          return (
+            <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1.55fr) minmax(0, 1fr)", gap: 20, alignItems: "start" }}>
 
-                {/* Company description */}
-                {(!!fund?.longBusinessSummary || fund?.fullTimeEmployees != null) && (
-                  <div style={{
-                    background: "var(--bg-card)", border: "1px solid var(--border)",
-                    borderRadius: "var(--r)", padding: "16px 20px",
-                  }}>
-                    <div style={{
-                      fontSize: "0.6rem", fontWeight: 700, letterSpacing: "0.08em",
-                      textTransform: "uppercase", color: "var(--t3)", marginBottom: 10,
-                      display: "flex", justifyContent: "space-between", alignItems: "center",
-                    }}>
-                      <span>About</span>
-                      {fund?.fullTimeEmployees != null && (
-                        <span style={{ color: "var(--t2)", fontSize: "0.68rem", fontWeight: 500, textTransform: "none", letterSpacing: 0 }}>
-                          {formatLargeNumber(n(fund.fullTimeEmployees))} employees
-                        </span>
-                      )}
-                    </div>
-                    {!!fund?.longBusinessSummary && (
-                      <p style={{
-                        fontSize: "0.78rem", color: "var(--t2)", lineHeight: 1.6,
-                        margin: 0, display: "-webkit-box", WebkitLineClamp: 4,
-                        WebkitBoxOrient: "vertical", overflow: "hidden",
-                      }}>
-                        {String(fund.longBusinessSummary)}
-                      </p>
-                    )}
-                  </div>
-                )}
+              {/* ── LEFT column ── */}
+              <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
 
-                {/* Analyst Targets */}
-                {(fund?.targetMeanPrice != null || fund?.recommendationMean != null) && (
-                  <div style={{
-                    background: "var(--bg-card)", border: "1px solid var(--border)",
-                    borderLeft: "3px solid var(--orange)", borderRadius: "var(--r)", overflow: "hidden",
-                  }}>
-                    <div style={{
-                      padding: "11px 16px", borderBottom: "1px solid var(--border)",
-                      fontSize: "0.6rem", fontWeight: 700, letterSpacing: "0.08em",
-                      textTransform: "uppercase", color: "var(--t3)",
-                      display: "flex", justifyContent: "space-between", alignItems: "center",
-                    }}>
-                      <span>Analyst Consensus</span>
-                      {fund?.numberOfAnalystOpinions != null && (
-                        <span style={{ fontWeight: 500, color: "var(--t2)", fontSize: "0.68rem", textTransform: "none", letterSpacing: 0 }}>
-                          {String(fund.numberOfAnalystOpinions)} analysts
-                        </span>
-                      )}
-                    </div>
-                    <div style={{ display: "flex", flexWrap: "wrap" }}>
-                      {[
-                        ["Mean Target",   fund?.targetMeanPrice   != null ? formatCurrency(n(fund.targetMeanPrice)!,   (fund.currency as string) ?? "USD") : "—"],
-                        ["High Target",   fund?.targetHighPrice   != null ? formatCurrency(n(fund.targetHighPrice)!,   (fund.currency as string) ?? "USD") : "—"],
-                        ["Low Target",    fund?.targetLowPrice    != null ? formatCurrency(n(fund.targetLowPrice)!,    (fund.currency as string) ?? "USD") : "—"],
-                        ["Median Target", fund?.targetMedianPrice != null ? formatCurrency(n(fund.targetMedianPrice)!, (fund.currency as string) ?? "USD") : "—"],
-                        ["Rec. Score",    fund?.recommendationMean != null ? `${formatNumber(n(fund.recommendationMean), 2)} / 5` : "—"],
-                      ].map(([label, value], i) => (
-                        <div key={label} style={{
-                          flex: "1 1 160px", padding: "12px 16px",
-                          borderRight: i < 4 ? "1px solid var(--border)" : "none",
-                          borderBottom: "none",
-                        }}>
-                          <div style={{ fontSize: "0.6rem", color: "var(--t3)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>{label}</div>
-                          <div style={{ fontSize: "0.92rem", fontWeight: 600, color: "var(--t1)" }}>{value}</div>
-                          {label === "Mean Target" && currentPrice != null && fund?.targetMeanPrice != null && (
-                            <div style={{
-                              fontSize: "0.65rem", marginTop: 3,
-                              color: (n(fund.targetMeanPrice)! > currentPrice) ? "var(--green)" : "var(--red)",
-                              
-                            }}>
-                              {((n(fund.targetMeanPrice)! - currentPrice) / currentPrice * 100).toFixed(1)}% upside
-                            </div>
-                          )}
-                        </div>
+                {/* Price Performance card */}
+                <div style={{ background: "var(--bg-card)", border: "1px solid var(--card-border)", borderRadius: "var(--r-xl)", overflow: "hidden" }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 20px", borderBottom: "1px solid var(--card-border)" }}>
+                    <span style={{ fontFamily: "Manrope, DM Sans, sans-serif", fontSize: "1rem", fontWeight: 700, color: "var(--t1)" }}>Price Performance</span>
+                    <div style={{ display: "flex", gap: 4 }}>
+                      {OV_PERIODS.map(p => (
+                        <button key={p.value} onClick={() => setPeriod(p.value)}
+                          style={{ fontSize: "0.68rem", padding: "3px 9px", borderRadius: "var(--r-full)", border: `1px solid ${period === p.value ? "var(--orange-border)" : "var(--card-border)"}`, background: period === p.value ? "var(--orange-dim)" : "transparent", color: period === p.value ? "var(--orange)" : "var(--t3)", cursor: "pointer", fontWeight: period === p.value ? 700 : 400, transition: "all 0.12s" }}>
+                          {p.label}
+                        </button>
                       ))}
                     </div>
                   </div>
+                  <div style={{ padding: "8px 0" }}>
+                    {history.isLoading ? (
+                      <div style={{ height: 320, display: "flex", alignItems: "center", justifyContent: "center" }}><LoadingSpinner size="md" /></div>
+                    ) : history.data ? (
+                      <PlotlyChart
+                        data={[{
+                          type: "scatter", mode: "lines",
+                          x: history.data.dates, y: history.data.close,
+                          name: ticker,
+                          line: { color: (dayChange ?? 0) >= 0 ? "#86B38A" : "#D48585", width: 2 },
+                          fill: "tozeroy",
+                          fillcolor: (dayChange ?? 0) >= 0 ? "rgba(134,179,138,0.07)" : "rgba(212,133,133,0.07)",
+                          hovertemplate: "%{x}: $%{y:,.2f}<extra></extra>",
+                        }]}
+                        layout={{
+                          margin: { t: 8, b: 32, l: 52, r: 16 },
+                          showlegend: false,
+                          paper_bgcolor: "transparent", plot_bgcolor: "transparent",
+                          xaxis: { showgrid: false, color: isDark ? "rgba(245,245,245,0.4)" : "rgba(17,17,17,0.45)" },
+                          yaxis: { showgrid: true, gridcolor: isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)", color: isDark ? "rgba(245,245,245,0.4)" : "rgba(17,17,17,0.45)", tickprefix: "$", tickformat: ",.0f" },
+                        }}
+                        height={320}
+                      />
+                    ) : null}
+                  </div>
+                </div>
+
+                {/* Income Statement card */}
+                {incomeRows.length > 0 && (
+                  <div style={{ background: "var(--bg-card)", border: "1px solid var(--card-border)", borderRadius: "var(--r-xl)", overflow: "hidden" }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 20px", borderBottom: "1px solid var(--card-border)" }}>
+                      <span style={{ fontFamily: "Manrope, DM Sans, sans-serif", fontSize: "1rem", fontWeight: 700, color: "var(--t1)" }}>Income Statement (TTM)</span>
+                      <button onClick={() => setTab("financials")} style={{ fontSize: "0.7rem", color: "var(--orange)", background: "none", border: "none", cursor: "pointer", padding: 0, textDecoration: "underline" }}>View Full Financials</button>
+                    </div>
+                    <div style={{ padding: "0" }}>
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr auto auto", padding: "8px 20px", borderBottom: "1px solid var(--card-border)", background: "var(--bg-inner)" }}>
+                        <span style={{ fontSize: "0.6rem", fontWeight: 700, letterSpacing: "0.07em", textTransform: "uppercase", color: "var(--t3)" }}>Metric</span>
+                        <span style={{ fontSize: "0.6rem", fontWeight: 700, letterSpacing: "0.07em", textTransform: "uppercase", color: "var(--t3)", textAlign: "right", paddingRight: 32 }}>Value (USD)</span>
+                        <span style={{ fontSize: "0.6rem", fontWeight: 700, letterSpacing: "0.07em", textTransform: "uppercase", color: "var(--t3)", textAlign: "right", minWidth: 80 }}>YoY Growth</span>
+                      </div>
+                      {incomeRows.map((row) => {
+                        const g = fmtGrowth(row.cur ?? null, row.prev ?? null);
+                        return (
+                          <div key={row.label} style={{ display: "grid", gridTemplateColumns: "1fr auto auto", padding: "12px 20px", borderBottom: "1px solid var(--card-border)" }}>
+                            <span style={{ fontSize: "0.82rem", color: "var(--t2)", fontWeight: (row as { bold?: boolean }).bold ? 700 : 400 }}>{row.label}</span>
+                            <span style={{ fontSize: "0.82rem", color: "var(--t1)", fontWeight: (row as { bold?: boolean }).bold ? 700 : 500, fontVariantNumeric: "tabular-nums", textAlign: "right", paddingRight: 32 }}>
+                              {row.cur != null ? formatLargeNumber(row.cur) : "—"}
+                            </span>
+                            <span style={{ fontSize: "0.8rem", fontWeight: 700, color: g == null ? "var(--t3)" : g >= 0 ? "var(--green)" : "var(--red)", textAlign: "right", minWidth: 80, fontVariantNumeric: "tabular-nums" }}>
+                              {g == null ? "—" : `${g >= 0 ? "+" : ""}${g.toFixed(2)}%`}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* ── RIGHT column ── */}
+              <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+
+                {/* Key Statistics card */}
+                <div style={{ background: "var(--bg-card)", border: "1px solid var(--card-border)", borderRadius: "var(--r-xl)", overflow: "hidden" }}>
+                  <div style={{ padding: "14px 20px", borderBottom: "1px solid var(--card-border)" }}>
+                    <span style={{ fontFamily: "Manrope, DM Sans, sans-serif", fontSize: "1rem", fontWeight: 700, color: "var(--t1)" }}>Key Statistics</span>
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", padding: "4px 0" }}>
+                    {[
+                      { label: "MARKET CAP",  value: fund?.marketCap  != null ? formatLargeNumber(n(fund.marketCap))  : "—" },
+                      { label: "P/E RATIO",   value: fund?.forwardPE  != null ? formatNumber(n(fund.forwardPE), 1)    : fund?.trailingPE != null ? formatNumber(n(fund.trailingPE), 1) : "—" },
+                      { label: "DIV YIELD",   value: fund?.dividendYield != null ? formatPercent(n(fund.dividendYield)) : "—" },
+                      { label: "BETA (5Y)",   value: fund?.beta != null ? formatNumber(n(fund.beta), 2)               : "—" },
+                      { label: "52W HIGH",    value: fund?.fiftyTwoWeekHigh != null ? formatCurrency(n(fund.fiftyTwoWeekHigh)!, (fund.currency as string) ?? "USD") : "—" },
+                      { label: "52W LOW",     value: fund?.fiftyTwoWeekLow  != null ? formatCurrency(n(fund.fiftyTwoWeekLow)!,  (fund.currency as string) ?? "USD") : "—" },
+                    ].map((stat, i) => (
+                      <div key={stat.label} style={{ padding: "14px 20px", borderBottom: i < 4 ? "1px solid var(--card-border)" : "none", borderRight: i % 2 === 0 ? "1px solid var(--card-border)" : "none" }}>
+                        <p style={{ fontSize: "0.58rem", fontWeight: 700, letterSpacing: "0.07em", textTransform: "uppercase", color: "var(--t3)", marginBottom: 6 }}>{stat.label}</p>
+                        <p style={{ fontFamily: "Manrope, sans-serif", fontSize: "1.15rem", fontWeight: 700, color: "var(--t1)", fontVariantNumeric: "tabular-nums", letterSpacing: "-0.01em" }}>{stat.value}</p>
+                      </div>
+                    ))}
+                  </div>
+                  {recLabel != null && (
+                    <div style={{ padding: "14px 20px", borderTop: "1px solid var(--card-border)" }}>
+                      <p style={{ fontSize: "0.58rem", fontWeight: 700, letterSpacing: "0.07em", textTransform: "uppercase", color: "var(--t3)", marginBottom: 10 }}>
+                        Analyst Consensus{fund?.numberOfAnalystOpinions != null && ` · ${String(fund.numberOfAnalystOpinions)} analysts`}
+                      </p>
+                      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                        <div style={{ flex: 1, height: 6, borderRadius: 3, background: "var(--bg-hover)", overflow: "hidden" }}>
+                          <div style={{ width: `${recBarPct}%`, height: "100%", background: recColor, borderRadius: 3, transition: "width 0.4s ease" }} />
+                        </div>
+                        <span style={{ fontSize: "0.78rem", fontWeight: 800, color: recColor, letterSpacing: "0.04em", flexShrink: 0 }}>{recLabel}</span>
+                      </div>
+                      {fund?.targetMeanPrice != null && currentPrice != null && (
+                        <p style={{ fontSize: "0.68rem", color: "var(--t3)", marginTop: 6 }}>
+                          Mean target: <span style={{ color: n(fund.targetMeanPrice)! > currentPrice ? "var(--green)" : "var(--red)", fontWeight: 600 }}>{formatCurrency(n(fund.targetMeanPrice)!, (fund.currency as string) ?? "USD")}</span>
+                          <span style={{ marginLeft: 6 }}>({((n(fund.targetMeanPrice)! - currentPrice) / currentPrice * 100).toFixed(1)}% upside)</span>
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Recent Insider Trading */}
+                {insiders.length > 0 && (
+                  <div style={{ background: "var(--bg-card)", border: "1px solid var(--card-border)", borderRadius: "var(--r-xl)", overflow: "hidden" }}>
+                    <div style={{ padding: "14px 20px", borderBottom: "1px solid var(--card-border)" }}>
+                      <span style={{ fontFamily: "Manrope, DM Sans, sans-serif", fontSize: "1rem", fontWeight: 700, color: "var(--t1)" }}>Recent Insider Trading</span>
+                    </div>
+                    <div>
+                      {insiders.map((ins, i) => {
+                        const isSell = String(ins.Transaction ?? "").toLowerCase().includes("sell") || String(ins.Transaction ?? "").toLowerCase().includes("sale");
+                        const txColor = isSell ? "var(--red)" : "var(--green)";
+                        const txLabel = isSell ? "Sell" : "Buy";
+                        return (
+                          <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 20px", borderBottom: i < insiders.length - 1 ? "1px solid var(--card-border)" : "none" }}>
+                            <div style={{ minWidth: 0 }}>
+                              <p style={{ fontSize: "0.8rem", fontWeight: 600, color: "var(--t1)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ins.Insider ?? "—"}</p>
+                              <p style={{ fontSize: "0.66rem", color: "var(--t3)", marginTop: 2 }}>{ins.Position ?? ""}</p>
+                            </div>
+                            <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", flexShrink: 0 }}>
+                              <span style={{ fontSize: "0.78rem", fontWeight: 700, color: txColor }}>{txLabel}</span>
+                              {ins.Shares != null && <span style={{ fontSize: "0.66rem", color: "var(--t3)", fontVariantNumeric: "tabular-nums" }}>{(ins.Shares as number).toLocaleString()} shares</span>}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
                 )}
 
-                {/* 3-column: Valuation | Profitability | Trading Info */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  <FundSection title="Valuation" rows={[
-                    ["Market Cap",        formatLargeNumber(n(fund?.marketCap))],
-                    ["Enterprise Value",  formatLargeNumber(n(fund?.enterpriseValue))],
-                    ["Forward P/E",       formatNumber(n(fund?.forwardPE), 2),   getMetricTone("forwardPE",    n(fund?.forwardPE))],
-                    ["Trailing P/E",      formatNumber(n(fund?.trailingPE), 2),  getMetricTone("trailingPE",   n(fund?.trailingPE))],
-                    ["Price / Book",      formatNumber(n(fund?.priceToBook), 3), getMetricTone("priceToBook",  n(fund?.priceToBook))],
-                    ["Price / Sales",     formatNumber(n(fund?.priceToSalesTrailing12Months), 3), getMetricTone("priceToSalesTrailing12Months", n(fund?.priceToSalesTrailing12Months))],
-                    ["EV / EBITDA",       formatNumber(n(fund?.enterpriseToEbitda), 2), getMetricTone("enterpriseToEbitda", n(fund?.enterpriseToEbitda))],
-                    ["EV / Revenue",      formatNumber(n(fund?.enterpriseToRevenue), 2)],
-                    ["PEG Ratio",         formatNumber(n(fund?.pegRatio), 3),    getMetricTone("pegRatio",     n(fund?.pegRatio))],
-                    ["Beta",              formatNumber(n(fund?.beta), 3),        getMetricTone("beta",         n(fund?.beta))],
-                  ]} />
-                  <FundSection title="Profitability" rows={[
-                    ["ROE",               formatPercent(n(fund?.returnOnEquity)),   getMetricTone("returnOnEquity",   n(fund?.returnOnEquity))],
-                    ["ROA",               formatPercent(n(fund?.returnOnAssets)),   getMetricTone("returnOnAssets",   n(fund?.returnOnAssets))],
-                    ["Gross Margin",      formatPercent(n(fund?.grossMargins)),     getMetricTone("grossMargins",     n(fund?.grossMargins))],
-                    ["Operating Margin",  formatPercent(n(fund?.operatingMargins)), getMetricTone("operatingMargins", n(fund?.operatingMargins))],
-                    ["Net Margin",        formatPercent(n(fund?.profitMargins)),    getMetricTone("profitMargins",    n(fund?.profitMargins))],
-                    ["EBITDA Margin",     formatPercent(n(fund?.ebitdaMargins)),    getMetricTone("ebitdaMargins",    n(fund?.ebitdaMargins))],
-                    ["EBITDA",            formatLargeNumber(n(fund?.ebitda))],
-                    ["Operating CF",      formatLargeNumber(n(fund?.operatingCashflow))],
-                  ]} />
-                  <FundSection title="Trading Info" rows={[
-                    ["Volume",            n(fund?.volume) != null ? formatLargeNumber(n(fund?.volume)) : "—"],
-                    ["Avg Volume",        n(fund?.averageVolume) != null ? formatLargeNumber(n(fund?.averageVolume)) : "—"],
-                    ["Avg Vol (10D)",     n(fund?.averageVolume10days) != null ? formatLargeNumber(n(fund?.averageVolume10days)) : "—"],
-                    ["52W High",          fund?.fiftyTwoWeekHigh != null ? formatCurrency(n(fund.fiftyTwoWeekHigh)!, (fund.currency as string) ?? "USD") : "—"],
-                    ["52W Low",           fund?.fiftyTwoWeekLow  != null ? formatCurrency(n(fund.fiftyTwoWeekLow)!,  (fund.currency as string) ?? "USD") : "—"],
-                    ["Day High",          fund?.dayHigh != null ? formatCurrency(n(fund.dayHigh)!, (fund.currency as string) ?? "USD") : "—"],
-                    ["Day Low",           fund?.dayLow  != null ? formatCurrency(n(fund.dayLow)!,  (fund.currency as string) ?? "USD") : "—"],
-                    ["50D Avg",           fund?.fiftyDayAverage  != null ? formatCurrency(n(fund.fiftyDayAverage)!,  (fund.currency as string) ?? "USD") : "—"],
-                    ["200D Avg",          fund?.twoHundredDayAverage != null ? formatCurrency(n(fund.twoHundredDayAverage)!, (fund.currency as string) ?? "USD") : "—"],
-                  ]} />
-                </div>
-
-                {/* 3-column: Per Share | Growth | Financial Health */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  <FundSection title="Per Share" rows={[
-                    ["EPS (TTM)",         fund?.trailingEps != null ? formatCurrency(n(fund.trailingEps)!, (fund.currency as string) ?? "USD") : "—"],
-                    ["EPS (Forward)",     fund?.forwardEps  != null ? formatCurrency(n(fund.forwardEps)!,  (fund.currency as string) ?? "USD") : "—"],
-                    ["Revenue / Share",   fund?.revenuePerShare != null ? formatCurrency(n(fund.revenuePerShare)!, (fund.currency as string) ?? "USD") : "—"],
-                    ["Book Value",        fund?.bookValue != null ? formatCurrency(n(fund.bookValue)!, (fund.currency as string) ?? "USD") : "—"],
-                    ["Dividend / Share",  fund?.dividendRate != null ? formatCurrency(n(fund.dividendRate)!, (fund.currency as string) ?? "USD") : "—"],
-                    ["Dividend Yield",    formatPercent(n(fund?.dividendYield))],
-                    ["Payout Ratio",      formatPercent(n(fund?.payoutRatio))],
-                    ["Ex-Div Date",       fund?.exDividendDate ? String(fund.exDividendDate) : "—"],
-                  ]} />
-                  <FundSection title="Growth" rows={[
-                    ["Earnings Growth",   formatPercent(n(fund?.earningsGrowth))],
-                    ["Revenue Growth",    formatPercent(n(fund?.revenueGrowth))],
-                    ["Total Revenue",     formatLargeNumber(n(fund?.totalRevenue))],
-                    ["Free Cash Flow",    formatLargeNumber(n(fund?.freeCashflow))],
-                    ["Net Income",        formatLargeNumber(n(fund?.netIncomeToCommon))],
-                  ]} />
-                  <FundSection title="Financial Health" rows={[
-                    ["Total Cash",        formatLargeNumber(n(fund?.totalCash))],
-                    ["Total Debt",        formatLargeNumber(n(fund?.totalDebt))],
-                    ["Current Ratio",     formatNumber(n(fund?.currentRatio), 2)],
-                    ["Quick Ratio",       formatNumber(n(fund?.quickRatio), 2)],
-                    ["Debt / Equity",     formatNumber(n(fund?.debtToEquity), 2)],
-                    ["Float Shares",      formatLargeNumber(n(fund?.floatShares))],
-                    ["Shares Out.",       formatLargeNumber(n(fund?.sharesOutstanding))],
-                    ["Inst. Held",        formatPercent(n(fund?.heldPercentInstitutions))],
-                    ["Insider Held",      formatPercent(n(fund?.heldPercentInsiders))],
-                    ["Short Float",       formatPercent(n(fund?.shortPercentOfFloat))],
-                  ]} />
-                </div>
-              </>
-            )}
-          </div>
-        )}
+                {/* About (compact) */}
+                {!!fund?.longBusinessSummary && (
+                  <div style={{ background: "var(--bg-card)", border: "1px solid var(--card-border)", borderRadius: "var(--r-xl)", padding: "16px 20px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                      <span style={{ fontSize: "0.6rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--t3)" }}>About</span>
+                      {fund?.fullTimeEmployees != null && <span style={{ fontSize: "0.68rem", color: "var(--t2)" }}>{formatLargeNumber(n(fund.fullTimeEmployees))} employees</span>}
+                    </div>
+                    <p style={{ fontSize: "0.76rem", color: "var(--t2)", lineHeight: 1.6, margin: 0, display: "-webkit-box", WebkitLineClamp: 5, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+                      {String(fund.longBusinessSummary)}
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })()}
 
         {/* ════ Tab: Financials ════ */}
         {!isSimple && tab === "financials" && (
           <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+            {/* Toggle */}
             <div style={{ display: "flex", justifyContent: "flex-end" }}>
-              <div style={{
-                display: "flex", border: "1px solid var(--border)",
-                borderRadius: "var(--r-sm)", overflow: "hidden",
-              }}>
+              <div style={{ display: "flex", border: "1px solid var(--card-border)", borderRadius: "var(--r-sm)", overflow: "hidden" }}>
                 {(["annual", "quarterly"] as FinView[]).map((v) => (
-                  <button
-                    key={v}
-                    onClick={() => setFinView(v)}
-                    style={{
-                      padding: "6px 18px", fontSize: "0.7rem", fontWeight: 600,
-                      letterSpacing: "0.06em", textTransform: "uppercase",
-                      background: finView === v ? "var(--orange)" : "var(--bg-card)",
-                      color: finView === v ? "#fff" : "var(--t2)",
-                      border: "none", cursor: "pointer", transition: "all 0.12s",
-                    }}
-                  >
+                  <button key={v} onClick={() => setFinView(v)} style={{ padding: "6px 18px", fontSize: "0.7rem", fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", background: finView === v ? "var(--orange)" : "var(--bg-card)", color: finView === v ? "#fff" : "var(--t2)", border: "none", cursor: "pointer", transition: "all 0.12s" }}>
                     {v === "annual" ? t.equity.period.annual : t.equity.period.quarterly}
                   </button>
                 ))}
@@ -542,14 +596,15 @@ export default function EquityPage() {
             </div>
             {financials.isLoading ? (
               <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                <SkeletonChart height={120} />
                 <SkeletonChart height={200} />
-                <SkeletonChart height={180} />
-                <SkeletonChart height={180} />
+                <SkeletonChart height={200} />
+                <SkeletonChart height={200} />
               </div>
             ) : financials.error ? (
               <QueryError error={financials.error as Error} onRetry={() => financials.refetch()} />
             ) : financials.data ? (
-              <FinancialCharts data={financials.data[finView]} view={finView} />
+              <FinancialsFull data={financials.data[finView]} view={finView} isDark={isDark} />
             ) : null}
           </div>
         )}
@@ -561,7 +616,7 @@ export default function EquityPage() {
             {fund && (
               <div style={{
                 display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
-                gap: 0, border: "1px solid var(--border)", borderRadius: "var(--r)", overflow: "hidden",
+                gap: 0, border: "1px solid var(--card-border)", borderRadius: "var(--r-xl)", overflow: "hidden",
                 background: "var(--bg-card)",
               }}>
                 {[
@@ -599,7 +654,7 @@ export default function EquityPage() {
                 ].map((item, i, arr) => (
                   <div key={item.label} style={{
                     padding: "12px 16px",
-                    borderRight: i < arr.length - 1 ? "1px solid var(--border)" : "none",
+                    borderRight: i < arr.length - 1 ? "1px solid var(--card-border)" : "none",
                   }}>
                     <div style={{ fontSize: "0.58rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--t3)", marginBottom: 8 }}>
                       {item.label}
@@ -624,7 +679,7 @@ export default function EquityPage() {
                     letterSpacing: "0.06em", textTransform: "uppercase",
                     background: period === p ? "var(--orange)" : "var(--bg-card)",
                     color: period === p ? "#fff" : "var(--t2)",
-                    border: `1px solid ${period === p ? "var(--orange)" : "var(--border)"}`,
+                    border: `1px solid ${period === p ? "var(--orange)" : "var(--card-border)"}`,
                     borderRadius: "var(--r-sm)", cursor: "pointer", transition: "all 0.12s",
                   }}
                 >
@@ -633,7 +688,7 @@ export default function EquityPage() {
               ))}
             </div>
             <div style={{
-              border: "1px solid var(--border)", borderRadius: "var(--r)",
+              border: "1px solid var(--card-border)", borderRadius: "var(--r-xl)",
               overflow: "hidden",
             }}>
               {history.isLoading ? (
@@ -716,7 +771,7 @@ function EquitySimpleView({ ticker, fund, stats, history, currentPrice, dayChang
   function KPI({ label, value, tone }: { label: string; value: string; tone?: "up" | "down" | "neutral" }) {
     const c = tone === "up" ? "var(--green)" : tone === "down" ? "var(--red)" : "var(--t1)";
     return (
-      <div style={{ padding: "12px 16px", background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 10 }}>
+      <div style={{ padding: "12px 16px", background: "var(--surface)", border: "1px solid var(--card-border)", borderRadius: 10 }}>
         <div style={{ fontSize: "0.58rem", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--t3)", marginBottom: 6 }}>{label}</div>
         <div style={{ fontSize: "0.95rem", fontWeight: 700, color: c, }}>{value}</div>
       </div>
@@ -744,7 +799,7 @@ function EquitySimpleView({ ticker, fund, stats, history, currentPrice, dayChang
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16, marginBottom: 8 }}>
       {/* ── Performance strip ── */}
-      <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, padding: "16px 20px" }}>
+      <div style={{ background: "var(--bg-card)", border: "1px solid var(--card-border)", borderRadius: 12, padding: "16px 20px" }}>
         <div style={{ fontSize: "0.6rem", fontWeight: 700, letterSpacing: "0.09em", textTransform: "uppercase", color: "var(--t3)", marginBottom: 12 }}>Performance</div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 8 }}>
           <ReturnBadge label="1D" value={dayChangePct} />
@@ -771,7 +826,7 @@ function EquitySimpleView({ ticker, fund, stats, history, currentPrice, dayChang
       {(recLabel || fund.targetMeanPrice != null) && (
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
           {recLabel && (
-            <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, padding: "14px 18px", display: "flex", flexDirection: "column", gap: 4 }}>
+            <div style={{ background: "var(--bg-card)", border: "1px solid var(--card-border)", borderRadius: 12, padding: "14px 18px", display: "flex", flexDirection: "column", gap: 4 }}>
               <div style={{ fontSize: "0.58rem", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--t3)" }}>Analyst Consensus</div>
               <div style={{ fontSize: "1.05rem", fontWeight: 700, color: recColor, }}>{recLabel}</div>
               {fund.numberOfAnalystOpinions != null && (
@@ -780,7 +835,7 @@ function EquitySimpleView({ ticker, fund, stats, history, currentPrice, dayChang
             </div>
           )}
           {fund.targetMeanPrice != null && currentPrice != null && (
-            <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, padding: "14px 18px", display: "flex", flexDirection: "column", gap: 4 }}>
+            <div style={{ background: "var(--bg-card)", border: "1px solid var(--card-border)", borderRadius: 12, padding: "14px 18px", display: "flex", flexDirection: "column", gap: 4 }}>
               <div style={{ fontSize: "0.58rem", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--t3)" }}>Price Target</div>
               <div style={{ fontSize: "1.05rem", fontWeight: 700, color: "var(--t1)", }}>
                 {formatCurrency(fund.targetMeanPrice as number, currency)}
@@ -795,7 +850,7 @@ function EquitySimpleView({ ticker, fund, stats, history, currentPrice, dayChang
 
       {/* ── Company description ── */}
       {!!fund.longBusinessSummary && (
-        <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, padding: "16px 20px" }}>
+        <div style={{ background: "var(--bg-card)", border: "1px solid var(--card-border)", borderRadius: 12, padding: "16px 20px" }}>
           <div style={{ fontSize: "0.6rem", fontWeight: 700, letterSpacing: "0.09em", textTransform: "uppercase", color: "var(--t3)", marginBottom: 10 }}>About</div>
           <p style={{ fontSize: "0.78rem", color: "var(--t2)", lineHeight: 1.7, display: "-webkit-box", WebkitLineClamp: 5, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
             {String(fund.longBusinessSummary)}
@@ -815,8 +870,8 @@ function StatKPI({ label, value, tone }: { label: string; value: string; tone?: 
   const col = tone === "up" ? "var(--green)" : tone === "down" ? "var(--red)" : "var(--t1)";
   return (
     <div style={{
-      background: "var(--bg-card)", border: "1px solid var(--border)",
-      borderTop: "1px solid var(--border-hi)", borderRadius: "var(--r)",
+      background: "var(--bg-card)", border: "1px solid var(--card-border)",
+      borderTop: "1px solid var(--card-border)", borderRadius: "var(--r-xl)",
       padding: "16px 18px", boxShadow: "var(--card-shadow)",
     }}>
       <div style={{
@@ -841,11 +896,11 @@ type FundRow = [string, string] | [string, string, MetricTone];
 function FundSection({ title, rows }: { title: string; rows: FundRow[] }) {
   return (
     <div style={{
-      background: "var(--bg-card)", border: "1px solid var(--border)",
-      borderRadius: "var(--r)", overflow: "hidden",
+      background: "var(--bg-card)", border: "1px solid var(--card-border)",
+      borderRadius: "var(--r-xl)", overflow: "hidden",
     }}>
       <div style={{
-        padding: "11px 16px", borderBottom: "1px solid var(--border)",
+        padding: "11px 16px", borderBottom: "1px solid var(--card-border)",
         fontSize: "0.6rem", fontWeight: 700, letterSpacing: "0.08em",
         textTransform: "uppercase", color: "var(--t3)",
       }}>
@@ -858,7 +913,7 @@ function FundSection({ title, rows }: { title: string; rows: FundRow[] }) {
             style={{
               display: "flex", justifyContent: "space-between", alignItems: "center",
               padding: "8px 16px",
-              borderBottom: i < rows.length - 1 ? "1px solid var(--border)" : "none",
+              borderBottom: i < rows.length - 1 ? "1px solid var(--card-border)" : "none",
               background: i % 2 === 1 ? "var(--bg-hover)" : "transparent",
             }}
           >
@@ -883,13 +938,389 @@ function FundSection({ title, rows }: { title: string; rows: FundRow[] }) {
   );
 }
 
+/* ─── FinancialsFull ─── */
+function FinancialsFull({ data, view, isDark }: { data: FinancialPeriod; view: FinView; isDark: boolean }) {
+  if (!data?.dates?.length) {
+    return (
+      <div style={{ padding: 24, border: "1px solid var(--card-border)", background: "var(--bg-card)", borderRadius: "var(--r-xl)", color: "var(--t3)", fontSize: "0.8rem" }}>
+        No financial data available.
+      </div>
+    );
+  }
+
+  const n = data.dates.length;
+  // Show most recent 5 periods
+  const showCount = Math.min(n, 5);
+  const startIdx = n - showCount;
+
+  const periodLabels = data.dates.slice(startIdx).map((d) => {
+    const dt = new Date(d);
+    if (view === "annual") return String(dt.getFullYear());
+    return `Q${Math.ceil((dt.getMonth() + 1) / 3)} '${String(dt.getFullYear()).slice(2)}`;
+  });
+
+  const slice = <T,>(arr: (T | null)[] | undefined): (T | null)[] =>
+    arr ? arr.slice(startIdx) : Array(showCount).fill(null);
+
+  const rev   = slice(data.revenue);
+  const gp    = slice(data.gross_profit);
+  const oi    = slice(data.operating_income);
+  const ebi   = slice(data.ebitda);
+  const ni    = slice(data.net_income);
+  const eps   = slice(data.eps_diluted);
+  const fcf   = slice(data.free_cash_flow);
+  const gm    = slice(data.gross_margin);
+  const om    = slice(data.operating_margin);
+  const nm    = slice(data.net_margin);
+
+  // For prev-period reference (YoY) we need the period just before startIdx
+  const prevOf = (arr: (number | null)[] | undefined, sliceIdx: number): number | null => {
+    if (!arr) return null;
+    const absIdx = startIdx + sliceIdx - 1;
+    return absIdx >= 0 ? (arr[absIdx] ?? null) : null;
+  };
+
+  const yoy = (cur: number | null, prev: number | null): number | null => {
+    if (cur == null || prev == null) return null;
+    // Sign change or zero base: N/M (not meaningful as %)
+    if (prev === 0 || (prev < 0 && cur > 0) || (prev > 0 && cur < 0)) return null;
+    const g = ((cur - prev) / Math.abs(prev)) * 100;
+    if (!isFinite(g) || Math.abs(g) > 999) return null;
+    return g;
+  };
+
+  const fmtGrowth = (g: number | null) => {
+    if (g == null) return { text: "—", color: "var(--t3)" };
+    return { text: `${g >= 0 ? "+" : ""}${g.toFixed(1)}%`, color: g >= 0 ? "var(--green)" : "var(--red)" };
+  };
+
+  const last = showCount - 1;
+  const latestRev = rev[last] as number | null;
+  const latestNI  = ni[last]  as number | null;
+  const latestGM  = gm[last]  as number | null;
+  const latestOM  = om[last]  as number | null;
+  const latestEPS = eps[last] as number | null;
+  const prevRev   = prevOf(data.revenue, last);
+  const prevNI    = prevOf(data.net_income, last);
+
+  const revGrowth = yoy(latestRev, prevRev);
+  const niGrowth  = yoy(latestNI, prevNI);
+
+  // Header style
+  const TH: React.CSSProperties = {
+    fontSize: "0.58rem", fontWeight: 700, letterSpacing: "0.08em",
+    textTransform: "uppercase", color: "var(--t3)",
+    padding: "8px 12px", textAlign: "right" as const,
+    background: "var(--bg-inner)",
+  };
+  const TH_LABEL: React.CSSProperties = {
+    ...TH, textAlign: "left" as const, minWidth: 160,
+  };
+  const TD_NUM: React.CSSProperties = {
+    fontVariantNumeric: "tabular-nums", fontSize: "0.82rem",
+    color: "var(--t1)", padding: "9px 12px", textAlign: "right" as const,
+  };
+  const TD_LABEL: React.CSSProperties = {
+    fontSize: "0.78rem", color: "var(--t2)", padding: "9px 12px",
+  };
+  const TD_GROWTH = (g: number | null): React.CSSProperties => ({
+    fontVariantNumeric: "tabular-nums", fontSize: "0.75rem",
+    fontWeight: 700,
+    color: g == null ? "var(--t3)" : g >= 0 ? "var(--green)" : "var(--red)",
+    padding: "9px 10px", textAlign: "right" as const,
+  });
+
+  const CARD: React.CSSProperties = {
+    background: "var(--bg-card)", border: "1px solid var(--card-border)",
+    borderRadius: "var(--r-xl)", overflow: "hidden",
+  };
+  const CARD_HDR: React.CSSProperties = {
+    fontFamily: "Manrope, DM Sans, sans-serif",
+    fontSize: "0.88rem", fontWeight: 700, color: "var(--t1)",
+    padding: "14px 16px", borderBottom: "1px solid var(--card-border)",
+  };
+
+  const scaleB = (arr: (number | null)[]): (number | null)[] =>
+    arr.map((v) => v != null ? +(v / 1e9).toFixed(3) : null);
+
+  const chartLabels = periodLabels;
+
+  // OCF margin = (operating_cash_flow / revenue) - we don't have OCF separate from FCF in type
+  // Use FCF margin = FCF / Revenue instead
+  const fcfMarginArr: (number | null)[] = fcf.map((f, i) => {
+    const r = rev[i] as number | null;
+    if (f == null || r == null || r === 0) return null;
+    return (f as number) / r;
+  });
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+
+      {/* ── 1. KPI strip ── */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 0, border: "1px solid var(--card-border)", borderRadius: "var(--r-xl)", overflow: "hidden", background: "var(--bg-card)" }}>
+        {/* Revenue */}
+        <div style={{ padding: "14px 16px", borderRight: "1px solid var(--card-border)" }}>
+          <div style={{ fontSize: "0.58rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--t3)", marginBottom: 6 }}>Revenue</div>
+          <div style={{ fontFamily: "Manrope, DM Sans, sans-serif", fontSize: "1.15rem", fontWeight: 700, color: "var(--t1)", fontVariantNumeric: "tabular-nums", letterSpacing: "-0.01em" }}>
+            {latestRev != null ? fmtBig(latestRev) : "—"}
+          </div>
+          {revGrowth != null && (
+            <div style={{ marginTop: 4, display: "inline-flex", alignItems: "center", gap: 4, padding: "2px 7px", borderRadius: "var(--r-full)", background: revGrowth >= 0 ? "rgba(134,179,138,0.15)" : "rgba(212,133,133,0.15)", fontSize: "0.65rem", fontWeight: 700, color: revGrowth >= 0 ? "var(--green)" : "var(--red)" }}>
+              {revGrowth >= 0 ? "+" : ""}{revGrowth.toFixed(1)}% YoY
+            </div>
+          )}
+        </div>
+        {/* Gross Margin */}
+        <div style={{ padding: "14px 16px", borderRight: "1px solid var(--card-border)" }}>
+          <div style={{ fontSize: "0.58rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--t3)", marginBottom: 6 }}>Gross Margin</div>
+          <div style={{ fontFamily: "Manrope, DM Sans, sans-serif", fontSize: "1.15rem", fontWeight: 700, color: latestGM != null && latestGM > 0.3 ? "var(--green)" : "var(--t1)", fontVariantNumeric: "tabular-nums" }}>
+            {latestGM != null ? `${(latestGM * 100).toFixed(1)}%` : "—"}
+          </div>
+          <div style={{ marginTop: 4, fontSize: "0.62rem", color: "var(--t3)" }}>of revenue</div>
+        </div>
+        {/* Operating Margin */}
+        <div style={{ padding: "14px 16px", borderRight: "1px solid var(--card-border)" }}>
+          <div style={{ fontSize: "0.58rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--t3)", marginBottom: 6 }}>Op. Margin</div>
+          <div style={{ fontFamily: "Manrope, DM Sans, sans-serif", fontSize: "1.15rem", fontWeight: 700, color: latestOM != null ? (latestOM >= 0 ? "var(--green)" : "var(--red)") : "var(--t1)", fontVariantNumeric: "tabular-nums" }}>
+            {latestOM != null ? `${(latestOM * 100).toFixed(1)}%` : "—"}
+          </div>
+          <div style={{ marginTop: 4, fontSize: "0.62rem", color: "var(--t3)" }}>EBIT / Revenue</div>
+        </div>
+        {/* Net Income */}
+        <div style={{ padding: "14px 16px", borderRight: "1px solid var(--card-border)" }}>
+          <div style={{ fontSize: "0.58rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--t3)", marginBottom: 6 }}>Net Income</div>
+          <div style={{ fontFamily: "Manrope, DM Sans, sans-serif", fontSize: "1.15rem", fontWeight: 700, color: latestNI != null ? (latestNI >= 0 ? "var(--green)" : "var(--red)") : "var(--t1)", fontVariantNumeric: "tabular-nums", letterSpacing: "-0.01em" }}>
+            {latestNI != null ? fmtBig(latestNI) : "—"}
+          </div>
+          {niGrowth != null && (
+            <div style={{ marginTop: 4, display: "inline-flex", alignItems: "center", gap: 4, padding: "2px 7px", borderRadius: "var(--r-full)", background: niGrowth >= 0 ? "rgba(134,179,138,0.15)" : "rgba(212,133,133,0.15)", fontSize: "0.65rem", fontWeight: 700, color: niGrowth >= 0 ? "var(--green)" : "var(--red)" }}>
+              {niGrowth >= 0 ? "+" : ""}{niGrowth.toFixed(1)}% YoY
+            </div>
+          )}
+        </div>
+        {/* EPS Diluted */}
+        <div style={{ padding: "14px 16px" }}>
+          <div style={{ fontSize: "0.58rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--t3)", marginBottom: 6 }}>EPS Diluted</div>
+          <div style={{ fontFamily: "Manrope, DM Sans, sans-serif", fontSize: "1.15rem", fontWeight: 700, color: latestEPS != null ? (latestEPS >= 0 ? "var(--t1)" : "var(--red)") : "var(--t1)", fontVariantNumeric: "tabular-nums", letterSpacing: "-0.01em" }}>
+            {latestEPS != null ? `$${latestEPS.toFixed(2)}` : "—"}
+          </div>
+          <div style={{ marginTop: 4, fontSize: "0.62rem", color: "var(--t3)" }}>per diluted share</div>
+        </div>
+      </div>
+
+      {/* ── 2. Income Statement table ── */}
+      <div style={CARD}>
+        <div style={CARD_HDR}>Income Statement</div>
+        <div style={{ overflowX: "auto" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+            <thead>
+              <tr>
+                <th style={TH_LABEL}>Metric</th>
+                {periodLabels.map((lbl, i) => (
+                  <th key={i} style={TH}>{lbl}<br /><span style={{ fontSize: "0.5rem", fontWeight: 400, color: "var(--t3)", textTransform: "none", letterSpacing: 0 }}>YoY</span></th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {[
+                { label: "Total Revenue",    arr: rev,  bold: true  },
+                { label: "Gross Profit",     arr: gp,   bold: false },
+                { label: "Operating Income", arr: oi,   bold: false },
+                { label: "EBITDA",           arr: ebi,  bold: false },
+                { label: "Net Income",       arr: ni,   bold: true  },
+                { label: "EPS Diluted ($)",  arr: eps,  bold: false, isEPS: true },
+              ].map(({ label, arr, bold, isEPS }) => (
+                <tr key={label} style={{ borderTop: "1px solid var(--card-border)" }}>
+                  <td style={{ ...TD_LABEL, fontWeight: bold ? 700 : 400 }}>{label}</td>
+                  {arr.map((v, si) => {
+                    const prev = prevOf(
+                      label === "Total Revenue" ? data.revenue :
+                      label === "Gross Profit" ? data.gross_profit :
+                      label === "Operating Income" ? data.operating_income :
+                      label === "EBITDA" ? data.ebitda :
+                      label === "Net Income" ? data.net_income :
+                      data.eps_diluted,
+                      si
+                    );
+                    const g = yoy(v as number | null, prev);
+                    const fg = fmtGrowth(g);
+                    return (
+                      <td key={si} style={{ borderLeft: "1px solid var(--card-border)", padding: 0 }}>
+                        <div style={{ ...TD_NUM, paddingBottom: 4, fontWeight: bold ? 700 : 400 }}>
+                          {v == null ? "—" : isEPS ? `$${(v as number).toFixed(2)}` : fmtBig(v as number)}
+                        </div>
+                        <div style={{ ...TD_GROWTH(g), paddingTop: 0, fontSize: "0.68rem" }}>{fg.text}</div>
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+              {/* Gross Margin row */}
+              <tr style={{ borderTop: "1px solid var(--card-border)", background: "var(--bg-inner)" }}>
+                <td style={{ ...TD_LABEL, fontSize: "0.72rem", color: "var(--t3)" }}>Gross Margin %</td>
+                {gm.map((v, si) => (
+                  <td key={si} style={{ ...TD_NUM, borderLeft: "1px solid var(--card-border)", color: v != null ? (v as number) > 0.3 ? "var(--green)" : "var(--t1)" : "var(--t3)" }}>
+                    {v != null ? `${((v as number) * 100).toFixed(1)}%` : "—"}
+                  </td>
+                ))}
+              </tr>
+              <tr style={{ borderTop: "1px solid var(--card-border)", background: "var(--bg-inner)" }}>
+                <td style={{ ...TD_LABEL, fontSize: "0.72rem", color: "var(--t3)" }}>Op. Margin %</td>
+                {om.map((v, si) => (
+                  <td key={si} style={{ ...TD_NUM, borderLeft: "1px solid var(--card-border)", color: v != null ? (v as number) >= 0 ? "var(--green)" : "var(--red)" : "var(--t3)" }}>
+                    {v != null ? `${((v as number) * 100).toFixed(1)}%` : "—"}
+                  </td>
+                ))}
+              </tr>
+              <tr style={{ borderTop: "1px solid var(--card-border)", background: "var(--bg-inner)" }}>
+                <td style={{ ...TD_LABEL, fontSize: "0.72rem", color: "var(--t3)" }}>Net Margin %</td>
+                {nm.map((v, si) => (
+                  <td key={si} style={{ ...TD_NUM, borderLeft: "1px solid var(--card-border)", color: v != null ? (v as number) >= 0 ? "var(--green)" : "var(--red)" : "var(--t3)" }}>
+                    {v != null ? `${((v as number) * 100).toFixed(1)}%` : "—"}
+                  </td>
+                ))}
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* ── 3. Cash Flow table ── */}
+      <div style={CARD}>
+        <div style={CARD_HDR}>Cash Flow</div>
+        <div style={{ overflowX: "auto" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+            <thead>
+              <tr>
+                <th style={TH_LABEL}>Metric</th>
+                {periodLabels.map((lbl, i) => <th key={i} style={TH}>{lbl}</th>)}
+              </tr>
+            </thead>
+            <tbody>
+              <tr style={{ borderTop: "1px solid var(--card-border)" }}>
+                <td style={TD_LABEL}>Free Cash Flow</td>
+                {fcf.map((v, si) => {
+                  const prev = prevOf(data.free_cash_flow, si);
+                  const g = yoy(v as number | null, prev);
+                  const fg = fmtGrowth(g);
+                  return (
+                    <td key={si} style={{ borderLeft: "1px solid var(--card-border)", padding: 0 }}>
+                      <div style={{ ...TD_NUM, paddingBottom: 4, fontWeight: 700, color: v == null ? "var(--t3)" : (v as number) >= 0 ? "var(--green)" : "var(--red)" }}>
+                        {v == null ? "—" : fmtBig(v as number)}
+                      </div>
+                      <div style={{ ...TD_GROWTH(g), paddingTop: 0, fontSize: "0.68rem" }}>{fg.text}</div>
+                    </td>
+                  );
+                })}
+              </tr>
+              <tr style={{ borderTop: "1px solid var(--card-border)", background: "var(--bg-inner)" }}>
+                <td style={{ ...TD_LABEL, fontSize: "0.72rem", color: "var(--t3)" }}>FCF Margin %</td>
+                {fcfMarginArr.map((v, si) => (
+                  <td key={si} style={{ ...TD_NUM, borderLeft: "1px solid var(--card-border)", color: v != null ? (v as number) >= 0 ? "var(--green)" : "var(--red)" : "var(--t3)" }}>
+                    {v != null ? `${((v as number) * 100).toFixed(1)}%` : "—"}
+                  </td>
+                ))}
+              </tr>
+              <tr style={{ borderTop: "1px solid var(--card-border)" }}>
+                <td style={TD_LABEL}>EBITDA</td>
+                {ebi.map((v, si) => (
+                  <td key={si} style={{ ...TD_NUM, borderLeft: "1px solid var(--card-border)" }}>
+                    {v == null ? "—" : fmtBig(v as number)}
+                  </td>
+                ))}
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* ── 4. FCF Yield card ── */}
+      <div style={CARD}>
+        <div style={CARD_HDR}>Free Cash Flow per Period</div>
+        <div style={{ overflowX: "auto" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+            <thead>
+              <tr>
+                <th style={TH_LABEL}>Period</th>
+                <th style={TH}>Free Cash Flow</th>
+                <th style={TH}>FCF Margin</th>
+                <th style={TH}>vs. Prior Period</th>
+              </tr>
+            </thead>
+            <tbody>
+              {periodLabels.map((lbl, si) => {
+                const fv = fcf[si] as number | null;
+                const margin = fcfMarginArr[si] as number | null;
+                const absIdx = startIdx + si;
+                const priorFCF = absIdx > 0 ? (data.free_cash_flow?.[absIdx - 1] ?? null) : null;
+                const g = yoy(fv, priorFCF);
+                const fg = fmtGrowth(g);
+                return (
+                  <tr key={lbl} style={{ borderTop: "1px solid var(--card-border)", background: si % 2 === 1 ? "var(--bg-inner)" : "transparent" }}>
+                    <td style={{ ...TD_LABEL, fontWeight: 600 }}>{lbl}</td>
+                    <td style={{ ...TD_NUM, fontWeight: 700, color: fv == null ? "var(--t3)" : fv >= 0 ? "var(--green)" : "var(--red)" }}>
+                      {fv == null ? "—" : fmtBig(fv)}
+                    </td>
+                    <td style={{ ...TD_NUM, color: margin == null ? "var(--t3)" : margin >= 0 ? "var(--green)" : "var(--red)" }}>
+                      {margin != null ? `${(margin * 100).toFixed(1)}%` : "—"}
+                    </td>
+                    <td style={TD_GROWTH(g)}>{fg.text}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* ── 5. Charts side-by-side ── */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+        {/* Revenue vs Net Income bar */}
+        <div style={CARD}>
+          <div style={CARD_HDR}>Revenue vs Net Income (B)</div>
+          <div style={{ padding: "10px 12px 6px" }}>
+            <FinBarChart
+              labels={chartLabels}
+              series={[
+                { name: "Revenue",    data: scaleB(rev as (number | null)[]),  color: "#5B8FD4" },
+                { name: "Net Income", data: scaleB(ni  as (number | null)[]),  color: "#5BA87A" },
+              ]}
+              yUnit="B"
+              height={160}
+            />
+          </div>
+        </div>
+        {/* Margins line chart */}
+        <div style={CARD}>
+          <div style={CARD_HDR}>Profit Margins (%)</div>
+          <div style={{ padding: "10px 12px 6px" }}>
+            <FinAreaLineChart
+              labels={chartLabels}
+              series={[
+                { name: "Gross",     data: gm.map(v => v != null ? +((v as number) * 100).toFixed(2) : null), color: "#5BA87A" },
+                { name: "Operating", data: om.map(v => v != null ? +((v as number) * 100).toFixed(2) : null), color: "#5B8FD4" },
+                { name: "Net",       data: nm.map(v => v != null ? +((v as number) * 100).toFixed(2) : null), color: "#C9A84C" },
+              ]}
+              yUnit="%"
+              height={160}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* ── 6. Full FinancialCharts (existing component) ── */}
+      <FinancialCharts data={data} view={view} />
+    </div>
+  );
+}
+
 /* ─── FinancialCharts ─── */
 function FinancialCharts({ data, view }: { data: FinancialPeriod; view: FinView }) {
   if (!data?.dates?.length) {
     return (
       <div style={{
-        padding: 24, border: "1px solid var(--border)", background: "var(--bg-card)",
-        borderRadius: "var(--r)", color: "var(--t3)", fontSize: "0.8rem",
+        padding: 24, border: "1px solid var(--card-border)", background: "var(--bg-card)",
+        borderRadius: "var(--r-xl)", color: "var(--t3)", fontSize: "0.8rem",
       }}>
         No financial data available.
       </div>
@@ -907,14 +1338,14 @@ function FinancialCharts({ data, view }: { data: FinancialPeriod; view: FinView 
   const card = (title: string, content: React.ReactNode) => (
     <div style={{
       background: "var(--bg-card)",
-      border: "1px solid var(--border)",
+      border: "1px solid var(--card-border)",
       borderTop: "2px solid var(--orange)",
-      borderRadius: "var(--r)",
+      borderRadius: "var(--r-xl)",
       overflow: "hidden",
     }}>
       <div style={{
         padding: "8px 14px",
-        borderBottom: "1px solid var(--border)",
+        borderBottom: "1px solid var(--card-border)",
         fontSize: "0.62rem",
         fontWeight: 700,
         letterSpacing: "0.08em",
@@ -953,13 +1384,13 @@ function FinancialCharts({ data, view }: { data: FinancialPeriod; view: FinView 
       {/* KPI strip — latest period snapshot */}
       <div style={{
         display: "grid", gridTemplateColumns: `repeat(${kpis.length}, 1fr)`,
-        border: "1px solid var(--border)", borderRadius: "var(--r)", overflow: "hidden",
+        border: "1px solid var(--card-border)", borderRadius: "var(--r-xl)", overflow: "hidden",
         background: "var(--bg-card)",
       }}>
         {kpis.map((k, i) => (
           <div key={k.label} style={{
             padding: "12px 14px",
-            borderRight: i < kpis.length - 1 ? "1px solid var(--border)" : "none",
+            borderRight: i < kpis.length - 1 ? "1px solid var(--card-border)" : "none",
           }}>
             <div style={{ fontSize: "0.55rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--t3)", marginBottom: 6 }}>{k.label}</div>
             <div style={{ fontSize: "0.88rem", fontWeight: 600, color: k.color ?? "var(--t1)" }}>{k.value}</div>
@@ -997,8 +1428,12 @@ function FinancialCharts({ data, view }: { data: FinancialPeriod; view: FinView 
       {/* YoY growth bars */}
       {data.revenue && data.revenue.length >= 2 && card("YoY Revenue Growth (%)", (() => {
         const growthData: (number | null)[] = data.revenue!.map((v, i) => {
-          if (i === 0 || v == null || data.revenue![i - 1] == null || data.revenue![i - 1] === 0) return null;
-          return +((v / data.revenue![i - 1]! - 1) * 100).toFixed(2);
+          const prev = data.revenue![i - 1];
+          if (i === 0 || v == null || prev == null || prev === 0) return null;
+          if ((prev < 0 && v > 0) || (prev > 0 && v < 0)) return null; // sign change → N/M
+          const g = +((v / prev - 1) * 100).toFixed(2);
+          if (!isFinite(g) || Math.abs(g) > 999) return null;
+          return g;
         });
         return (
           <FinBarChart labels={labels} series={[
@@ -1041,7 +1476,7 @@ function FinAreaLineChart({ labels, series, yUnit = "", height = 280 }: {
           const y = toY(t);
           return (
             <g key={i}>
-              <line x1={ML} x2={W - MR} y1={y} y2={y} style={{ stroke: "var(--border)" }} strokeWidth={0.6} strokeDasharray="4 3" />
+              <line x1={ML} x2={W - MR} y1={y} y2={y} style={{ stroke: "var(--card-border)" }} strokeWidth={0.6} strokeDasharray="4 3" />
               <text x={ML - 6} y={y + 3.5} textAnchor="end" fontSize={7.5} style={{ fill: "var(--t3)" }}>
                 {t.toFixed(1)}
               </text>
@@ -1049,8 +1484,8 @@ function FinAreaLineChart({ labels, series, yUnit = "", height = 280 }: {
           );
         })}
         <text x={ML - 8} y={MT - 10} textAnchor="end" fontSize={7.5} style={{ fill: "var(--orange)" }} fontWeight="700">{yUnit}</text>
-        <line x1={ML} x2={ML} y1={MT} y2={MT + PH} style={{ stroke: "var(--border)" }} strokeWidth={1} />
-        <line x1={ML} x2={W - MR} y1={MT + PH} y2={MT + PH} style={{ stroke: "var(--border)" }} strokeWidth={1} />
+        <line x1={ML} x2={ML} y1={MT} y2={MT + PH} style={{ stroke: "var(--card-border)" }} strokeWidth={1} />
+        <line x1={ML} x2={W - MR} y1={MT + PH} y2={MT + PH} style={{ stroke: "var(--card-border)" }} strokeWidth={1} />
 
         {/* Filled areas (back to front = lowest opacity first) */}
         {[...series].reverse().map(s => {
@@ -1151,7 +1586,7 @@ function Tooltip({ hover, labels, items }: {
       top: "6%",
       transform: flip ? "translateX(-100%)" : "none",
       background: "var(--bg-card)",
-      border: "1px solid var(--border)",
+      border: "1px solid var(--card-border)",
       borderRadius: 8,
       padding: "8px 12px",
       fontSize: 11,
@@ -1210,7 +1645,7 @@ function FinBarChart({ labels, series, yUnit = "", height = 280 }: {
           const y = toY(t);
           return (
             <g key={i}>
-              <line x1={ML} x2={W - MR} y1={y} y2={y} style={{ stroke: "var(--border)" }} strokeWidth={0.6} strokeDasharray="4 3" />
+              <line x1={ML} x2={W - MR} y1={y} y2={y} style={{ stroke: "var(--card-border)" }} strokeWidth={0.6} strokeDasharray="4 3" />
               <text x={ML - 6} y={y + 3.5} textAnchor="end" fontSize={7.5} style={{ fill: "var(--t3)" }}>
                 {Math.abs(t) >= 100 ? t.toFixed(0) : Math.abs(t) >= 10 ? t.toFixed(1) : t.toFixed(2)}
               </text>
@@ -1222,8 +1657,8 @@ function FinBarChart({ labels, series, yUnit = "", height = 280 }: {
         <text x={ML - 8} y={MT - 10} textAnchor="end" fontSize={7.5} style={{ fill: "var(--orange)" }} fontWeight="700">{yUnit}</text>
 
         {/* Axis borders */}
-        <line x1={ML} x2={ML} y1={MT} y2={MT + PH} style={{ stroke: "var(--border)" }} strokeWidth={1} />
-        <line x1={ML} x2={W - MR} y1={MT + PH} y2={MT + PH} style={{ stroke: "var(--border)" }} strokeWidth={1} />
+        <line x1={ML} x2={ML} y1={MT} y2={MT + PH} style={{ stroke: "var(--card-border)" }} strokeWidth={1} />
+        <line x1={ML} x2={W - MR} y1={MT + PH} y2={MT + PH} style={{ stroke: "var(--card-border)" }} strokeWidth={1} />
 
         {/* Zero baseline */}
         {min < 0 && <line x1={ML} x2={W - MR} y1={zY} y2={zY} style={{ stroke: "var(--t3)" }} strokeWidth={1} strokeDasharray="3 2" opacity={0.6} />}
@@ -1305,7 +1740,7 @@ function FinLineChart({ labels, series, yUnit = "", height = 280 }: {
           const y = toY(t);
           return (
             <g key={i}>
-              <line x1={ML} x2={W - MR} y1={y} y2={y} style={{ stroke: "var(--border)" }} strokeWidth={0.6} strokeDasharray="4 3" />
+              <line x1={ML} x2={W - MR} y1={y} y2={y} style={{ stroke: "var(--card-border)" }} strokeWidth={0.6} strokeDasharray="4 3" />
               <text x={ML - 6} y={y + 3.5} textAnchor="end" fontSize={7.5} style={{ fill: "var(--t3)" }}>
                 {t.toFixed(1)}
               </text>
@@ -1317,8 +1752,8 @@ function FinLineChart({ labels, series, yUnit = "", height = 280 }: {
         <text x={ML - 8} y={MT - 10} textAnchor="end" fontSize={7.5} style={{ fill: "var(--orange)" }} fontWeight="700">{yUnit}</text>
 
         {/* Axis borders */}
-        <line x1={ML} x2={ML} y1={MT} y2={MT + PH} style={{ stroke: "var(--border)" }} strokeWidth={1} />
-        <line x1={ML} x2={W - MR} y1={MT + PH} y2={MT + PH} style={{ stroke: "var(--border)" }} strokeWidth={1} />
+        <line x1={ML} x2={ML} y1={MT} y2={MT + PH} style={{ stroke: "var(--card-border)" }} strokeWidth={1} />
+        <line x1={ML} x2={W - MR} y1={MT + PH} y2={MT + PH} style={{ stroke: "var(--card-border)" }} strokeWidth={1} />
 
         {/* Area fills */}
         {series.map(s => {
@@ -1437,7 +1872,7 @@ function FinDualBarChart({ labels, leftSeries, rightSeries, height = 280 }: {
           const y = toYL(t);
           return (
             <g key={i}>
-              <line x1={ML} x2={ML + PW} y1={y} y2={y} style={{ stroke: "var(--border)" }} strokeWidth={0.6} strokeDasharray="4 3" />
+              <line x1={ML} x2={ML + PW} y1={y} y2={y} style={{ stroke: "var(--card-border)" }} strokeWidth={0.6} strokeDasharray="4 3" />
               <text x={ML - 8} y={y + 4} textAnchor="end" fontSize={8} style={{ fill: "var(--t3)" }}>
                 {Math.abs(t) >= 10 ? t.toFixed(1) : t.toFixed(2)}
               </text>
@@ -1458,9 +1893,9 @@ function FinDualBarChart({ labels, leftSeries, rightSeries, height = 280 }: {
         ))}
 
         {/* Axis borders */}
-        <line x1={ML} x2={ML} y1={MT} y2={MT + PH} style={{ stroke: "var(--border)" }} strokeWidth={1} />
-        <line x1={ML} x2={ML + PW} y1={MT + PH} y2={MT + PH} style={{ stroke: "var(--border)" }} strokeWidth={1} />
-        <line x1={ML + PW} x2={ML + PW} y1={MT} y2={MT + PH} style={{ stroke: "var(--border)" }} strokeWidth={1} />
+        <line x1={ML} x2={ML} y1={MT} y2={MT + PH} style={{ stroke: "var(--card-border)" }} strokeWidth={1} />
+        <line x1={ML} x2={ML + PW} y1={MT + PH} y2={MT + PH} style={{ stroke: "var(--card-border)" }} strokeWidth={1} />
+        <line x1={ML + PW} x2={ML + PW} y1={MT} y2={MT + PH} style={{ stroke: "var(--card-border)" }} strokeWidth={1} />
 
         {/* Zero baseline */}
         <line x1={ML} x2={ML + PW} y1={toYL(0)} y2={toYL(0)} style={{ stroke: "var(--t3)" }} strokeWidth={0.8} opacity={0.5} />
@@ -1519,7 +1954,7 @@ function FinDualBarChart({ labels, leftSeries, rightSeries, height = 280 }: {
 /* ─── HoldersSection ─── */
 function HoldersSection({ data, loading }: { data: HoldersData | undefined; loading: boolean }) {
   if (loading) return (
-    <div style={{ border: "1px solid var(--border)", background: "var(--bg-card)", borderRadius: "var(--r)", padding: 20 }}>
+    <div style={{ border: "1px solid var(--card-border)", background: "var(--bg-card)", borderRadius: "var(--r-xl)", padding: 20 }}>
       <SkeletonChart height={200} />
     </div>
   );
@@ -1532,9 +1967,9 @@ function HoldersSection({ data, loading }: { data: HoldersData | undefined; load
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {data.major_summary.map((m, i) => (
             <div key={i} style={{
-              padding: "14px 16px", border: "1px solid var(--border)",
-              borderTop: "1px solid var(--border-hi)",
-              background: "var(--bg-card)", borderRadius: "var(--r)",
+              padding: "14px 16px", border: "1px solid var(--card-border)",
+              borderTop: "1px solid var(--card-border)",
+              background: "var(--bg-card)", borderRadius: "var(--r-xl)",
               boxShadow: "var(--card-shadow)",
             }}>
               <div style={{ color: "var(--t3)", fontSize: "0.6rem", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>
@@ -1609,11 +2044,11 @@ function HolderTable({
 }) {
   return (
     <div style={{
-      background: "var(--bg-card)", border: "1px solid var(--border)",
-      borderRadius: "var(--r)", overflow: "hidden",
+      background: "var(--bg-card)", border: "1px solid var(--card-border)",
+      borderRadius: "var(--r-xl)", overflow: "hidden",
     }}>
       <div style={{
-        padding: "12px 16px", borderBottom: "1px solid var(--border)",
+        padding: "12px 16px", borderBottom: "1px solid var(--card-border)",
         fontSize: "0.6rem", fontWeight: 700, letterSpacing: "0.08em",
         textTransform: "uppercase", color: "var(--t3)",
       }}>
@@ -1719,7 +2154,7 @@ function PeerComparison({
             placeholder="Add peer (e.g. AMD)"
             maxLength={10}
             style={{
-              background: "var(--bg-hover)", border: "1px solid var(--border)",
+              background: "var(--bg-hover)", border: "1px solid var(--card-border)",
               borderRadius: "var(--r-sm)", padding: "7px 12px",
               fontSize: "0.78rem", color: "var(--t1)", outline: "none",
               width: 160,
@@ -1766,7 +2201,7 @@ function PeerComparison({
             <tr>
               <th style={{
                 textAlign: "left", padding: "10px 14px",
-                background: "var(--bg-card)", borderBottom: "1px solid var(--border)",
+                background: "var(--bg-card)", borderBottom: "1px solid var(--card-border)",
                 fontSize: "0.6rem", fontWeight: 700, letterSpacing: "0.08em",
                 textTransform: "uppercase", color: "var(--t3)", whiteSpace: "nowrap",
               }}>
@@ -1781,8 +2216,8 @@ function PeerComparison({
                     style={{
                       textAlign: "right", padding: "10px 14px",
                       background: idx === 0 ? "var(--orange-dim)" : "var(--bg-card)",
-                      borderBottom: "1px solid var(--border)",
-                      borderLeft: "1px solid var(--border)",
+                      borderBottom: "1px solid var(--card-border)",
+                      borderLeft: "1px solid var(--card-border)",
                       whiteSpace: "nowrap",
                     }}
                   >
@@ -1809,7 +2244,7 @@ function PeerComparison({
                 style={{ background: ri % 2 === 1 ? "var(--bg-hover)" : "transparent" }}
               >
                 <td style={{
-                  padding: "8px 14px", borderBottom: "1px solid var(--border)",
+                  padding: "8px 14px", borderBottom: "1px solid var(--card-border)",
                   color: "var(--t2)", fontSize: "0.78rem", whiteSpace: "nowrap",
                 }}>
                   {METRIC_TIPS[label]
@@ -1828,8 +2263,8 @@ function PeerComparison({
                       key={t}
                       style={{
                         textAlign: "right", padding: "8px 14px",
-                        borderBottom: "1px solid var(--border)",
-                        borderLeft: "1px solid var(--border)",
+                        borderBottom: "1px solid var(--card-border)",
+                        borderLeft: "1px solid var(--card-border)",
                         
                         fontSize: "0.78rem",
                         fontWeight: idx === 0 ? 600 : 400,

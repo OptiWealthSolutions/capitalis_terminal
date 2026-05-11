@@ -324,15 +324,43 @@ def run_monte_carlo(req: MonteCarloRequest, current_user: dict = Depends(get_cur
 
     try:
         from src.data_managers.data_provider import get_historical_returns
-        returns = get_historical_returns(tickers, period="10y", interval="1d")
-        if returns is None or returns.empty:
+        returns_raw = get_historical_returns(tickers, period="10y", interval="1d")
+        if returns_raw is None or returns_raw.empty:
             raise ValueError("No returns data available for the requested tickers.")
-        # Reindex to requested tickers order and align weights
-        returns = returns.reindex(columns=tickers, fill_value=np.nan).dropna()
+
+        # Only keep tickers that actually have data — drop missing columns entirely.
+        # Using fill_value=np.nan + dropna() would zero out ALL rows if any ticker is absent.
+        available = [t for t in tickers if t in returns_raw.columns]
+        missing   = [t for t in tickers if t not in returns_raw.columns]
+        if missing:
+            logger.warning("Monte Carlo: no data for %s — excluding from simulation.", missing)
+
+        if not available:
+            raise ValueError("None of the requested tickers have available historical data.")
+
+        returns = returns_raw[available].dropna()
         if len(returns) < 30:
-            raise ValueError("Insufficient historical data (< 30 observations).")
-        mu_vec = returns.mean().values * 252
+            raise ValueError(f"Insufficient history ({len(returns)} obs) after aligning {len(available)} tickers.")
+
+        # Realign weights to available tickers (drop missing, renormalize)
+        w_aligned = np.array([w_arr[tickers.index(t)] for t in available], dtype=float)
+        total_w = w_aligned.sum()
+        if total_w <= 0:
+            raise ValueError("All weights for available tickers are zero after dropping missing assets.")
+        w_aligned = w_aligned / total_w
+
+        mu_vec    = returns.mean().values * 252
         cov_matrix = returns.cov().values * 252
+
+        # Replace any residual NaN/inf (degenerate assets) with conservative values
+        if not np.all(np.isfinite(mu_vec)):
+            logger.warning("Monte Carlo: NaN/inf in mu_vec — replacing with 0.")
+            mu_vec = np.nan_to_num(mu_vec, nan=0.0, posinf=0.0, neginf=0.0)
+        if not np.all(np.isfinite(cov_matrix)):
+            raise ValueError("Covariance matrix contains NaN/inf after data cleaning.")
+
+    except HTTPException:
+        raise
     except Exception as exc:
         logger.error("Data fetch for Monte Carlo failed: %s", exc, exc_info=True)
         raise HTTPException(status_code=503, detail=f"Market data unavailable for Monte Carlo: {exc}")
@@ -340,15 +368,18 @@ def run_monte_carlo(req: MonteCarloRequest, current_user: dict = Depends(get_cur
     try:
         sim_df = run_monte_carlo_portfolio(
             initial_capital=req.capital,
-            weights=w_arr,
+            weights=w_aligned,
             mu_vec=mu_vec,
             cov_matrix=cov_matrix,
             horizon_days=req.horizon_days,
             n_simulations=req.n_simulations,
         )
+    except ValueError as exc:
+        logger.error("Monte Carlo simulation error: %s", exc, exc_info=True)
+        raise HTTPException(status_code=422, detail=f"Simulation error: {exc}")
     except Exception as exc:
         logger.error("Monte Carlo simulation error: %s", exc, exc_info=True)
-        raise HTTPException(status_code=500, detail="Monte Carlo simulation failed.")
+        raise HTTPException(status_code=500, detail="Monte Carlo simulation failed — check logs.")
 
     final_vals = sim_df.iloc[-1]
     var_95, cvar_95 = calculate_var_cvar_simple(final_vals.values, initial_capital=req.capital)

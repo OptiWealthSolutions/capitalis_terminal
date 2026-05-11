@@ -1,36 +1,24 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-
-type TimeRange = "6mo" | "1y" | "3y" | "5y" | "10y";
-
-function rangeToStartDate(r: TimeRange): string {
-  const d = new Date();
-  if (r === "6mo") d.setMonth(d.getMonth() - 6);
-  else if (r === "1y") d.setFullYear(d.getFullYear() - 1);
-  else if (r === "3y") d.setFullYear(d.getFullYear() - 3);
-  else if (r === "5y") d.setFullYear(d.getFullYear() - 5);
-  else if (r === "10y") d.setFullYear(d.getFullYear() - 10);
-  return d.toISOString().split("T")[0];
-}
 import Link from "next/link";
-import PollWidget from "@/components/community/PollWidget";
-import CommunityFeedWidget from "@/components/community/CommunityFeedWidget";
-import ShareButton from "@/components/ShareButton";
-import { useQuery, useMutation, useQueries } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import {
-  TrendingUp, TrendingDown, Briefcase, Target, Activity,
-  CalendarClock, Coins, ArrowRight, BarChart3, Globe, Gauge,
-  LineChart, RefreshCw, ChevronDown, ChevronUp, Wallet, Heart,
-  Newspaper, ExternalLink, Clock,
+  ArrowUpRight, ArrowDownRight, Trophy, Flame, Share2, Eye,
+  ExternalLink, ChevronRight, Bell, Sparkles, Briefcase, Activity,
+  RefreshCw, QrCode,
 } from "lucide-react";
 import { get, post } from "@/lib/api";
-import { cn } from "@/lib/utils";
-import type { OptimizationResult, PerformanceResult, TrackerPerfResult, EquityFundamentals } from "@/lib/types";
-import PlotlyChart from "@/components/charts/PlotlyChart";
 import { useTheme } from "@/lib/theme";
 import { useI18n } from "@/lib/i18n";
 import { useWatchlist } from "@/lib/watchlist";
+import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
+import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
+import TickerLogo from "@/components/ui/TickerLogo";
+import PlotlyChart from "@/components/charts/PlotlyChart";
+import QRShareModal from "@/components/ui/QRShareModal";
+import { Card, CardHeader, SectionLabel } from "@/components/ui/Card";
+import type { PerformanceResult, TrackerPerfResult } from "@/lib/types";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -43,1205 +31,1037 @@ interface MarketIndex {
 interface StressData { score: number; regime: string; components: Record<string, number>; }
 interface MarketOverview { indices: MarketIndex[]; stress: StressData; }
 
-interface SavedPortfolio {
-  id: string; name: string; tickers: string[]; weights: number[]; method: string;
-  capital: number; result: OptimizationResult | null; savedAt: string;
+interface CommunityPost {
+  id: string; user_id: string; display_name?: string; avatar_url?: string;
+  content: string; ticker?: string | null; link_url?: string | null;
+  upvotes?: number; created_at: string;
 }
 
+interface NewsItem {
+  title: string; publisher: string; published: string; link: string;
+  summary?: string; thumbnail?: string;
+}
+
+interface SavedPortfolio {
+  id: string; name: string; tickers: string[]; weights: number[];
+  method: string; capital: number; savedAt: string;
+}
 interface TrackerPortfolio {
   id: string; name: string; createdAt: string;
   positions: { id: string; ticker: string; shares: number; entry_price: number; entry_date: string }[];
 }
 
-interface CorporateEvent {
-  ticker: string; next_earnings: string | null;
-  next_dividend: string | null; dividend_rate: number | null;
+interface LeaderRow {
+  user_id: string; display_name: string; avatar_url?: string | null;
+  return_pct: number; cost: number; value: number;
+  positions_count: number; rank: number;
+}
+interface LeaderboardResponse {
+  top: LeaderRow[]; me: LeaderRow | null;
+  me_rank: number | null; me_percentile: number | null; total_users: number;
 }
 
-const CHART_COLORS = [
-  "#7AA7E8", "#86B38A", "#C9B178", "#D48585", "#A97CC0",
-  "#5BBCB8", "#E8A87C", "#7CA8D4", "#B5CC8E", "#D4A5A5",
+// ---------------------------------------------------------------------------
+// Exchanges — world clock style
+// ---------------------------------------------------------------------------
+interface Exchange { name: string; short: string; flag: string; city: string; openLocal: string; closeLocal: string; tzOffset: number; }
+
+const EXCHANGES: Exchange[] = [
+  { name: "New York Stock Exchange",        short: "NYSE",  flag: "🇺🇸", city: "New York",   openLocal: "09:30", closeLocal: "16:00", tzOffset: -5 },
+  { name: "Nasdaq",                         short: "NASD",  flag: "🇺🇸", city: "New York",   openLocal: "09:30", closeLocal: "16:00", tzOffset: -5 },
+  { name: "Toronto Stock Exchange",         short: "TSX",   flag: "🇨🇦", city: "Toronto",    openLocal: "09:30", closeLocal: "16:00", tzOffset: -5 },
+  { name: "London Stock Exchange",          short: "LSE",   flag: "🇬🇧", city: "London",     openLocal: "08:00", closeLocal: "16:30", tzOffset: 0  },
+  { name: "Euronext Paris",                 short: "PAR",   flag: "🇫🇷", city: "Paris",      openLocal: "09:00", closeLocal: "17:30", tzOffset: 1  },
+  { name: "Xetra",                          short: "XETRA", flag: "🇩🇪", city: "Frankfurt",  openLocal: "09:00", closeLocal: "17:30", tzOffset: 1  },
+  { name: "Hong Kong Stock Exchange",       short: "HKEX",  flag: "🇭🇰", city: "Hong Kong",  openLocal: "09:30", closeLocal: "16:00", tzOffset: 8  },
+  { name: "Japan Exchange Group",           short: "JPX",   flag: "🇯🇵", city: "Tokyo",      openLocal: "09:00", closeLocal: "15:30", tzOffset: 9  },
+  { name: "Shanghai Stock Exchange",        short: "SSE",   flag: "🇨🇳", city: "Shanghai",   openLocal: "09:30", closeLocal: "15:00", tzOffset: 8  },
+  { name: "Australian Securities Exchange", short: "ASX",   flag: "🇦🇺", city: "Sydney",     openLocal: "10:00", closeLocal: "16:00", tzOffset: 11 },
 ];
+
+function exchangeStatus(ex: Exchange, now: Date) {
+  const userOffsetH = -now.getTimezoneOffset() / 60;
+  const shift = userOffsetH - ex.tzOffset;
+  const toLocalExch = (hhmm: string) => {
+    const [h, m] = hhmm.split(":").map(Number);
+    let totalMin = h * 60 + m - shift * 60;
+    totalMin = ((totalMin % 1440) + 1440) % 1440;
+    return totalMin;
+  };
+  const nowInExch = () => {
+    const userOffMin = now.getHours() * 60 + now.getMinutes();
+    let exMin = userOffMin + (ex.tzOffset - userOffsetH) * 60;
+    exMin = ((exMin % 1440) + 1440) % 1440;
+    const hh = Math.floor(exMin / 60).toString().padStart(2, "0");
+    const mm = Math.floor(exMin % 60).toString().padStart(2, "0");
+    return { min: exMin, str: `${hh}:${mm}` };
+  };
+  const { min: nowExchMin, str: localTime } = nowInExch();
+  const openM = toLocalExch(ex.openLocal), closeM = toLocalExch(ex.closeLocal);
+  const dow = now.getDay();
+  const weekend = dow === 0 || dow === 6;
+  const isOpen = !weekend && (openM <= closeM ? nowExchMin >= openM && nowExchMin < closeM : nowExchMin >= openM || nowExchMin < closeM);
+  const minsToOpen = isOpen ? null : ((openM - nowExchMin + 1440) % 1440);
+  const minsToClose = isOpen ? ((closeM - nowExchMin + 1440) % 1440) : null;
+  return { localTime, isOpen, minsToOpen, minsToClose };
+}
+
+function fmtCountdown(mins: number | null): string {
+  if (mins == null) return "";
+  const h = Math.floor(mins / 60), m = mins % 60;
+  return h > 0 ? `${h}h${m.toString().padStart(2, "0")}` : `${m}m`;
+}
 
 // ---------------------------------------------------------------------------
 // Formatters
 // ---------------------------------------------------------------------------
-function fmtPct(v: number | undefined | null, digits = 2): string {
-  if (v === null || v === undefined || Number.isNaN(v)) return "—";
-  return `${(v * 100).toFixed(digits)}%`;
+function fmtPct(v: number | null | undefined, digits = 2): string {
+  if (v == null || Number.isNaN(v)) return "—";
+  const sign = v >= 0 ? "+" : "";
+  return `${sign}${v.toFixed(digits)}%`;
 }
-function fmtNum(v: number | undefined | null, digits = 2): string {
-  if (v === null || v === undefined || Number.isNaN(v)) return "—";
-  return v.toFixed(digits);
+function fmtNumber(v: number | null | undefined, digits = 2): string {
+  if (v == null || Number.isNaN(v)) return "—";
+  return v.toLocaleString("fr-FR", { minimumFractionDigits: digits, maximumFractionDigits: digits });
 }
-function fmtEur(v: number | undefined | null): string {
-  if (v === null || v === undefined || Number.isNaN(v)) return "—";
+function fmtEur(v: number | null | undefined): string {
+  if (v == null || Number.isNaN(v)) return "—";
   return new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(v);
 }
-function fmtPnl(v: number | null | undefined): string {
-  if (v === null || v === undefined || Number.isNaN(v)) return "—";
-  const sign = v >= 0 ? "+" : "";
-  return `${sign}${new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(v)}`;
+function timeAgo(iso: string): string {
+  const t = new Date(iso).getTime();
+  const sec = Math.max(1, (Date.now() - t) / 1000);
+  if (sec < 60) return `${Math.floor(sec)}s`;
+  if (sec < 3600) return `${Math.floor(sec / 60)}m`;
+  if (sec < 86400) return `${Math.floor(sec / 3600)}h`;
+  return `${Math.floor(sec / 86400)}j`;
 }
-function daysUntil(dateStr: string | null): number | null {
-  if (!dateStr) return null;
-  const d = new Date(dateStr).getTime();
-  return Math.round((d - new Date().setHours(0,0,0,0)) / 86_400_000);
+function avatarColor(seed: string) {
+  let h = 0; for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) | 0;
+  const hue = ((h % 360) + 360) % 360;
+  return `oklch(0.65 0.10 ${hue})`;
 }
 
 // ---------------------------------------------------------------------------
-// Page
+// Watchlist row with weekly/monthly performance
 // ---------------------------------------------------------------------------
-export default function DashboardPage() {
-  const { theme } = useTheme();
-  const { t } = useI18n();
-  const { watchlist } = useWatchlist();
-  const isDark  = theme === "dark";
+interface HistoryResponse { dates: string[]; close: number[]; }
 
-  // Optimizer portfolios
-  const [optPortfolios,    setOptPortfolios]    = useState<SavedPortfolio[]>([]);
-  const [selectedOptId,    setSelectedOptId]    = useState<string | null>(null);
-  const [perfResult,       setPerfResult]       = useState<PerformanceResult | null>(null);
+function calcPerf(close: number[]): { weekly: number | null; monthly: number | null } {
+  const n = close.length;
+  if (n < 2) return { weekly: null, monthly: null };
+  const last = close[n - 1];
+  const weeklyBase = close[Math.max(0, n - 1 - 5)];
+  const monthlyBase = close[0];
+  const weekly  = weeklyBase  > 0 ? ((last / weeklyBase)  - 1) * 100 : null;
+  const monthly = monthlyBase > 0 ? ((last / monthlyBase) - 1) * 100 : null;
+  const cap = (v: number | null) => v == null ? null : Math.max(-99.9, Math.min(99.9, v));
+  return { weekly: cap(weekly), monthly: cap(monthly) };
+}
 
-  // Tracker portfolios
-  const [trackerPortfolios, setTrackerPortfolios] = useState<TrackerPortfolio[]>([]);
-  const [selectedTrkId,     setSelectedTrkId]     = useState<string | null>(null);
-  const [trackerResult,     setTrackerResult]     = useState<TrackerPerfResult | null>(null);
+function PerfCell({ value }: { value: number | null | undefined }) {
+  if (value == null) return <span style={{ color: "var(--t3)", fontVariantNumeric: "tabular-nums", fontSize: "0.72rem" }}>—</span>;
+  const pos = value >= 0;
+  return (
+    <span style={{ color: pos ? "var(--green)" : "var(--red)", fontWeight: 700, fontVariantNumeric: "tabular-nums", fontSize: "0.72rem" }}>
+      {pos ? "+" : ""}{value.toFixed(2)}%
+    </span>
+  );
+}
 
-  const [optTimeRange, setOptTimeRange] = useState<TimeRange>("1y");
-
-  // Load portfolios from backend (user-scoped)
-  useEffect(() => {
-    get<{ name: string; tickers: string[]; weights: number[]; capital: number; method: string; created_at: string }[]>(
-      "/portfolio/saved"
-    )
-      .then((rows) => {
-        const opts = rows.map((r) => ({
-          id: r.name,
-          name: r.name,
-          tickers: r.tickers,
-          weights: r.weights,
-          method: r.method,
-          capital: r.capital,
-          result: null,
-          savedAt: r.created_at,
-        }));
-        setOptPortfolios(opts);
-        if (opts.length > 0) setSelectedOptId(opts[0].id);
-      })
-      .catch(() => {});
-
-    get<TrackerPortfolio[]>("/portfolio/tracker")
-      .then((trks) => {
-        setTrackerPortfolios(trks);
-        if (trks.length > 0) setSelectedTrkId(trks[0].id);
-      })
-      .catch(() => {});
-  }, []);
-
-  const portfolio      = optPortfolios.find(p => p.id === selectedOptId) ?? null;
-  const trackerPf      = trackerPortfolios.find(p => p.id === selectedTrkId) ?? null;
-
-  // Build weights dict from parallel arrays stored in backend
-  const weights = useMemo<Record<string, number>>(() => {
-    if (!portfolio) return {};
-    return Object.fromEntries(
-      portfolio.tickers.map((t, i) => [t, portfolio.weights[i] ?? 0])
-    );
-  }, [portfolio]);
-
-  // Optimizer equity curve
-  const perfMutation = useMutation({
-    mutationFn: ({ pf, range }: { pf: SavedPortfolio; range: TimeRange }) => {
-      if (!pf.tickers.length) throw new Error("No tickers.");
-      return post<PerformanceResult>("/portfolio/performance", {
-        tickers: pf.tickers,
-        weights: pf.weights,
-        capital: pf.capital,
-        start_date: rangeToStartDate(range),
-      });
-    },
-    onSuccess: (data) => setPerfResult(data),
+function WatchlistRow({ ticker, isLast, onRemove }: { ticker: string; isLast: boolean; onRemove: () => void }) {
+  const hist = useQuery<HistoryResponse>({
+    queryKey: ["wl-hist", ticker],
+    queryFn: () => get(`/equity/${encodeURIComponent(ticker)}/history?period=1mo&interval=1d`),
+    staleTime: 300_000,
+    retry: false,
   });
 
-  // Tracker equity curve
-  const trackerMutation = useMutation({
-    mutationFn: (pf: TrackerPortfolio) => {
-      if (!pf.positions.length) throw new Error("No positions.");
-      return post<TrackerPerfResult>("/portfolio/tracker-performance", {
-        positions: pf.positions.map(p => ({
-          ticker: p.ticker, shares: p.shares,
-          entry_price: p.entry_price, entry_date: p.entry_date,
-        })),
-      });
-    },
-    onSuccess: (data) => setTrackerResult(data),
-  });
-
-  useEffect(() => {
-    setPerfResult(null);
-    if (portfolio && portfolio.tickers.length > 0) perfMutation.mutate({ pf: portfolio, range: optTimeRange });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedOptId, optTimeRange]);
-
-  useEffect(() => {
-    setTrackerResult(null);
-    if (trackerPf && trackerPf.positions.length > 0) trackerMutation.mutate(trackerPf);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedTrkId]);
-
-  // Corporate events for selected optimizer portfolio
-  const tickers    = portfolio?.tickers ?? [];
-  const tickersKey = tickers.join(",");
-  const { data: events, isLoading: eventsLoading } = useQuery({
-    queryKey: ["events", tickersKey],
-    queryFn: () => get<{ events: CorporateEvent[] }>("/equity/events", { tickers: tickersKey }),
-    enabled: tickers.length > 0,
-    staleTime: 15 * 60 * 1000,
-  });
-
-  const { data: market, isLoading: marketLoading, dataUpdatedAt: marketUpdatedAt } = useQuery({
-    queryKey: ["market-overview"],
-    queryFn: () => get<MarketOverview>("/market/overview"),
-    staleTime: 5 * 60 * 1000,
-    refetchInterval: 5 * 60 * 1000,
-  });
-
-  const upcoming = useMemo(() => {
-    if (!events?.events) return [];
-    const rows: { ticker: string; type: "Earnings" | "Dividend"; date: string; extra?: string }[] = [];
-    for (const e of events.events) {
-      if (e.next_earnings) rows.push({ ticker: e.ticker, type: "Earnings", date: e.next_earnings });
-      if (e.next_dividend) rows.push({
-        ticker: e.ticker, type: "Dividend", date: e.next_dividend,
-        extra: e.dividend_rate ? `$${e.dividend_rate.toFixed(2)}` : undefined,
-      });
-    }
-    return rows
-      .filter(r => { const d = daysUntil(r.date); return d !== null && d >= -1 && d <= 180; })
-      .sort((a, b) => a.date.localeCompare(b.date))
-      .slice(0, 12);
-  }, [events]);
-
-  const pfAgeDays = portfolio
-    ? Math.round((Date.now() - new Date(portfolio.savedAt).getTime()) / 86_400_000)
-    : null;
-  const isStale = pfAgeDays !== null && pfAgeDays > 30;
-
-  const chartLayout = (prefix?: string) => ({
-    yaxis: { tickprefix: prefix ?? "€" },
-    margin: { l: 64, r: 20, t: 24, b: 40 },
-  });
+  const perf = hist.data?.close ? calcPerf(hist.data.close) : { weekly: null, monthly: null };
 
   return (
-    <div className="p-4 sm:p-6 xl:px-8 max-w-[2000px] mx-auto fade-in">
-
-      {/* ── Header ── */}
-      <div className="mb-6 flex items-start justify-between flex-wrap gap-3">
-        <div>
-          <p className="text-xs tracking-widest uppercase mb-1" style={{ color: "var(--t3)" }}>{t.dashboard.breadcrumb}</p>
-          <h1 style={{ fontSize: "1.5rem", fontWeight: 600, color: "var(--t1)" }}>{t.dashboard.title}</h1>
+    <div
+      style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 18px", borderBottom: isLast ? "none" : "1px solid var(--card-border)", transition: "background 0.12s" }}
+      onMouseEnter={e => (e.currentTarget.style.background = "var(--bg-inner)")}
+      onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+    >
+      <TickerLogo ticker={ticker} size={22} />
+      <Link href={`/equity?ticker=${encodeURIComponent(ticker)}`} style={{ flex: 1, fontFamily: "Manrope, sans-serif", fontSize: "0.82rem", fontWeight: 700, color: "var(--orange)", textDecoration: "none" }}>{ticker}</Link>
+      <div style={{ display: "flex", gap: 14, alignItems: "center", flexShrink: 0 }}>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 1, minWidth: 52 }}>
+          <span style={{ fontSize: "0.54rem", fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--t3)" }}>5J</span>
+          <PerfCell value={hist.isLoading ? null : perf.weekly} />
         </div>
-        <div className="flex items-center gap-2">
-          {isStale && (
-            <span className="badge badge-yellow" style={{ fontSize: "0.65rem" }}>
-              Optimizer portfolio {pfAgeDays}d old
-            </span>
-          )}
-          <Link href="/portfolio" className="btn-primary" style={{ borderRadius: "var(--r)" }}>
-            <Briefcase size={14} /> New allocation
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 1, minWidth: 52 }}>
+          <span style={{ fontSize: "0.54rem", fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--t3)" }}>1M</span>
+          <PerfCell value={hist.isLoading ? null : perf.monthly} />
+        </div>
+      </div>
+      <button onClick={onRemove} title="Retirer"
+        style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 20, height: 20, borderRadius: "50%", background: "transparent", border: "1px solid var(--card-border)", color: "var(--t3)", cursor: "pointer", fontSize: "0.7rem", flexShrink: 0, transition: "all 0.12s" }}
+        onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = "rgba(212,133,133,0.15)"; (e.currentTarget as HTMLButtonElement).style.color = "var(--red)"; }}
+        onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = "transparent"; (e.currentTarget as HTMLButtonElement).style.color = "var(--t3)"; }}
+      >×</button>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Allocation mini donut
+// ---------------------------------------------------------------------------
+const ALLOC_COLORS = ["#F97316", "#7AA7E8", "#86B38A", "#C9B178", "#D48585", "#9B87B8"];
+
+function MiniDonut({ data }: { data: { ticker: string; weight: number }[] }) {
+  const total = data.reduce((s, d) => s + d.weight, 0) || 1;
+  const R = 32, CIRC = 2 * Math.PI * R, GAP = 1.5;
+  let cumFrac = 0;
+  const segs = data.map((d, i) => {
+    const frac = d.weight / total;
+    const arcLen = Math.max(0, frac * CIRC - GAP);
+    const startDeg = cumFrac * 360 - 90;
+    cumFrac += frac;
+    return { ...d, frac, arcLen, startDeg, color: ALLOC_COLORS[i % ALLOC_COLORS.length] };
+  });
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+      <svg viewBox="0 0 88 88" width={72} height={72} style={{ flexShrink: 0 }}>
+        <circle cx={44} cy={44} r={R} fill="none" stroke="var(--bg-hover)" strokeWidth={13} />
+        {segs.map(seg => (
+          <circle key={seg.ticker} cx={44} cy={44} r={R} fill="none" stroke={seg.color}
+            strokeWidth={12} strokeLinecap="butt"
+            strokeDasharray={`${seg.arcLen} ${CIRC}`}
+            transform={`rotate(${seg.startDeg} 44 44)`} />
+        ))}
+      </svg>
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 3 }}>
+        {segs.map(seg => (
+          <Link key={seg.ticker} href={`/equity?ticker=${seg.ticker}`}
+            style={{ display: "flex", alignItems: "center", gap: 6, textDecoration: "none" }}>
+            <span style={{ width: 6, height: 6, borderRadius: 1, background: seg.color, flexShrink: 0 }} />
+            <span style={{ flex: 1, fontFamily: "Manrope, sans-serif", fontSize: "0.72rem", fontWeight: 700, color: "var(--orange)" }}>{seg.ticker}</span>
+            <span style={{ fontSize: "0.68rem", color: "var(--t2)", fontVariantNumeric: "tabular-nums", fontWeight: 600 }}>{(seg.weight * 100).toFixed(1)}%</span>
           </Link>
-        </div>
-      </div>
-
-      {/* ── 2-column layout: main left, watchlist right ── */}
-      <div className="flex flex-col lg:flex-row lg:items-start gap-5 mb-5">
-        {/* ── LEFT: main content ── */}
-        <div className="flex-1 min-w-0">
-          <div className="hidden md:block"><PollWidget /></div>
-
-          {optPortfolios.length === 0 && trackerPortfolios.length === 0 ? (
-            <EmptyState />
-          ) : (
-            <>
-              {/* ── Mobile-only KPI table (replaces equity curves on small screens) ── */}
-              <MobilePortfolioKpis
-                className="md:hidden mb-5"
-                optimizer={portfolio && perfResult ? { name: portfolio.name, metrics: perfResult.metrics } : optPortfolios[0] ? { name: optPortfolios[0].name, metrics: null } : null}
-                tracker={trackerPf && trackerResult ? { name: trackerPf.name, metrics: trackerResult.metrics, positions: trackerPf.positions.length } : trackerPortfolios[0] ? { name: trackerPortfolios[0].name, metrics: null, positions: trackerPortfolios[0].positions.length } : null}
-                onRefreshOpt={() => portfolio && perfMutation.mutate({ pf: portfolio, range: optTimeRange })}
-                onRefreshTrk={() => trackerPf && trackerMutation.mutate(trackerPf)}
-                loadingOpt={perfMutation.isPending}
-                loadingTrk={trackerMutation.isPending}
-              />
-
-              {/* ── Optimizer Equity Curve (desktop only) ── */}
-              {optPortfolios.length > 0 && (
-                <section className="mb-5 hidden md:block">
-                  <EquityCurveCard
-                    title="Optimizer Portfolio"
-                    badgeLabel={portfolio?.method}
-                    subtitle={`since ${rangeToStartDate(optTimeRange)}${perfResult ? ` · ${perfResult.n_days} trading days` : ""}`}
-                    selector={
-                      <PortfolioSelect
-                        options={optPortfolios.map(p => ({ id: p.id, label: p.name }))}
-                        value={selectedOptId ?? ""}
-                        onChange={id => { setSelectedOptId(id); setPerfResult(null); }}
-                      />
-                    }
-                    onRefresh={() => portfolio && perfMutation.mutate({ pf: portfolio, range: optTimeRange })}
-                    refreshing={perfMutation.isPending}
-                    timeRange={optTimeRange}
-                    onTimeRangeChange={r => { setOptTimeRange(r); setPerfResult(null); }}
-                    headerActions={portfolio && portfolio.tickers.length > 0 ? (
-                      <ShareButton
-                        label={portfolio.name}
-                        tickers={portfolio.tickers}
-                        weights={portfolio.weights}
-                        method={portfolio.method}
-                        variant="compact"
-                        text="Partager"
-                      />
-                    ) : null}
-                  >
-                    {perfMutation.isPending && !perfResult && (
-                      <div className="px-5 py-3"><div className="skeleton" style={{ height: 200 }} /></div>
-                    )}
-                    {perfResult && (
-                      <>
-                        <KpiStrip items={[
-                          { label: "Total Return",   value: fmtPct(perfResult.metrics.total_return),    color: perfResult.metrics.total_return >= 0 ? "var(--green)" : "var(--red)" },
-                          { label: "Current Value",  value: fmtEur(perfResult.metrics.current_value),   color: "var(--orange)" },
-                          { label: "Ann. Return",    value: fmtPct(perfResult.metrics.ann_return),       color: (perfResult.metrics.ann_return ?? 0) >= 0 ? "var(--green)" : "var(--red)" },
-                          { label: "Volatility",     value: fmtPct(perfResult.metrics.ann_volatility),   color: "var(--yellow)" },
-                          { label: "Sharpe Ratio",   value: fmtNum(perfResult.metrics.sharpe_ratio, 3),  color: "var(--orange)" },
-                          { label: "Max Drawdown",   value: fmtPct(perfResult.metrics.max_drawdown),     color: "var(--red)" },
-                        ]} />
-                        <PlotlyChart
-                          data={[
-                            {
-                              type: "scatter", mode: "lines",
-                              x: perfResult.dates, y: perfResult.portfolio_values,
-                              name: portfolio?.name ?? "Portfolio",
-                              line: { color: "#7AA7E8", width: 2 },
-                              fill: "tozeroy",
-                              fillcolor: isDark ? "rgba(122,167,232,0.06)" : "rgba(62,111,183,0.05)",
-                              hovertemplate: "%{x}: €%{y:,.0f}<extra></extra>",
-                            },
-                            {
-                              type: "scatter", mode: "lines",
-                              x: perfResult.dates, y: perfResult.benchmark_values,
-                              name: "SPY",
-                              line: { color: "#94A3B8", width: 1.5, dash: "dot" },
-                              hovertemplate: "%{x}: €%{y:,.0f}<extra></extra>",
-                            },
-                          ]}
-                          layout={chartLayout("€")}
-                          height={240}
-                          card={false}
-                        />
-                      </>
-                    )}
-                    {!perfResult && !perfMutation.isPending && (
-                      <EmptyCurve label={
-                        !portfolio || !portfolio.tickers.length
-                          ? "Select a portfolio or run an optimization in Allocation."
-                          : perfMutation.isError
-                          ? "Failed to load equity curve. Try refreshing."
-                          : "Loading…"
-                      } />
-                    )}
-                  </EquityCurveCard>
-                </section>
-              )}
-
-              {/* ── Tracker Equity Curve (desktop only) ── */}
-              {trackerPortfolios.length > 0 && (
-                <section className="mb-5 hidden md:block">
-                  <EquityCurveCard
-                    title="Tracker Portfolio"
-                    badgeLabel={trackerPf ? `${trackerPf.positions.length} positions` : undefined}
-                    subtitle={trackerResult ? `${trackerResult.n_days} trading days` : "live positions tracking"}
-                    selector={
-                      <PortfolioSelect
-                        options={trackerPortfolios.map(p => ({ id: p.id, label: p.name }))}
-                        value={selectedTrkId ?? ""}
-                        onChange={id => { setSelectedTrkId(id); setTrackerResult(null); }}
-                      />
-                    }
-                    onRefresh={() => trackerPf && trackerMutation.mutate(trackerPf)}
-                    refreshing={trackerMutation.isPending}
-                    accent="#86B38A"
-                    headerActions={(() => {
-                      if (!trackerPf || trackerPf.positions.length === 0) return null;
-                      const total = trackerPf.positions.reduce((s, p) => s + p.shares * p.entry_price, 0);
-                      if (total <= 0) return null;
-                      const tickers = trackerPf.positions.map(p => p.ticker);
-                      const weights = trackerPf.positions.map(p => (p.shares * p.entry_price / total) * 100);
-                      return (
-                        <ShareButton
-                          label={trackerPf.name}
-                          tickers={tickers}
-                          weights={weights}
-                          variant="compact"
-                          text="Partager"
-                        />
-                      );
-                    })()}
-                  >
-                    {trackerMutation.isPending && !trackerResult && (
-                      <div className="px-5 py-3"><div className="skeleton" style={{ height: 200 }} /></div>
-                    )}
-                    {trackerResult && (
-                      <>
-                        <KpiStrip items={[
-                          { label: "Current Value",   value: fmtEur(trackerResult.metrics.current_value),   color: "var(--orange)" },
-                          { label: "Cost Basis",      value: fmtEur(trackerResult.metrics.cost_basis),       color: "var(--t2)" },
-                          { label: "Unrealized P&L",  value: fmtPnl(trackerResult.metrics.unrealized_pnl),   color: trackerResult.metrics.unrealized_pnl >= 0 ? "var(--green)" : "var(--red)" },
-                          { label: "Total Return",    value: fmtPct(trackerResult.metrics.total_return),     color: trackerResult.metrics.total_return >= 0 ? "var(--green)" : "var(--red)" },
-                          { label: "Max Drawdown",    value: fmtPct(trackerResult.metrics.max_drawdown),     color: "var(--red)" },
-                          { label: "Positions",       value: String(trackerPf?.positions.length ?? 0),       color: "var(--t1)" },
-                        ]} />
-                        <PlotlyChart
-                          data={[
-                            {
-                              type: "scatter", mode: "lines",
-                              x: trackerResult.dates, y: trackerResult.portfolio_values,
-                              name: trackerPf?.name ?? "Portfolio",
-                              line: { color: "#86B38A", width: 2 },
-                              fill: "tozeroy",
-                              fillcolor: isDark ? "rgba(134,179,138,0.07)" : "rgba(86,147,91,0.05)",
-                              hovertemplate: "%{x}: €%{y:,.0f}<extra></extra>",
-                            },
-                            {
-                              type: "scatter", mode: "lines",
-                              x: trackerResult.dates, y: trackerResult.cost_basis,
-                              name: "Cost basis",
-                              line: { color: "#94A3B8", width: 1.5, dash: "dot" },
-                              hovertemplate: "%{x}: €%{y:,.0f}<extra></extra>",
-                            },
-                          ]}
-                          layout={chartLayout("€")}
-                          height={240}
-                          card={false}
-                        />
-
-                        {/* Per-position table */}
-                        <div className="hidden md:block px-5 pb-4 mt-2 overflow-x-auto">
-                          <table className="w-full text-xs" style={{ borderCollapse: "collapse" }}>
-                            <thead>
-                              <tr style={{ borderBottom: "1px solid var(--border)" }}>
-                                {["Ticker", "Shares", "Entry", "Current", "Value", "P&L", "Return"].map(h => (
-                                  <th key={h} className="pb-2 text-left font-semibold tracking-widest pr-4"
-                                    style={{ color: "var(--t3)", fontSize: 10 }}>{h.toUpperCase()}</th>
-                                ))}
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {trackerResult.positions.map(pos => {
-                                const up = (pos.return_pct ?? 0) >= 0;
-                                return (
-                                  <tr key={pos.ticker} style={{ borderBottom: "1px solid var(--border)" }}>
-                                    <td className="py-2 pr-4 font-semibold" style={{ color: "var(--orange)" }}>{pos.ticker}</td>
-                                    <td className="py-2 pr-4" style={{ color: "var(--t2)" }}>{pos.shares}</td>
-                                    <td className="py-2 pr-4" style={{ color: "var(--t3)" }}>€{pos.entry_price.toFixed(2)}</td>
-                                    <td className="py-2 pr-4" style={{ color: "var(--t1)" }}>
-                                      {pos.current_price != null ? `€${pos.current_price.toFixed(2)}` : "—"}
-                                    </td>
-                                    <td className="py-2 pr-4" style={{ color: "var(--t1)" }}>
-                                      {pos.current_value != null ? fmtEur(pos.current_value) : "—"}
-                                    </td>
-                                    <td className="py-2 pr-4" style={{ color: up ? "var(--green)" : "var(--red)" }}>
-                                      {pos.unrealized_pnl != null ? fmtPnl(pos.unrealized_pnl) : "—"}
-                                    </td>
-                                    <td className="py-2 font-semibold" style={{ color: up ? "var(--green)" : "var(--red)" }}>
-                                      {pos.return_pct != null ? fmtPct(pos.return_pct) : "—"}
-                                    </td>
-                                  </tr>
-                                );
-                              })}
-                            </tbody>
-                          </table>
-                        </div>
-                      </>
-                    )}
-                    {!trackerResult && !trackerMutation.isPending && (
-                      <EmptyCurve label={
-                        !trackerPf || trackerPf.positions.length === 0
-                          ? "Add positions in Portfolio Tracker to see your equity curve."
-                          : trackerMutation.isError
-                          ? "Failed to load equity curve. Check positions and try refreshing."
-                          : "Loading…"
-                      } />
-                    )}
-                  </EquityCurveCard>
-                </section>
-              )}
-
-              {/* ── Market Pulse ── */}
-              <div className="hidden md:block">
-                <MarketPulse data={market} loading={marketLoading} updatedAt={marketUpdatedAt} />
-              </div>
-            </>
-          )}
-        </div>
-
-        {/* ── RIGHT: Watchlist + Community feed (desktop only) ── */}
-        {watchlist.length > 0 && (
-          <div className="hidden lg:block w-full lg:w-[320px] lg:flex-shrink-0">
-            <WatchlistPanel tickers={watchlist} />
-            <CommunityFeedWidget limit={5} />
-          </div>
-        )}
-      </div>
-
-      {/* ── Bottom 2-col: News feed + Optimizer Portfolio Summary (mobile shows portfolio summary first then news) ── */}
-      <div className={`grid grid-cols-1 gap-5 mb-5${portfolio ? " lg:grid-cols-2" : ""}`}>
-        <NewsPanel />
-
-        {portfolio && (
-          <section className="card" style={{ borderRadius: "var(--r-2xl)", padding: "18px 20px" }}>
-            <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
-              <div className="flex items-center gap-2 flex-wrap min-w-0">
-                <span className="badge badge-orange">{portfolio.method ?? "—"}</span>
-                <span style={{ fontSize: "0.92rem", fontWeight: 600, color: "var(--t1)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{portfolio.name}</span>
-              </div>
-              <Link href="/portfolio" className="btn-secondary" style={{ borderRadius: "var(--r)", flexShrink: 0 }}>
-                Open <ArrowRight size={12} />
-              </Link>
-            </div>
-
-            <div style={{ color: "var(--t3)", fontSize: "0.62rem", marginBottom: 12 }}>
-              {portfolio.tickers.length} assets · {fmtEur(portfolio.capital)} · saved {new Date(portfolio.savedAt).toLocaleDateString()}
-            </div>
-
-            <div className="grid grid-cols-2 gap-2 mb-4">
-              <StatTile label="Ann. Return"  value={fmtPct(perfResult?.metrics?.ann_return)}       icon={<TrendingUp size={13} />}  tone={(perfResult?.metrics?.ann_return ?? 0) >= 0 ? "up" : "down"} />
-              <StatTile label="Volatility"   value={fmtPct(perfResult?.metrics?.ann_volatility)}    icon={<Activity size={13} />} />
-              <StatTile label="Sharpe"       value={fmtNum(perfResult?.metrics?.sharpe_ratio)}      icon={<Target size={13} />}      tone={(perfResult?.metrics?.sharpe_ratio ?? 0) >= 1 ? "up" : undefined} />
-              <StatTile label="Max DD"       value={fmtPct(perfResult?.metrics?.max_drawdown)}      icon={<TrendingDown size={13} />} tone="down" />
-            </div>
-
-            <div className="flex items-center gap-2 mb-2">
-              <BarChart3 size={12} style={{ color: "var(--orange)" }} />
-              <span style={{ fontSize: "0.65rem", fontWeight: 600, color: "var(--t2)", letterSpacing: "0.06em", textTransform: "uppercase" }}>
-                Allocation
-              </span>
-            </div>
-            <div className="space-y-1">
-              {Object.entries(weights)
-                .sort((a, b) => b[1] - a[1])
-                .map(([tkr, w], i) => (
-                  <AllocationRow key={tkr} ticker={tkr} weight={w}
-                    capitalEur={portfolio.capital * w}
-                    color={CHART_COLORS[i % CHART_COLORS.length]} />
-                ))}
-            </div>
-
-            {upcoming.length > 0 && (
-              <>
-                <div className="flex items-center gap-2 mt-4 mb-2">
-                  <CalendarClock size={12} style={{ color: "var(--orange)" }} />
-                  <span style={{ fontSize: "0.65rem", fontWeight: 600, color: "var(--t2)", letterSpacing: "0.06em", textTransform: "uppercase" }}>
-                    Upcoming Events
-                  </span>
-                </div>
-                <div className="space-y-1">
-                  {upcoming.slice(0, 6).map((ev, idx) => (
-                    <EventRow key={`${ev.ticker}-${ev.type}-${idx}`} event={ev} />
-                  ))}
-                </div>
-              </>
-            )}
-          </section>
-        )}
-      </div>
-
-      {/* Footer */}
-      <div className="hidden md:flex items-center gap-3" style={{ color: "var(--t3)", fontSize: "0.72rem" }}>
-        <span>{optPortfolios.length} optimizer portfolio{optPortfolios.length !== 1 ? "s" : ""}</span>
-        <span>·</span>
-        <span>{trackerPortfolios.length} tracker portfolio{trackerPortfolios.length !== 1 ? "s" : ""}</span>
-        <span>·</span>
-        <Link href="/screener" style={{ color: "var(--orange)" }}>Find new ideas →</Link>
-        <span>·</span>
-        <Link href="/scorer" style={{ color: "var(--orange)" }}>Score conviction →</Link>
+        ))}
       </div>
     </div>
   );
 }
 
 // ---------------------------------------------------------------------------
-// Shared sub-components
+// Inline sparkline SVG
 // ---------------------------------------------------------------------------
-function EquityCurveCard({
-  title, badgeLabel, subtitle, selector, onRefresh, refreshing, accent = "#7AA7E8",
-  timeRange, onTimeRangeChange, headerActions, children,
-}: {
-  title: string; badgeLabel?: string; subtitle?: string;
-  selector: React.ReactNode; onRefresh: () => void; refreshing: boolean;
-  accent?: string; timeRange?: TimeRange; onTimeRangeChange?: (r: TimeRange) => void;
-  headerActions?: React.ReactNode;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="rounded border overflow-hidden" style={{ borderColor: "var(--border)", background: "var(--bg-card)" }}>
-      <div className="flex items-center justify-between px-5 py-3 border-b" style={{ borderColor: "var(--border)" }}>
-        <div className="flex items-center gap-2.5">
-          <LineChart size={14} style={{ color: accent }} />
-          <span style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--t1)" }}>{title}</span>
-          {badgeLabel && (
-            <span className="px-2 py-0.5 rounded text-xs font-semibold"
-              style={{ background: `${accent}22`, color: accent, border: `1px solid ${accent}44` }}>
-              {badgeLabel}
-            </span>
-          )}
-          {selector}
-        </div>
-        <div className="flex items-center gap-3">
-          {subtitle && <span style={{ color: "var(--t3)", fontSize: "0.68rem" }}>{subtitle}</span>}
-          {timeRange !== undefined && onTimeRangeChange && (
-            <div className="flex items-center gap-1">
-              {(["6mo", "1y", "3y", "5y", "10y"] as TimeRange[]).map(r => (
-                <button key={r} onClick={() => onTimeRangeChange(r)}
-                  className="px-2 py-0.5 rounded text-xs border transition-all"
-                  style={{
-                    background: timeRange === r ? "var(--orange-dim)" : "var(--bg-hover)",
-                    borderColor: timeRange === r ? "var(--orange-border)" : "var(--border)",
-                    color: timeRange === r ? "var(--orange)" : "var(--t3)",
-                  }}>
-                  {r}
-                </button>
-              ))}
-            </div>
-          )}
-          {headerActions}
-          <button onClick={onRefresh} disabled={refreshing}
-            className="flex items-center gap-1 px-2 py-1 rounded border text-xs transition-all disabled:opacity-40"
-            style={{ borderColor: "var(--border)", color: "var(--t3)", background: "var(--bg-hover)" }}>
-            <RefreshCw size={11} className={refreshing ? "animate-spin" : ""} />
-            Refresh
-          </button>
-        </div>
-      </div>
-      {children}
-    </div>
-  );
-}
-
-function PortfolioSelect({ options, value, onChange }: {
-  options: { id: string; label: string }[]; value: string; onChange: (id: string) => void;
-}) {
-  if (options.length <= 1) return null;
-  return (
-    <div className="relative flex items-center">
-      <select
-        value={value}
-        onChange={e => onChange(e.target.value)}
-        className="appearance-none text-xs px-2.5 py-1 pr-6 rounded border cursor-pointer outline-none"
-        style={{
-          background: "var(--bg-hover)", borderColor: "var(--border)",
-          color: "var(--t1)", fontSize: "0.72rem",
-        }}
-      >
-        {options.map(o => <option key={o.id} value={o.id}>{o.label}</option>)}
-      </select>
-      <ChevronDown size={10} className="absolute right-1.5 pointer-events-none" style={{ color: "var(--t3)" }} />
-    </div>
-  );
-}
-
-function KpiStrip({ items }: { items: { label: string; value: string; color: string }[] }) {
-  return (
-    <div style={{ overflowX: "auto", borderBottom: "1px solid var(--border)" }}>
-    <div style={{
-      display: "grid",
-      gridTemplateColumns: `repeat(${items.length}, minmax(100px, 1fr))`,
-      minWidth: "max-content",
-      width: "100%",
-    }}>
-      {items.map((m, i) => (
-        <div key={m.label} className="px-4 py-3" style={{
-          background: "var(--bg-card)",
-          borderRight: i < items.length - 1 ? "1px solid var(--border)" : "none",
-        }}>
-          <p style={{ fontSize: "0.62rem", color: "var(--t3)", fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: 4 }}>
-            {m.label}
-          </p>
-          <p className="mono" style={{ fontSize: "1.05rem", fontWeight: 600, color: m.color, lineHeight: 1 }}>
-            {m.value}
-          </p>
-        </div>
-      ))}
-    </div>
-    </div>
-  );
-}
-
-type PortfolioMetrics = Partial<Record<"total_return" | "ann_return" | "ann_volatility" | "sharpe_ratio" | "max_drawdown" | "current_value" | "cost_basis" | "unrealized_pnl", number>>;
-
-function MobilePortfolioKpis({
-  className, optimizer, tracker, onRefreshOpt, onRefreshTrk, loadingOpt, loadingTrk,
-}: {
-  className?: string;
-  optimizer: { name: string; metrics: PortfolioMetrics | null } | null;
-  tracker: { name: string; metrics: PortfolioMetrics | null; positions: number } | null;
-  onRefreshOpt: () => void;
-  onRefreshTrk: () => void;
-  loadingOpt: boolean;
-  loadingTrk: boolean;
-}) {
-  const rows: Array<{ label: string; value: string; tone?: "up" | "down" | "neutral" }> = [];
-  if (optimizer) {
-    const m = optimizer.metrics;
-    rows.push({ label: "Optimizer", value: optimizer.name, tone: "neutral" });
-    rows.push({ label: "Value",   value: fmtEur(m?.current_value),   tone: "neutral" });
-    rows.push({ label: "Return",  value: fmtPct(m?.total_return),    tone: (m?.total_return ?? 0) >= 0 ? "up" : "down" });
-    rows.push({ label: "Sharpe",  value: fmtNum(m?.sharpe_ratio, 2), tone: "neutral" });
-    rows.push({ label: "Max DD",  value: fmtPct(m?.max_drawdown),    tone: "down" });
-  }
-  if (tracker) {
-    const m = tracker.metrics;
-    rows.push({ label: "Tracker", value: `${tracker.name} · ${tracker.positions}p`, tone: "neutral" });
-    rows.push({ label: "Value",   value: fmtEur(m?.current_value),    tone: "neutral" });
-    rows.push({ label: "P&L",     value: fmtPnl(m?.unrealized_pnl),   tone: (m?.unrealized_pnl ?? 0) >= 0 ? "up" : "down" });
-    rows.push({ label: "Return",  value: fmtPct(m?.total_return),     tone: (m?.total_return ?? 0) >= 0 ? "up" : "down" });
-  }
-  if (rows.length === 0) return null;
-
-  return (
-    <section className={cn("card", className)} style={{ padding: "12px 14px" }}>
-      <div className="flex items-center justify-between mb-2">
-        <span style={{ fontSize: "0.62rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--t3)" }}>
-          Portfolios
-        </span>
-        <div className="flex items-center gap-2">
-          {optimizer && (
-            <button onClick={onRefreshOpt} disabled={loadingOpt}
-              style={{ background: "transparent", border: "1px solid var(--border)", borderRadius: "var(--r-sm)", padding: "3px 8px", fontSize: 10, color: "var(--t3)" }}>
-              {loadingOpt ? "…" : "↻ opt"}
-            </button>
-          )}
-          {tracker && (
-            <button onClick={onRefreshTrk} disabled={loadingTrk}
-              style={{ background: "transparent", border: "1px solid var(--border)", borderRadius: "var(--r-sm)", padding: "3px 8px", fontSize: 10, color: "var(--t3)" }}>
-              {loadingTrk ? "…" : "↻ trk"}
-            </button>
-          )}
-        </div>
-      </div>
-      <table className="w-full" style={{ borderCollapse: "collapse" }}>
-        <tbody>
-          {rows.map((r, i) => (
-            <tr key={`${r.label}-${i}`} style={{ borderTop: i === 0 ? "none" : "1px solid var(--border)" }}>
-              <td style={{ padding: "7px 0", fontSize: 11, color: "var(--t3)", letterSpacing: "0.04em", textTransform: "uppercase", width: "40%" }}>
-                {r.label}
-              </td>
-              <td className="mono" style={{
-                padding: "7px 0", fontSize: 12, fontWeight: 600, textAlign: "right",
-                color: r.tone === "up" ? "var(--green)" : r.tone === "down" ? "var(--red)" : "var(--t1)",
-              }}>
-                {r.value}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </section>
-  );
-}
-
-function EmptyCurve({ label }: { label: string }) {
-  return (
-    <div className="flex items-center justify-center h-32" style={{ color: "var(--t3)", fontSize: "0.78rem" }}>
-      {label}
-    </div>
-  );
-}
-
-function EmptyState() {
-  return (
-    <section className="card flex flex-col items-center justify-center text-center"
-      style={{ borderRadius: "var(--r-2xl)", padding: "64px 32px", minHeight: 420 }}>
-      <div style={{
-        width: 52, height: 52, background: "var(--orange-dim)",
-        border: "1px solid var(--orange-border)", borderRadius: "var(--r)",
-        display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 16,
-      }}>
-        <Briefcase size={22} style={{ color: "var(--orange)" }} />
-      </div>
-      <h2 style={{ fontSize: "1.2rem", fontWeight: 600, color: "var(--t1)", marginBottom: 6 }}>No portfolio yet</h2>
-      <p style={{ color: "var(--t2)", fontSize: "0.85rem", maxWidth: 400, marginBottom: 18 }}>
-        Screen ideas, score conviction, then run the optimizer or add positions in Tracker.
-      </p>
-      <div className="flex gap-2">
-        <Link href="/screener" className="btn-primary" style={{ borderRadius: "var(--r)" }}>Find ideas</Link>
-        <Link href="/portfolio" className="btn-secondary" style={{ borderRadius: "var(--r)" }}>Optimize</Link>
-        <Link href="/tracker" className="btn-secondary" style={{ borderRadius: "var(--r)" }}>Track positions</Link>
-      </div>
-    </section>
-  );
-}
-
-function StatTile({ label, value, icon, tone }: {
-  label: string; value: string; icon: React.ReactNode; tone?: "up" | "down";
-}) {
-  const color = tone === "up" ? "var(--green)" : tone === "down" ? "var(--red)" : "var(--t1)";
-  return (
-    <div style={{
-      background: "var(--bg-inner)", border: "1px solid var(--border)",
-      borderTopColor: "var(--border-hi)", borderRadius: "var(--r)", padding: "12px 16px",
-    }}>
-      <div className="flex items-center gap-1.5" style={{
-        color: "var(--t2)", fontSize: "0.62rem", fontWeight: 600,
-        letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: 8,
-      }}>
-        <span style={{ color: "var(--orange)" }}>{icon}</span>
-        {label}
-      </div>
-      <div className="mono" style={{ fontSize: "1.25rem", fontWeight: 600, color, letterSpacing: "-0.02em", lineHeight: 1.1 }}>
-        {value}
-      </div>
-    </div>
-  );
-}
-
-function AllocationRow({ ticker, weight, capitalEur, color }: {
-  ticker: string; weight: number; capitalEur: number; color: string;
-}) {
-  return (
-    <div className="flex items-center gap-3" style={{ padding: "6px 0" }}>
-      <div className="mono" style={{ minWidth: 72, color: "var(--orange)", fontWeight: 600, fontSize: "0.8rem" }}>{ticker}</div>
-      <div style={{ flex: 1, height: 6, background: "var(--border)", borderRadius: 999, overflow: "hidden" }}>
-        <div style={{ height: "100%", width: `${Math.max(2, weight * 100)}%`, background: color, borderRadius: 999 }} />
-      </div>
-      <div className="mono" style={{ minWidth: 52, textAlign: "right", color: "var(--t1)", fontSize: "0.78rem", fontWeight: 500 }}>
-        {(weight * 100).toFixed(1)}%
-      </div>
-      <div className="mono" style={{ minWidth: 76, textAlign: "right", color: "var(--t2)", fontSize: "0.72rem" }}>
-        {fmtEur(capitalEur)}
-      </div>
-    </div>
-  );
-}
-
-function MarketPulse({ data, loading, updatedAt }: { data: MarketOverview | undefined; loading: boolean; updatedAt?: number }) {
-  if (loading) {
-    return <section className="card mb-5" style={{ padding: 20 }}><div className="skeleton" style={{ height: 140 }} /></section>;
-  }
-  if (!data) return null;
-  const { indices, stress } = data;
-  const regimeTone =
-    stress.regime === "Calm"     ? "var(--green)"  :
-    stress.regime === "Normal"   ? "var(--orange)" :
-    stress.regime === "Elevated" ? "var(--yellow)" : "var(--red)";
-  const minsAgo = updatedAt ? Math.round((Date.now() - updatedAt) / 60_000) : null;
-
-  return (
-    <section className="mb-5">
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-3">
-        <div className="card" style={{ padding: "20px 22px" }}>
-          <div className="flex items-center gap-2 mb-3">
-            <Gauge size={14} style={{ color: "var(--orange)" }} />
-            <span style={{ fontSize: "0.66rem", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--t2)" }}>Market Stress</span>
-          </div>
-          <div className="flex items-baseline gap-2">
-            <span className="mono" style={{ fontSize: "2.2rem", fontWeight: 600, color: regimeTone, lineHeight: 1 }}>
-              {stress.score.toFixed(0)}
-            </span>
-            <span style={{ color: "var(--t3)", fontSize: "0.72rem" }}>/ 100</span>
-          </div>
-          <div style={{ height: 6, background: "rgba(127,127,127,0.14)", borderRadius: 999, overflow: "hidden", marginTop: 10 }}>
-            <div style={{ height: "100%", width: `${Math.min(100, stress.score)}%`, background: regimeTone, borderRadius: 999 }} />
-          </div>
-          <div className="flex items-center justify-between mt-3">
-            <span className="badge" style={{ background: "var(--bg-hover)", color: regimeTone, border: `1px solid ${regimeTone}` }}>
-              {stress.regime}
-            </span>
-            <span style={{ color: "var(--t3)", fontSize: "0.65rem" }}>VIX · DD · Vol · Rates</span>
-          </div>
-        </div>
-
-        <div className="card lg:col-span-3" style={{ padding: "16px 20px" }}>
-          <div className="flex items-center justify-between gap-2 mb-3">
-            <div className="flex items-center gap-2">
-              <Globe size={14} style={{ color: "var(--orange)" }} />
-              <span style={{ fontSize: "0.66rem", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--t2)" }}>Global Markets</span>
-            </div>
-            {minsAgo !== null && (
-              <span style={{ fontSize: "0.62rem", color: "var(--t3)" }}>
-                {minsAgo === 0 ? "Updated just now" : `Updated ${minsAgo}m ago`}
-              </span>
-            )}
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
-            {indices.map(i => <IndexCell key={i.symbol} idx={i} />)}
-          </div>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function IndexCell({ idx }: { idx: MarketIndex }) {
-  const up = idx.change_1d_pct >= 0;
-  return (
-    <div style={{ padding: "10px 12px", borderRadius: "var(--r-sm)", border: "1px solid var(--border)", background: "var(--bg-inner)" }}>
-      <div className="flex items-center justify-between">
-        <span style={{ fontSize: "0.68rem", color: "var(--t2)", fontWeight: 600 }}>{idx.label}</span>
-        <span style={{ fontSize: "0.66rem", fontWeight: 600, color: up ? "var(--green)" : "var(--red)" }}>
-          {up ? "▲" : "▼"} {Math.abs(idx.change_1d_pct).toFixed(2)}%
-        </span>
-      </div>
-      <div className="flex items-end justify-between mt-1">
-        <span className="mono" style={{ fontSize: "0.95rem", fontWeight: 600, color: "var(--t1)" }}>
-          {idx.price.toLocaleString(undefined, { maximumFractionDigits: 2 })}
-        </span>
-        <Sparkline values={idx.spark} up={up} />
-      </div>
-    </div>
-  );
-}
-
-function Sparkline({ values, up }: { values: number[]; up: boolean }) {
-  if (!values?.length) return null;
-  const w = 64, h = 18;
-  const min = Math.min(...values), max = Math.max(...values);
+function Sparkline({ data, width = 220, height = 64, color }: { data: number[]; width?: number; height?: number; color: string }) {
+  if (!data?.length) return <div style={{ width, height }} />;
+  const min = Math.min(...data), max = Math.max(...data);
   const range = max - min || 1;
-  const pts = values.map((v, i) => {
-    const x = (i / (values.length - 1)) * w;
-    const y = h - ((v - min) / range) * h;
-    return `${x.toFixed(1)},${y.toFixed(1)}`;
-  }).join(" ");
+  const stepX = data.length > 1 ? width / (data.length - 1) : 0;
+  const points = data.map((v, i) => `${(i * stepX).toFixed(1)},${(height - ((v - min) / range) * height).toFixed(1)}`).join(" ");
+  const last = data[data.length - 1];
+  const lastY = height - ((last - min) / range) * height;
   return (
-    <svg width={w} height={h} style={{ opacity: 0.8 }}>
-      <polyline fill="none" strokeWidth="1.2" stroke={up ? "var(--green)" : "var(--red)"} points={pts} />
+    <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} style={{ overflow: "visible" }} aria-hidden>
+      <polyline points={points} fill="none" stroke={color} strokeWidth={1.4} strokeLinejoin="round" strokeLinecap="round" />
+      <circle cx={(data.length - 1) * stepX} cy={lastY} r={2} fill={color} />
     </svg>
   );
 }
 
 // ---------------------------------------------------------------------------
-// News helpers
+// Page
 // ---------------------------------------------------------------------------
-interface NewsItem {
-  title: string; publisher: string; link: string;
-  published: number; tickers: string[]; thumbnail: string;
+type TimeRange = "6mo" | "1y" | "3y" | "5y";
+function rangeToStartDate(r: TimeRange): string {
+  const d = new Date();
+  if (r === "6mo") d.setMonth(d.getMonth() - 6);
+  else if (r === "1y") d.setFullYear(d.getFullYear() - 1);
+  else if (r === "3y") d.setFullYear(d.getFullYear() - 3);
+  else if (r === "5y") d.setFullYear(d.getFullYear() - 5);
+  return d.toISOString().split("T")[0];
 }
 
-function newsTimeAgo(ts: number): string {
-  const diff = Math.floor((Date.now() / 1000 - ts));
-  if (diff < 3600)  return `${Math.floor(diff / 60)}m ago`;
-  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
-  return `${Math.floor(diff / 86400)}d ago`;
-}
+export default function DashboardPage() {
+  const { theme } = useTheme();
+  const isDark = theme === "dark";
+  const { watchlist, toggleWatchlist } = useWatchlist();
+  const [now, setNow] = useState<Date | null>(null);
 
-// ---------------------------------------------------------------------------
-// News Panel
-// ---------------------------------------------------------------------------
-function NewsPanel() {
-  const { data, isLoading } = useQuery<{ news: NewsItem[] }>({
-    queryKey: ["market-news"],
-    queryFn:  () => get<{ news: NewsItem[] }>("/market/news"),
-    staleTime: 10 * 60_000,
+  useEffect(() => {
+    setNow(new Date());
+    const id = setInterval(() => setNow(new Date()), 30_000);
+    return () => clearInterval(id);
+  }, []);
+
+  // ──────────────── Portfolios + perf
+  const [optPortfolios,     setOptPortfolios]     = useState<SavedPortfolio[]>([]);
+  const [trackerPortfolios, setTrackerPortfolios] = useState<TrackerPortfolio[]>([]);
+  const [selectedOptId,     setSelectedOptId]     = useState<string | null>(null);
+  const [selectedTrkId,     setSelectedTrkId]     = useState<string | null>(null);
+  const [perfResult,        setPerfResult]        = useState<PerformanceResult | null>(null);
+  const [trackerResult,     setTrackerResult]     = useState<TrackerPerfResult | null>(null);
+  const [optTimeRange,      setOptTimeRange]      = useState<TimeRange>("1y");
+  const [qrPerfOpen,        setQrPerfOpen]        = useState(false);
+
+  useEffect(() => {
+    get<{ name: string; tickers: string[]; weights: number[]; capital: number; method: string; created_at: string }[]>("/portfolio/saved")
+      .then(rows => {
+        const opts = rows.map(r => ({ id: r.name, name: r.name, tickers: r.tickers, weights: r.weights, method: r.method, capital: r.capital, savedAt: r.created_at }));
+        setOptPortfolios(opts);
+        if (opts.length > 0) setSelectedOptId(opts[0].id);
+      }).catch(() => {});
+
+    get<TrackerPortfolio[]>("/portfolio/tracker")
+      .then(trks => { setTrackerPortfolios(trks); if (trks.length > 0) setSelectedTrkId(trks[0].id); })
+      .catch(() => {});
+  }, []);
+
+  const portfolio = optPortfolios.find(p => p.id === selectedOptId) ?? null;
+  const trackerPf = trackerPortfolios.find(p => p.id === selectedTrkId) ?? null;
+
+  const perfMutation = useMutation({
+    mutationFn: ({ pf, range }: { pf: SavedPortfolio; range: TimeRange }) =>
+      post<PerformanceResult>("/portfolio/performance", {
+        tickers: pf.tickers, weights: pf.weights, capital: pf.capital, start_date: rangeToStartDate(range),
+      }),
+    onSuccess: data => setPerfResult(data),
   });
 
-  const news = data?.news ?? [];
+  const trackerMutation = useMutation({
+    mutationFn: (pf: TrackerPortfolio) =>
+      post<TrackerPerfResult>("/portfolio/tracker-performance", {
+        positions: pf.positions.map(p => ({ ticker: p.ticker, shares: p.shares, entry_price: p.entry_price, entry_date: p.entry_date })),
+      }),
+    onSuccess: data => setTrackerResult(data),
+  });
+
+  useEffect(() => {
+    setPerfResult(null);
+    if (portfolio && portfolio.tickers.length) perfMutation.mutate({ pf: portfolio, range: optTimeRange });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedOptId, optTimeRange]);
+
+  useEffect(() => {
+    setTrackerResult(null);
+    if (trackerPf && trackerPf.positions.length) trackerMutation.mutate(trackerPf);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedTrkId]);
+
+  // ──────────────── Other queries
+  const overview = useQuery<MarketOverview>({
+    queryKey: ["market-overview"],
+    queryFn: () => get("/market/overview"),
+    staleTime: 60_000,
+  });
+
+  const community = useQuery<{ posts: CommunityPost[] }>({
+    queryKey: ["community-feed-dash"],
+    queryFn: () => get("/community/posts?limit=20"),
+    staleTime: 120_000,
+  });
+
+  const leaderboard = useQuery<LeaderboardResponse>({
+    queryKey: ["leaderboard-dash"],
+    queryFn: () => get("/community/leaderboard?limit=8"),
+    staleTime: 300_000,
+  });
+
+  const news = useQuery<{ news: NewsItem[] }>({
+    queryKey: ["market-news-dash"],
+    queryFn: () => get("/market/news"),
+    staleTime: 600_000,
+  });
+
+  // ──────────────── Derived
+  const indices = overview.data?.indices ?? [];
+  const stress  = overview.data?.stress;
+  const topPosts = community.data?.posts ?? [];
+
+  const exchangeStatuses = useMemo(() => {
+    if (!now) return null;
+    return EXCHANGES.map(ex => ({ ...ex, ...exchangeStatus(ex, now) }));
+  }, [now]);
+
+  // Top tickers by community mentions — real, not mock
+  const topMentionedTickers = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const p of topPosts) {
+      const tk = (p.ticker || "").toUpperCase().trim();
+      if (tk) counts[tk] = (counts[tk] ?? 0) + 1;
+    }
+    return Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 6);
+  }, [topPosts]);
+
+  // User performance: derive from tracker if present, else from optimized perf
+  const userReturn = trackerResult?.metrics.total_return ?? perfResult?.metrics.total_return ?? null;
+  const userCurrentValue = trackerResult?.metrics.current_value ?? perfResult?.metrics.current_value ?? null;
+
+  const dateLabel = now ? now.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" }) : "";
+  const timeLabel = now ? now.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }) : "";
+  const spxYTD = indices.find(i => i.symbol === "^GSPC")?.change_period_pct ?? null;
+
+  // Equity curve for hero — use tracker if available, else portfolio
+  const heroCurve = trackerResult?.portfolio_values ?? perfResult?.portfolio_values ?? [];
+  const heroCurveSmall = useMemo(() => {
+    if (!heroCurve.length) return [] as number[];
+    if (heroCurve.length <= 30) return heroCurve;
+    const step = Math.floor(heroCurve.length / 30);
+    const out: number[] = [];
+    for (let i = 0; i < heroCurve.length; i += step) out.push(heroCurve[i]);
+    return out;
+  }, [heroCurve]);
+
+  // Donut for optimized portfolio
+  const donutData = portfolio ? portfolio.tickers.map((t, i) => ({ ticker: t, weight: portfolio.weights[i] ?? 0 })) : [];
+
+  const hasAnyPortfolio = optPortfolios.length > 0 || trackerPortfolios.length > 0;
+  const lb = leaderboard.data;
 
   return (
-    <div className="rounded border overflow-hidden" style={{ borderColor: "var(--border)", background: "var(--bg-card)", boxShadow: "var(--card-shadow)" }}>
-      {/* Header */}
-      <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", gap: 8 }}>
-        <Newspaper size={13} style={{ color: "var(--orange)" }} />
-        <span style={{ fontSize: "0.68rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--t2)" }}>
-          Market News
-        </span>
-        <span style={{ marginLeft: "auto", fontSize: "0.6rem", color: "var(--t3)" }}>Live · yfinance</span>
-      </div>
+    <ErrorBoundary>
+      <div className="fade-in" style={{ padding: "28px 32px", maxWidth: 1600, margin: "0 auto" }}>
 
-      {/* Items */}
-      {isLoading ? (
-        <div style={{ padding: 16, display: "flex", flexDirection: "column", gap: 12 }}>
-          {Array.from({ length: 5 }).map((_, i) => (
-            <div key={i} style={{ display: "flex", gap: 10 }}>
-              <div className="skeleton" style={{ width: 64, height: 48, flexShrink: 0, borderRadius: "var(--r-sm)" }} />
-              <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 6 }}>
-                <div className="skeleton" style={{ height: 10, width: "90%" }} />
-                <div className="skeleton" style={{ height: 10, width: "65%" }} />
-                <div className="skeleton" style={{ height: 8, width: "40%" }} />
+        {/* HEADER */}
+        <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", flexWrap: "wrap", gap: 12, marginBottom: 24 }}>
+          <div>
+            <p style={{ fontSize: "0.7rem", fontWeight: 500, letterSpacing: "0.06em", color: "var(--t3)", marginBottom: 4 }}>
+              Tableau de bord · <span style={{ textTransform: "capitalize" }}>{dateLabel}</span> · {timeLabel}
+            </p>
+            <h1 style={{ fontFamily: "Manrope, DM Sans, sans-serif", fontSize: "1.75rem", fontWeight: 700, color: "var(--t1)", letterSpacing: "-0.015em", lineHeight: 1.15 }}>
+              Bienvenue sur Capitalis
+            </h1>
+            <p style={{ fontSize: "0.82rem", color: "var(--t3)", marginTop: 4 }}>
+              Vos performances. Le marché. La communauté. En un seul écran.
+            </p>
+          </div>
+          {stress && (
+            <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 14px", borderRadius: "var(--r-xl)", background: "var(--bg-card)", border: "1px solid var(--card-border)" }}>
+              <span style={{ width: 8, height: 8, borderRadius: "50%", background: stress.score < 25 ? "var(--green)" : stress.score < 50 ? "var(--orange)" : "var(--red)" }} />
+              <span style={{ fontSize: "0.7rem", color: "var(--t3)", letterSpacing: "0.04em", textTransform: "uppercase" }}>Stress marché</span>
+              <span style={{ fontFamily: "Manrope, sans-serif", fontSize: "0.95rem", fontWeight: 700, color: "var(--t1)" }}>{stress.score.toFixed(1)}</span>
+              <span style={{ fontSize: "0.7rem", color: "var(--t3)" }}>{stress.regime}</span>
+            </div>
+          )}
+        </div>
+
+        {/* PERFORMANCE STRIP — asymmetric 60/40 */}
+        <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1.7fr) minmax(0, 1fr)", gap: 14, marginBottom: 24 }}>
+
+          <Card pad="xl" style={{ display: "flex", alignItems: "stretch", justifyContent: "space-between", gap: 24 }}>
+            <div style={{ display: "flex", flexDirection: "column", justifyContent: "space-between", minWidth: 0, flex: 1 }}>
+              <div>
+                <p style={{ fontSize: "0.62rem", fontWeight: 700, letterSpacing: "0.09em", textTransform: "uppercase", color: "var(--t3)", marginBottom: 4 }}>
+                  {trackerResult ? `Tracker · ${trackerPf?.name ?? ""}` : perfResult ? `Optimisé · ${portfolio?.name ?? ""}` : "Votre performance"}
+                </p>
+                <div style={{ display: "flex", alignItems: "baseline", gap: 12, flexWrap: "wrap" }}>
+                  <span style={{ fontFamily: "Manrope, DM Sans, sans-serif", fontSize: "2.6rem", fontWeight: 700, letterSpacing: "-0.02em", color: userReturn == null ? "var(--t2)" : userReturn >= 0 ? "var(--green)" : "var(--red)", lineHeight: 1 }}>
+                    {userReturn == null ? "—" : fmtPct(userReturn * 100, 1)}
+                  </span>
+                  <span style={{ fontSize: "0.78rem", color: "var(--t3)" }}>
+                    {userCurrentValue != null && <>· {fmtEur(userCurrentValue)} </>}
+                    {spxYTD != null && <>· vs S&amp;P 500 {fmtPct(spxYTD, 1)}</>}
+                  </span>
+                </div>
+                {!hasAnyPortfolio && !perfMutation.isPending && !trackerMutation.isPending && (
+                  <p style={{ fontSize: "0.74rem", color: "var(--t3)", marginTop: 8 }}>
+                    Aucun portefeuille. <Link href="/portfolio" style={{ color: "var(--orange)" }}>Créez-en un</Link> ou <Link href="/tracker" style={{ color: "var(--orange)" }}>importez un tracker</Link>.
+                  </p>
+                )}
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 14, flexWrap: "wrap" }}>
+                <Link href={trackerResult ? "/tracker" : "/portfolio"} style={{ fontSize: "0.72rem", color: "var(--orange)", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 4, fontWeight: 600 }}>
+                  Voir le détail <ChevronRight size={11} />
+                </Link>
+                <span style={{ width: 1, height: 12, background: "var(--card-border)" }} />
+                <Link href="/community" style={{ fontSize: "0.72rem", color: "var(--t2)", display: "inline-flex", alignItems: "center", gap: 4, textDecoration: "none", fontWeight: 500 }}>
+                  <Share2 size={11} /> Partager
+                </Link>
+                {userReturn != null && (
+                  <>
+                    <span style={{ width: 1, height: 12, background: "var(--card-border)" }} />
+                    <button
+                      onClick={() => setQrPerfOpen(true)}
+                      style={{
+                        display: "inline-flex", alignItems: "center", gap: 4,
+                        background: "none", border: "none", cursor: "pointer",
+                        color: "var(--t2)", fontSize: "0.72rem", fontWeight: 500,
+                        padding: 0,
+                      }}
+                    >
+                      <QrCode size={11} /> QR
+                    </button>
+                  </>
+                )}
+                {trackerPortfolios.length > 1 && (
+                  <>
+                    <span style={{ width: 1, height: 12, background: "var(--card-border)" }} />
+                    <select value={selectedTrkId ?? ""} onChange={e => setSelectedTrkId(e.target.value || null)}
+                      style={{ fontSize: "0.7rem", padding: "3px 8px", background: "var(--bg-inner)", border: "1px solid var(--card-border)", borderRadius: "var(--r-sm)", color: "var(--t2)" }}>
+                      <option value="">— tracker —</option>
+                      {trackerPortfolios.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                    </select>
+                  </>
+                )}
+                {(perfMutation.isPending || trackerMutation.isPending) && <LoadingSpinner size="sm" />}
               </div>
             </div>
-          ))}
-        </div>
-      ) : news.length === 0 ? (
-        <div style={{ padding: "32px 16px", textAlign: "center", color: "var(--t3)", fontSize: "0.8rem" }}>
-          No news available.
-        </div>
-      ) : (
-        <div>
-          {news.slice(0, 8).map((item, i) => {
-            const isLast = i === Math.min(7, news.length - 1);
-            return (
-              <a
-                key={i}
-                href={item.link}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{ textDecoration: "none", display: "block" }}
-              >
-                <div
-                  style={{
-                    display: "flex", gap: 12, padding: "12px 16px",
-                    borderBottom: isLast ? "none" : "1px solid var(--border)",
-                    transition: "background 0.12s",
-                  }}
-                  onMouseEnter={e => (e.currentTarget.style.background = "var(--bg-hover)")}
-                  onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
-                >
-                  {/* Thumbnail */}
-                  {item.thumbnail ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={item.thumbnail}
-                      alt=""
-                      style={{ width: 68, height: 52, objectFit: "cover", borderRadius: "var(--r-sm)", flexShrink: 0, background: "var(--bg-hover)" }}
-                      onError={e => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
-                    />
-                  ) : (
-                    <div style={{ width: 68, height: 52, flexShrink: 0, borderRadius: "var(--r-sm)", background: "var(--bg-hover)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                      <Newspaper size={18} style={{ color: "var(--t3)" }} />
-                    </div>
-                  )}
-
-                  {/* Content */}
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    {/* Meta row */}
-                    <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 5, flexWrap: "wrap" }}>
-                      <span style={{ fontSize: "0.6rem", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--orange)", background: "var(--orange-dim)", border: "1px solid var(--orange-border)", borderRadius: "var(--r-xs)", padding: "1px 5px" }}>
-                        {item.publisher || "News"}
-                      </span>
-                      <span style={{ display: "flex", alignItems: "center", gap: 3, fontSize: "0.58rem", color: "var(--t3)" }}>
-                        <Clock size={9} />
-                        {newsTimeAgo(item.published)}
-                      </span>
-                      {item.tickers?.slice(0, 3).map(t => (
-                        <span key={t} style={{ fontSize: "0.56rem", fontWeight: 700, color: "var(--t3)", padding: "1px 4px", border: "1px solid var(--border)", borderRadius: "var(--r-xs)" }}>
-                          {t}
-                        </span>
-                      ))}
-                      <ExternalLink size={9} style={{ color: "var(--t3)", marginLeft: "auto", flexShrink: 0 }} />
-                    </div>
-
-                    {/* Title */}
-                    <p style={{
-                      fontSize: "0.77rem", fontWeight: 500, color: "var(--t1)", lineHeight: 1.4,
-                      overflow: "hidden", display: "-webkit-box",
-                      WebkitLineClamp: 2, WebkitBoxOrient: "vertical",
-                    }}>
-                      {item.title}
-                    </p>
-                  </div>
+            <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", flexShrink: 0 }}>
+              {heroCurveSmall.length > 1 ? (
+                <Sparkline data={heroCurveSmall} width={260} height={84} color={(userReturn ?? 0) >= 0 ? "var(--green)" : "var(--red)"} />
+              ) : (
+                <div style={{ width: 260, height: 84, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--t3)", fontSize: "0.7rem", border: "1px dashed var(--card-border)", borderRadius: "var(--r-md)" }}>
+                  Pas de courbe
                 </div>
-              </a>
-            );
-          })}
+              )}
+            </div>
+          </Card>
+
+          {/* Real ranking */}
+          <Card pad="lg" style={{ display: "flex", flexDirection: "column", justifyContent: "space-between", overflow: "hidden" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <p style={{ fontSize: "0.62rem", fontWeight: 700, letterSpacing: "0.09em", textTransform: "uppercase", color: "var(--t3)" }}>
+                Classement communauté
+              </p>
+              <Link href="/community" style={{ fontSize: "0.65rem", color: "var(--orange)", textDecoration: "none" }}>Voir tout</Link>
+            </div>
+
+            {leaderboard.isLoading ? (
+              <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}><LoadingSpinner size="sm" /></div>
+            ) : !lb || lb.total_users === 0 ? (
+              <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", padding: "12px 0" }}>
+                <p style={{ fontSize: "0.78rem", color: "var(--t2)", lineHeight: 1.5, marginBottom: 8 }}>
+                  Personne n&apos;a encore de portefeuille tracker.
+                </p>
+                <Link href="/tracker" style={{ fontSize: "0.7rem", color: "var(--orange)", fontWeight: 600 }}>Créez le premier →</Link>
+              </div>
+            ) : (
+              <>
+                <div style={{ display: "flex", alignItems: "baseline", gap: 6, margin: "8px 0 10px" }}>
+                  {lb.me_rank ? (
+                    <>
+                      <span style={{ fontFamily: "Manrope, DM Sans, sans-serif", fontSize: "1.7rem", fontWeight: 700, color: "var(--orange)", letterSpacing: "-0.01em" }}>
+                        #{lb.me_rank}
+                      </span>
+                      <span style={{ fontSize: "0.7rem", color: "var(--t3)" }}>
+                        / {lb.total_users}
+                        {lb.me_percentile != null && ` · top ${100 - lb.me_percentile}%`}
+                      </span>
+                    </>
+                  ) : (
+                    <span style={{ fontSize: "0.78rem", color: "var(--t3)" }}>
+                      Non classé · <Link href="/tracker" style={{ color: "var(--orange)" }}>ajoutez un tracker</Link>
+                    </span>
+                  )}
+                </div>
+
+                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                  {lb.top.slice(0, 3).map(row => (
+                    <div key={row.user_id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "5px 0" }}>
+                      <span style={{ fontFamily: "Manrope, sans-serif", fontSize: "0.68rem", fontWeight: 700, color: row.rank === 1 ? "var(--orange)" : "var(--t3)", minWidth: 18 }}>
+                        {row.rank === 1 ? <Trophy size={11} style={{ display: "inline", verticalAlign: "middle" }} /> : `#${row.rank}`}
+                      </span>
+                      <span style={{ width: 18, height: 18, borderRadius: "50%", background: avatarColor(row.user_id), flexShrink: 0 }} />
+                      <span style={{ flex: 1, fontSize: "0.74rem", color: "var(--t1)", fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{row.display_name}</span>
+                      <span style={{ fontSize: "0.74rem", fontWeight: 700, color: row.return_pct >= 0 ? "var(--green)" : "var(--red)", fontVariantNumeric: "tabular-nums" }}>
+                        {fmtPct(row.return_pct, 1)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </Card>
         </div>
-      )}
-    </div>
-  );
-}
 
-// ---------------------------------------------------------------------------
-// Watchlist Panel
-// ---------------------------------------------------------------------------
-function WatchlistPanel({ tickers }: { tickers: string[] }) {
-  const { toggleWatchlist } = useWatchlist();
-  const [expanded, setExpanded] = useState(false);
-  const MAX_VISIBLE = 10;
-  const visibleTickers = expanded ? tickers : tickers.slice(0, MAX_VISIBLE);
-  const hasMore = tickers.length > MAX_VISIBLE;
-
-  const queries = useQueries({
-    queries: tickers.map(ticker => ({
-      queryKey: ["fund", ticker],
-      queryFn: () => get<EquityFundamentals>(`/equity/${ticker}/fundamentals`),
-      staleTime: 5 * 60_000,
-      retry: 1,
-    })),
-  });
-
-  return (
-    <section style={{ marginBottom: 20 }}>
-      <div className="rounded border overflow-hidden" style={{ borderColor: "var(--border)", background: "var(--bg-card)", boxShadow: "var(--card-shadow)" }}>
-
-        {/* Header */}
-        <div style={{ padding: "10px 14px 8px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-            <Wallet size={12} style={{ color: "var(--orange)" }} />
-            <span style={{ fontSize: "0.67rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--t2)" }}>
-              Watchlist
-            </span>
-            <span style={{
-              fontSize: "0.58rem", fontWeight: 700,
-              padding: "1px 6px", borderRadius: 3,
-              background: "var(--orange-dim)", border: "1px solid var(--orange-border)", color: "var(--orange)",
-            }}>
-              {tickers.length}
-            </span>
+        {/* INDICES STRIP — full-width scrollable ticker tape */}
+        <section style={{ marginBottom: 24 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+            <h2 style={{ fontFamily: "Manrope, DM Sans, sans-serif", fontSize: "1rem", fontWeight: 700, color: "var(--t1)" }}>Indices</h2>
+            <Link href="/value-chain" style={{ fontSize: "0.7rem", color: "var(--orange)", textDecoration: "none" }}>Market Map →</Link>
           </div>
-          <Link href="/screener" style={{ fontSize: "0.6rem", color: "var(--orange)", textDecoration: "none" }}>
-            + Add
-          </Link>
-        </div>
+          {overview.isLoading ? (
+            <Card pad="none" style={{ height: 72, display: "flex", alignItems: "center", justifyContent: "center", width: "100%" }}>
+              <LoadingSpinner size="md" />
+            </Card>
+          ) : indices.length === 0 ? (
+            <Card variant="ghost" pad="md" style={{ width: "100%", textAlign: "center", color: "var(--t3)", fontSize: "0.78rem" }}>
+              Aucune donnée d&apos;indice disponible.
+            </Card>
+          ) : (
+            <div style={{ position: "relative", overflow: "hidden", background: "var(--bg-card)", border: "1px solid var(--card-border)", borderRadius: "var(--r-xl)", padding: "10px 0", width: "100%" }}>
+              <style>{`
+                @keyframes ticker-scroll {
+                  0%   { transform: translateX(0); }
+                  100% { transform: translateX(-50%); }
+                }
+                .ticker-track { display: flex; gap: 0; animation: ticker-scroll ${Math.max(20, indices.length * 4)}s linear infinite; width: max-content; }
+                .ticker-track:hover { animation-play-state: paused; }
+              `}</style>
+              <div className="ticker-track">
+                {[...indices, ...indices].map((idx, i) => {
+                  const positive = idx.change_1d_pct >= 0;
+                  const color = positive ? "var(--green)" : "var(--red)";
+                  return (
+                    <Link key={`${idx.symbol}-${i}`} href={`/equity?ticker=${encodeURIComponent(idx.symbol)}`}
+                      style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 18px", textDecoration: "none", borderRight: "1px solid var(--card-border)", flexShrink: 0, whiteSpace: "nowrap", transition: "background 0.12s" }}
+                      onMouseEnter={e => (e.currentTarget.style.background = "var(--bg-inner)")}
+                      onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+                    >
+                      <div>
+                        <p style={{ fontFamily: "Manrope, sans-serif", fontSize: "0.66rem", fontWeight: 700, color: "var(--t3)", lineHeight: 1, marginBottom: 2 }}>{idx.label}</p>
+                        <p style={{ fontFamily: "Manrope, DM Sans, sans-serif", fontSize: "0.92rem", fontWeight: 700, color: "var(--t1)", fontVariantNumeric: "tabular-nums", lineHeight: 1 }}>{fmtNumber(idx.price)}</p>
+                      </div>
+                      <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 2 }}>
+                        <span style={{ display: "inline-flex", alignItems: "center", gap: 2, padding: "2px 6px", borderRadius: "9999px", background: positive ? "rgba(134,179,138,0.12)" : "rgba(212,133,133,0.12)", color, fontSize: "0.66rem", fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>
+                          {positive ? <ArrowUpRight size={9} /> : <ArrowDownRight size={9} />}
+                          {fmtPct(idx.change_1d_pct, 2)}
+                        </span>
+                        {idx.change_5d_pct != null && (
+                          <span style={{ fontSize: "0.56rem", color: "var(--t3)", fontVariantNumeric: "tabular-nums" }}>5J {fmtPct(idx.change_5d_pct, 1)}</span>
+                        )}
+                      </div>
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </section>
 
-        {/* Col headers */}
-        <div style={{
-          display: "grid",
-          gridTemplateColumns: "minmax(52px,68px) minmax(0,1fr) 76px 68px 22px",
-          padding: "5px 12px",
-          borderBottom: "1px solid var(--border)",
-          fontSize: "0.56rem", fontWeight: 600, letterSpacing: "0.07em",
-          textTransform: "uppercase", color: "var(--t3)", gap: 4,
-        }}>
-          <span>Ticker</span>
-          <span>Name</span>
-          <span style={{ textAlign: "right" }}>Price</span>
-          <span style={{ textAlign: "right" }}>Chg%</span>
-          <span />
-        </div>
+        {/* MARKET PULSE — 2fr / 1fr asymmetric: Watchlist (left) | World clocks (right) */}
+        <section style={{ marginBottom: 24 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 14, alignItems: "stretch" }}>
 
-        {/* Rows */}
-        <div style={{ overflowX: "auto" }}>
-          {visibleTickers.map((ticker, i) => {
-            const originalIdx = tickers.indexOf(ticker);
-            const q = queries[originalIdx];
-            const data = q.data;
-            const price = data?.currentPrice;
-            const prevClose = data?.previousClose;
-            const changeAbs = price != null && prevClose != null ? price - prevClose : null;
-            const changePct = changeAbs != null && prevClose ? changeAbs / prevClose : null;
-            const up = changePct !== null ? changePct >= 0 : null;
-            const isLast = i === visibleTickers.length - 1 && !hasMore;
+            {/* Left (2fr): Watchlist */}
+            <Card variant="dark" pad="none" style={{ overflow: "hidden", display: "flex", flexDirection: "column" }}>
+              <CardHeader
+                title="Watchlist"
+                icon={<Eye size={12} />}
+                action={
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <span style={{ fontSize: "0.6rem", padding: "1px 7px", borderRadius: "9999px", background: "var(--bg-inner)", color: "var(--t3)", border: "1px solid var(--card-border)" }}>{watchlist.length}</span>
+                    <Link href="/equity" style={{ fontSize: "0.65rem", color: "var(--orange)", textDecoration: "none", fontWeight: 600 }}>+ Ajouter</Link>
+                  </div>
+                }
+              />
+              <div style={{ flex: 1, overflowY: "auto" }}>
+                {watchlist.length === 0 ? (
+                  <Card variant="ghost" pad="lg" style={{ margin: 16, textAlign: "center", color: "var(--t3)", fontSize: "0.78rem", lineHeight: 1.6 }}>
+                    Aucun titre suivi.<br />
+                    <Link href="/equity" style={{ color: "var(--orange)" }}>Recherchez une action →</Link>
+                  </Card>
+                ) : watchlist.map((tk, idx) => (
+                  <WatchlistRow key={tk} ticker={tk} isLast={idx === watchlist.length - 1} onRemove={() => toggleWatchlist(tk)} />
+                ))}
+              </div>
+            </Card>
 
-            return (
-              <div
-                key={ticker}
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "minmax(52px,68px) minmax(0,1fr) 76px 68px 22px",
-                  padding: "8px 12px",
-                  alignItems: "center",
-                  borderBottom: isLast ? "none" : "1px solid var(--border)",
-                  transition: "background 0.1s",
-                  gap: 4,
-                  minWidth: 280,
-                }}
-                onMouseEnter={e => (e.currentTarget.style.background = "var(--bg-hover)")}
-                onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
-              >
-                {/* Ticker */}
-                <Link href={`/equity?ticker=${encodeURIComponent(ticker)}`} style={{ textDecoration: "none" }}>
-                  <span className="mono" style={{ fontWeight: 700, color: "var(--orange)", fontSize: "0.82rem", display: "block", lineHeight: 1.2 }}>
-                    {ticker}
-                  </span>
-                </Link>
-
-                {/* Name */}
-                <div style={{ minWidth: 0, overflow: "hidden" }}>
-                  {q.isLoading ? (
-                    <div className="skeleton" style={{ height: 10, width: "70%" }} />
-                  ) : (
-                    <span style={{ fontSize: "0.66rem", color: "var(--t2)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "block" }}>
-                      {data?.longName ?? data?.sector ?? "—"}
-                    </span>
-                  )}
-                </div>
-
-                {/* Price */}
-                <div style={{ textAlign: "right" }}>
-                  {q.isLoading ? (
-                    <div className="skeleton" style={{ height: 13, width: 48, marginLeft: "auto" }} />
-                  ) : price != null ? (
-                    <span className="mono" style={{ fontWeight: 600, color: "var(--t1)", fontSize: "0.84rem" }}>
-                      {price >= 10000
-                        ? price.toLocaleString(undefined, { maximumFractionDigits: 0 })
-                        : price.toFixed(2)}
-                    </span>
-                  ) : (
-                    <span style={{ color: "var(--t3)", fontSize: "0.72rem" }}>—</span>
-                  )}
-                </div>
-
-                {/* Change% */}
-                <div style={{ textAlign: "right" }}>
-                  {q.isLoading ? (
-                    <div className="skeleton" style={{ height: 13, width: 42, marginLeft: "auto" }} />
-                  ) : changePct !== null ? (
-                    <span className="mono" style={{ fontWeight: 600, fontSize: "0.76rem", color: up ? "var(--green)" : "var(--red)" }}>
-                      {up ? "+" : ""}{(changePct * 100).toFixed(2)}%
-                    </span>
-                  ) : (
-                    <span style={{ color: "var(--t3)", fontSize: "0.72rem" }}>—</span>
-                  )}
-                </div>
-
-                {/* Remove */}
-                <div style={{ display: "flex", justifyContent: "center" }}>
-                  <button
-                    onClick={() => toggleWatchlist(ticker)}
-                    title="Remove"
-                    style={{ background: "none", border: "none", cursor: "pointer", padding: 3, display: "flex", alignItems: "center", opacity: 0.28, transition: "opacity 0.15s" }}
-                    onMouseEnter={e => (e.currentTarget.style.opacity = "1")}
-                    onMouseLeave={e => (e.currentTarget.style.opacity = "0.28")}
+            {/* Right (1fr): World clocks */}
+            <Card variant="dark" pad="none" style={{ overflow: "hidden", display: "flex", flexDirection: "column" }}>
+              <CardHeader
+                title="Horloges mondiales"
+                icon={<Activity size={12} />}
+                action={exchangeStatuses ? (
+                  <SectionLabel>
+                    {exchangeStatuses.filter(e => e.isOpen).length}/{exchangeStatuses.length} ouvertes
+                  </SectionLabel>
+                ) : undefined}
+              />
+              <div style={{ flex: 1, overflowY: "auto", padding: 12, display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(110px, 1fr))", gap: 8, alignContent: "start" }}>
+                {!exchangeStatuses ? (
+                  <div style={{ gridColumn: "1 / -1", display: "flex", alignItems: "center", justifyContent: "center", minHeight: 80 }}>
+                    <LoadingSpinner size="sm" />
+                  </div>
+                ) : exchangeStatuses.map(ex => (
+                  <div
+                    key={ex.short}
+                    style={{ position: "relative", overflow: "hidden", display: "flex", flexDirection: "column", justifyContent: "center", padding: "10px 12px", borderRadius: "var(--r-md)", background: ex.isOpen ? "var(--bg-card)" : "var(--bg-inner)", border: "1px solid var(--card-border)", cursor: "default", transition: "border-color 0.12s" }}
+                    onMouseEnter={e => (e.currentTarget.style.borderColor = "var(--orange-border)")}
+                    onMouseLeave={e => (e.currentTarget.style.borderColor = "var(--card-border)")}
                   >
-                    <Heart size={10} fill="var(--red)" stroke="var(--red)" />
+                    {ex.isOpen && <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 2, background: "var(--green)", opacity: 0.7 }} />}
+                    <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 4 }}>
+                      <span style={{ fontSize: "0.8rem" }}>{ex.flag}</span>
+                      <span style={{ fontFamily: "Manrope, sans-serif", fontSize: "0.64rem", fontWeight: 700, color: "var(--t2)", letterSpacing: "0.04em" }}>{ex.short}</span>
+                    </div>
+                    <p style={{ fontFamily: "Manrope, DM Sans, sans-serif", fontSize: "1rem", fontWeight: 700, color: "var(--t1)", fontVariantNumeric: "tabular-nums", lineHeight: 1, marginBottom: 3 }}>{ex.localTime}</p>
+                    <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                      <span style={{ width: 5, height: 5, borderRadius: "50%", background: ex.isOpen ? "var(--green)" : "var(--t3)", flexShrink: 0 }} />
+                      <span style={{ fontSize: "0.58rem", color: ex.isOpen ? "var(--green)" : "var(--t3)", fontWeight: 600 }}>
+                        {ex.isOpen ? `ferme ${fmtCountdown(ex.minsToClose)}` : `ouvre ${fmtCountdown(ex.minsToOpen)}`}
+                      </span>
+                    </div>
+                    <p style={{ fontSize: "0.52rem", color: "var(--t3)", marginTop: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ex.city}</p>
+                  </div>
+                ))}
+              </div>
+            </Card>
+
+          </div>
+        </section>
+
+
+        {/* TRACKER + OPTIMIZED PORTFOLIO — 2-col when both exist */}
+        {hasAnyPortfolio && (
+          <section style={{ marginBottom: 24, display: "grid", gridTemplateColumns: trackerPortfolios.length > 0 && optPortfolios.length > 0 ? "minmax(0, 1.4fr) minmax(0, 1fr)" : "1fr", gap: 14 }}>
+
+            {/* Tracker performance + positions */}
+            {trackerPortfolios.length > 0 && (
+              <Card pad="none" style={{ overflow: "hidden" }}>
+                <CardHeader
+                  icon={<Activity size={13} />}
+                  title={
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+                      <span>Tracker · {trackerPf?.name}</span>
+                      {trackerResult && (
+                        <span style={{ fontSize: "0.6rem", fontWeight: 700, padding: "1px 8px", borderRadius: "9999px", background: trackerResult.metrics.total_return >= 0 ? "rgba(134,179,138,0.15)" : "rgba(212,133,133,0.15)", color: trackerResult.metrics.total_return >= 0 ? "var(--green)" : "var(--red)", border: `1px solid ${trackerResult.metrics.total_return >= 0 ? "rgba(134,179,138,0.3)" : "rgba(212,133,133,0.3)"}` }}>
+                          {fmtPct(trackerResult.metrics.total_return * 100, 2)}
+                        </span>
+                      )}
+                    </span>
+                  }
+                  action={
+                    <Link href="/tracker" style={{ fontSize: "0.68rem", color: "var(--orange)", textDecoration: "none" }}>Voir le tracker →</Link>
+                  }
+                />
+
+                {trackerMutation.isPending && !trackerResult ? (
+                  <div style={{ padding: 32, display: "flex", justifyContent: "center" }}><LoadingSpinner size="md" /></div>
+                ) : trackerResult ? (
+                  <>
+                    {/* Equity curve */}
+                    <div style={{ padding: "12px 20px 4px" }}>
+                      <PlotlyChart
+                        data={[
+                          { type: "scatter", mode: "lines", x: trackerResult.dates, y: trackerResult.portfolio_values, name: "Portefeuille",
+                            line: { color: trackerResult.metrics.total_return >= 0 ? "#86B38A" : "#D48585", width: 2 },
+                            fill: "tozeroy", fillcolor: trackerResult.metrics.total_return >= 0 ? "rgba(134,179,138,0.06)" : "rgba(212,133,133,0.06)",
+                            hovertemplate: "%{x}: €%{y:,.0f}<extra></extra>" },
+                          { type: "scatter", mode: "lines", x: trackerResult.dates, y: trackerResult.cost_basis, name: "Coût",
+                            line: { color: "#94A3B8", width: 1.4, dash: "dot" }, hovertemplate: "%{x}: €%{y:,.0f}<extra></extra>" },
+                        ]}
+                        layout={{
+                          margin: { t: 8, b: 28, l: 48, r: 16 },
+                          showlegend: false,
+                          paper_bgcolor: "transparent", plot_bgcolor: "transparent",
+                          xaxis: {
+                            showgrid: false,
+                            color: isDark ? "rgba(245,245,245,0.45)" : "rgba(17,17,17,0.5)",
+                            range: trackerResult.dates.length > 0 ? [trackerResult.dates[0], trackerResult.dates[trackerResult.dates.length - 1]] : undefined,
+                            autorange: false,
+                          },
+                          yaxis: { showgrid: true, gridcolor: isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)", color: isDark ? "rgba(245,245,245,0.45)" : "rgba(17,17,17,0.5)", tickformat: ",.0f" },
+                        }}
+                        height={200}
+                      />
+                    </div>
+
+                    {/* Metrics row */}
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", borderTop: "1px solid var(--card-border)" }}>
+                      {[
+                        { label: "Valeur",   v: fmtEur(trackerResult.metrics.current_value),  c: "var(--t1)" },
+                        { label: "Coût",     v: fmtEur(trackerResult.metrics.cost_basis),     c: "var(--t2)" },
+                        { label: "P&L",      v: fmtEur(trackerResult.metrics.unrealized_pnl), c: trackerResult.metrics.unrealized_pnl >= 0 ? "var(--green)" : "var(--red)" },
+                        { label: "Drawdown", v: fmtPct(trackerResult.metrics.max_drawdown * 100, 1), c: "var(--red)" },
+                      ].map((m, i) => (
+                        <div key={m.label} style={{ padding: "10px 16px", borderRight: i < 3 ? "1px solid var(--card-border)" : "none" }}>
+                          <p style={{ fontSize: "0.58rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--t3)" }}>{m.label}</p>
+                          <p style={{ fontFamily: "Manrope, sans-serif", fontSize: "0.95rem", fontWeight: 700, color: m.c, marginTop: 2, fontVariantNumeric: "tabular-nums" }}>{m.v}</p>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Top positions */}
+                    <div style={{ borderTop: "1px solid var(--card-border)", padding: "10px 20px" }}>
+                      <p style={{ fontSize: "0.6rem", fontWeight: 700, letterSpacing: "0.09em", textTransform: "uppercase", color: "var(--t3)", marginBottom: 8 }}>Top positions</p>
+                      <div style={{ display: "flex", flexDirection: "column" }}>
+                        {trackerResult.positions.slice(0, 5).map(pos => (
+                          <Link key={pos.ticker} href={`/equity?ticker=${pos.ticker}`} style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 0", textDecoration: "none", borderBottom: "1px solid var(--card-border)" }}>
+                            <TickerLogo ticker={pos.ticker} size={22} />
+                            <span style={{ flex: 1, fontFamily: "Manrope, sans-serif", fontSize: "0.78rem", fontWeight: 700, color: "var(--orange)" }}>{pos.ticker}</span>
+                            <span style={{ fontSize: "0.7rem", color: "var(--t3)", fontVariantNumeric: "tabular-nums" }}>{pos.shares} × {fmtEur(pos.entry_price)}</span>
+                            <span style={{ fontSize: "0.74rem", fontWeight: 700, color: (pos.return_pct ?? 0) >= 0 ? "var(--green)" : "var(--red)", fontVariantNumeric: "tabular-nums", minWidth: 56, textAlign: "right" }}>
+                              {pos.return_pct == null ? "—" : fmtPct(pos.return_pct * 100, 1)}
+                            </span>
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <div style={{ padding: 24, textAlign: "center", color: "var(--t3)", fontSize: "0.78rem" }}>Aucune donnée pour ce tracker.</div>
+                )}
+              </Card>
+            )}
+
+            {/* Optimized portfolio */}
+            {optPortfolios.length > 0 && (
+              <Card pad="none" style={{ overflow: "hidden" }}>
+                <CardHeader
+                  icon={<Briefcase size={13} />}
+                  title="Portefeuille optimisé"
+                  action={
+                    optPortfolios.length > 1 ? (
+                      <select value={selectedOptId ?? ""} onChange={e => setSelectedOptId(e.target.value)}
+                        style={{ fontSize: "0.7rem", padding: "3px 8px", background: "var(--bg-inner)", border: "1px solid var(--card-border)", borderRadius: "var(--r-sm)", color: "var(--t2)" }}>
+                        {optPortfolios.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                      </select>
+                    ) : undefined
+                  }
+                />
+
+                <div style={{ padding: "10px 20px 4px", display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                  {(["6mo","1y","3y","5y"] as TimeRange[]).map(r => (
+                    <button key={r} onClick={() => setOptTimeRange(r)}
+                      style={{ fontSize: "0.65rem", padding: "3px 8px", borderRadius: "9999px",
+                        background: optTimeRange === r ? "var(--orange-dim)" : "transparent",
+                        border: `1px solid ${optTimeRange === r ? "var(--orange-border)" : "var(--card-border)"}`,
+                        color: optTimeRange === r ? "var(--orange)" : "var(--t3)", cursor: "pointer" }}>
+                      {r.toUpperCase()}
+                    </button>
+                  ))}
+                  <button onClick={() => portfolio && perfMutation.mutate({ pf: portfolio, range: optTimeRange })}
+                    disabled={perfMutation.isPending}
+                    style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: 4, fontSize: "0.65rem", padding: "3px 8px", borderRadius: "var(--r-sm)", border: "1px solid var(--card-border)", background: "transparent", color: "var(--t3)", cursor: "pointer" }}>
+                    <RefreshCw size={9} /> Refresh
                   </button>
                 </div>
-              </div>
-            );
-          })}
-        </div>
 
-        {/* Voir plus / Voir moins */}
-        {hasMore && (
-          <button
-            onClick={() => setExpanded(v => !v)}
-            style={{
-              width: "100%", padding: "8px", borderTop: "1px solid var(--border)",
-              background: "none", border: "none", cursor: "pointer", display: "flex",
-              alignItems: "center", justifyContent: "center", gap: 5,
-              fontSize: "0.65rem", fontWeight: 600, letterSpacing: "0.05em",
-              color: "var(--orange)", transition: "background 0.1s",
-            }}
-            onMouseEnter={e => (e.currentTarget.style.background = "var(--bg-hover)")}
-            onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
-          >
-            {expanded ? <><ChevronUp size={12} /> Voir moins</> : <><ChevronDown size={12} /> Voir plus ({tickers.length - MAX_VISIBLE})</>}
-          </button>
+                {perfMutation.isPending && !perfResult ? (
+                  <div style={{ padding: 32, display: "flex", justifyContent: "center" }}><LoadingSpinner size="md" /></div>
+                ) : perfResult ? (
+                  <>
+                    <div style={{ padding: "8px 20px 4px" }}>
+                      <PlotlyChart
+                        data={[
+                          { type: "scatter", mode: "lines", x: perfResult.dates, y: perfResult.portfolio_values, name: portfolio?.name ?? "Portefeuille",
+                            line: { color: "#3E6FB7", width: 2 }, fill: "tozeroy",
+                            fillcolor: isDark ? "rgba(62,111,183,0.08)" : "rgba(62,111,183,0.06)",
+                            hovertemplate: "%{x}: €%{y:,.0f}<extra></extra>" },
+                          { type: "scatter", mode: "lines", x: perfResult.dates, y: perfResult.benchmark_values, name: "SPY",
+                            line: { color: "#94A3B8", width: 1.4, dash: "dot" }, hovertemplate: "%{x}: €%{y:,.0f}<extra></extra>" },
+                        ]}
+                        layout={{
+                          margin: { t: 8, b: 28, l: 48, r: 16 },
+                          showlegend: false,
+                          paper_bgcolor: "transparent", plot_bgcolor: "transparent",
+                          xaxis: {
+                            showgrid: false,
+                            color: isDark ? "rgba(245,245,245,0.45)" : "rgba(17,17,17,0.5)",
+                            range: perfResult.dates.length > 0 ? [perfResult.dates[0], perfResult.dates[perfResult.dates.length - 1]] : undefined,
+                            autorange: false,
+                          },
+                          yaxis: { showgrid: true, gridcolor: isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)", color: isDark ? "rgba(245,245,245,0.45)" : "rgba(17,17,17,0.5)", tickformat: ",.0f" },
+                        }}
+                        height={170}
+                      />
+                    </div>
+
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", borderTop: "1px solid var(--card-border)" }}>
+                      {[
+                        { label: "Total Return", v: fmtPct((perfResult.metrics.total_return ?? 0) * 100, 2),
+                          c: (perfResult.metrics.total_return ?? 0) >= 0 ? "var(--green)" : "var(--red)" },
+                        { label: "Sharpe", v: perfResult.metrics.sharpe_ratio == null ? "—" : perfResult.metrics.sharpe_ratio.toFixed(3), c: "var(--orange)" },
+                        { label: "Drawdown", v: fmtPct((perfResult.metrics.max_drawdown ?? 0) * 100, 1), c: "var(--red)" },
+                      ].map((m, i) => (
+                        <div key={m.label} style={{ padding: "10px 14px", borderRight: i < 2 ? "1px solid var(--card-border)" : "none" }}>
+                          <p style={{ fontSize: "0.58rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--t3)" }}>{m.label}</p>
+                          <p style={{ fontFamily: "Manrope, sans-serif", fontSize: "0.9rem", fontWeight: 700, color: m.c, marginTop: 2, fontVariantNumeric: "tabular-nums" }}>{m.v}</p>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Allocation */}
+                    {donutData.length > 0 && (
+                      <div style={{ borderTop: "1px solid var(--card-border)", padding: "12px 20px" }}>
+                        <p style={{ fontSize: "0.6rem", fontWeight: 700, letterSpacing: "0.09em", textTransform: "uppercase", color: "var(--t3)", marginBottom: 10 }}>Allocation</p>
+                        <MiniDonut data={donutData.slice(0, 6)} />
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div style={{ padding: 24, textAlign: "center", color: "var(--t3)", fontSize: "0.78rem" }}>Sélectionnez un portefeuille.</div>
+                )}
+              </Card>
+            )}
+          </section>
         )}
-      </div>
-    </section>
-  );
-}
 
-function EventRow({ event }: { event: { ticker: string; type: "Earnings" | "Dividend"; date: string; extra?: string } }) {
-  const d = daysUntil(event.date);
-  const soon = d !== null && d <= 14;
-  const Icon = event.type === "Earnings" ? TrendingUp : Coins;
-  return (
-    <div className="flex items-center gap-2.5" style={{
-      padding: "7px 10px", borderRadius: "var(--r-sm)",
-      background: soon ? "var(--orange-dim)" : "transparent",
-      border: soon ? "1px solid var(--orange-border)" : "1px solid transparent",
-    }}>
-      <Icon size={12} style={{ color: "var(--orange)", flexShrink: 0 }} />
-      <div className="mono" style={{ color: "var(--orange)", fontWeight: 600, fontSize: "0.75rem", minWidth: 56 }}>{event.ticker}</div>
-      <div style={{ flex: 1, color: "var(--t2)", fontSize: "0.7rem" }}>{event.type}{event.extra ? ` · ${event.extra}` : ""}</div>
-      <div className="mono" style={{ color: "var(--t1)", fontSize: "0.7rem" }}>{event.date}</div>
-      {d !== null && (
-        <div className="mono" style={{ color: soon ? "var(--orange)" : "var(--t3)", fontSize: "0.66rem", minWidth: 40, textAlign: "right" }}>
-          {d === 0 ? "today" : d < 0 ? `${-d}d ago` : `in ${d}d`}
-        </div>
-      )}
-    </div>
+        {/* COMMUNITY + LEADERBOARD */}
+        <section style={{ marginBottom: 24, display: "grid", gridTemplateColumns: "minmax(0, 1.4fr) minmax(0, 1fr)", gap: 14 }}>
+
+          <Card pad="none" style={{ overflow: "hidden", display: "flex", flexDirection: "column" }}>
+            <CardHeader
+              icon={<Flame size={13} />}
+              title="Idées de la commu"
+              action={<Link href="/community" style={{ fontSize: "0.68rem", color: "var(--orange)", textDecoration: "none" }}>Communauté →</Link>}
+            />
+            <div style={{ padding: "8px 0", flex: 1 }}>
+              {community.isLoading ? (
+                <div style={{ padding: 24, textAlign: "center" }}><LoadingSpinner size="sm" /></div>
+              ) : topPosts.length === 0 ? (
+                <div style={{ padding: "32px 20px", textAlign: "center", color: "var(--t3)", fontSize: "0.8rem" }}>
+                  Aucune idée partagée. <Link href="/community" style={{ color: "var(--orange)" }}>Soyez le premier.</Link>
+                </div>
+              ) : topPosts.slice(0, 5).map(post => (
+                <Link key={post.id} href="/community" style={{ display: "flex", gap: 12, padding: "10px 20px", textDecoration: "none", borderBottom: "1px solid var(--card-border)", transition: "background 0.12s" }}
+                  onMouseEnter={e => (e.currentTarget.style.background = "var(--bg-inner)")}
+                  onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+                >
+                  <div style={{ width: 28, height: 28, borderRadius: "50%", background: avatarColor(post.user_id), flexShrink: 0, marginTop: 2 }} />
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 2 }}>
+                      <span style={{ fontSize: "0.74rem", fontWeight: 600, color: "var(--t1)" }}>
+                        {post.display_name || post.user_id.slice(0, 8)}
+                      </span>
+                      {post.ticker && (
+                        <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: "0.6rem", fontWeight: 700, padding: "1px 8px", borderRadius: "9999px", background: "var(--orange-dim)", color: "var(--orange)", border: "1px solid var(--orange-border)" }}>
+                          <TickerLogo ticker={post.ticker} size={12} />
+                          ${post.ticker}
+                        </span>
+                      )}
+                      <span style={{ fontSize: "0.62rem", color: "var(--t3)", marginLeft: "auto" }}>{timeAgo(post.created_at)}</span>
+                    </div>
+                    <p style={{ fontSize: "0.78rem", color: "var(--t2)", lineHeight: 1.45, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+                      {post.content}
+                    </p>
+                    {(post.upvotes ?? 0) > 0 && (
+                      <span style={{ fontSize: "0.62rem", color: "var(--t3)", marginTop: 4, display: "inline-flex", alignItems: "center", gap: 3 }}>
+                        ▲ {post.upvotes}
+                      </span>
+                    )}
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </Card>
+
+          {/* Real leaderboard full */}
+          <Card pad="none" style={{ overflow: "hidden", display: "flex", flexDirection: "column" }}>
+            <CardHeader
+              icon={<Trophy size={13} />}
+              title="Classement"
+              action={<SectionLabel>{lb?.total_users ?? 0} investisseurs</SectionLabel>}
+            />
+            <div style={{ padding: "10px 16px" }}>
+              {leaderboard.isLoading ? (
+                <div style={{ padding: 16, textAlign: "center" }}><LoadingSpinner size="sm" /></div>
+              ) : !lb || lb.top.length === 0 ? (
+                <div style={{ padding: "20px 4px", textAlign: "center", color: "var(--t3)", fontSize: "0.78rem", lineHeight: 1.5 }}>
+                  Classement vide. Le premier investisseur avec un tracker démarre la course.
+                </div>
+              ) : (
+                <>
+                  {lb.top.map(row => (
+                    <div key={row.user_id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderBottom: "1px solid var(--card-border)" }}>
+                      <span style={{ fontFamily: "Manrope, sans-serif", fontSize: "0.78rem", fontWeight: 700, color: row.rank === 1 ? "var(--orange)" : "var(--t3)", minWidth: 22 }}>
+                        {row.rank === 1 ? <Trophy size={12} style={{ display: "inline", verticalAlign: "middle" }} /> : `${row.rank}`}
+                      </span>
+                      <span style={{ width: 22, height: 22, borderRadius: "50%", background: avatarColor(row.user_id), flexShrink: 0 }} />
+                      <span style={{ flex: 1, fontSize: "0.78rem", color: "var(--t1)", fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{row.display_name}</span>
+                      <span style={{ fontSize: "0.62rem", color: "var(--t3)" }}>{row.positions_count} pos.</span>
+                      <span style={{ fontFamily: "Manrope, sans-serif", fontSize: "0.82rem", fontWeight: 700, color: row.return_pct >= 0 ? "var(--green)" : "var(--red)", fontVariantNumeric: "tabular-nums", minWidth: 64, textAlign: "right" }}>
+                        {fmtPct(row.return_pct, 1)}
+                      </span>
+                    </div>
+                  ))}
+                  {lb.me && !lb.top.find(r => r.user_id === lb.me?.user_id) && (
+                    <div style={{ padding: "10px 0 4px", display: "flex", alignItems: "center", gap: 10, borderTop: "1px dashed var(--card-border)", marginTop: 4 }}>
+                      <span style={{ fontFamily: "Manrope, sans-serif", fontSize: "0.78rem", fontWeight: 700, color: "var(--orange)", minWidth: 22 }}>{lb.me.rank}</span>
+                      <span style={{ width: 22, height: 22, borderRadius: "50%", background: "var(--orange)", flexShrink: 0 }} />
+                      <span style={{ flex: 1, fontSize: "0.78rem", color: "var(--orange)", fontWeight: 600 }}>Vous</span>
+                      <span style={{ fontFamily: "Manrope, sans-serif", fontSize: "0.82rem", fontWeight: 700, color: lb.me.return_pct >= 0 ? "var(--green)" : "var(--red)", fontVariantNumeric: "tabular-nums", minWidth: 64, textAlign: "right" }}>
+                        {fmtPct(lb.me.return_pct, 1)}
+                      </span>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          </Card>
+        </section>
+
+        {/* 3-col footer */}
+        <section style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14 }}>
+
+          <div style={{ background: "var(--bg-card)", border: "1px solid var(--card-border)", borderRadius: "var(--r-xl)", overflow: "hidden" }}>
+            <div style={{ padding: "12px 18px", borderBottom: "1px solid var(--card-border)", display: "flex", alignItems: "center", gap: 8 }}>
+              <Eye size={12} style={{ color: "var(--orange)" }} />
+              <h3 style={{ fontFamily: "Manrope, DM Sans, sans-serif", fontSize: "0.82rem", fontWeight: 700, color: "var(--t1)" }}>Tickers en discussion</h3>
+            </div>
+            <div style={{ padding: "4px 0" }}>
+              {topMentionedTickers.length === 0 ? (
+                <div style={{ padding: 20, textAlign: "center", color: "var(--t3)", fontSize: "0.74rem" }}>
+                  Aucune mention récente.
+                </div>
+              ) : topMentionedTickers.map(([tk, count], i) => (
+                <Link key={tk} href={`/equity?ticker=${tk}`} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 18px", textDecoration: "none", borderBottom: "1px solid var(--card-border)" }}>
+                  <span style={{ fontSize: "0.66rem", color: "var(--t3)", minWidth: 16 }}>{i + 1}</span>
+                  <TickerLogo ticker={tk} size={20} />
+                  <span style={{ flex: 1, fontFamily: "Manrope, sans-serif", fontSize: "0.82rem", fontWeight: 700, color: "var(--orange)" }}>{tk}</span>
+                  <span style={{ fontSize: "0.66rem", color: "var(--t3)", fontVariantNumeric: "tabular-nums" }}>{count} mention{count > 1 ? "s" : ""}</span>
+                </Link>
+              ))}
+            </div>
+          </div>
+
+          <div style={{ background: "var(--bg-card)", border: "1px solid var(--card-border)", borderRadius: "var(--r-xl)", overflow: "hidden" }}>
+            <div style={{ padding: "12px 18px", borderBottom: "1px solid var(--card-border)", display: "flex", alignItems: "center", gap: 8 }}>
+              <Sparkles size={12} style={{ color: "var(--orange)" }} />
+              <h3 style={{ fontFamily: "Manrope, DM Sans, sans-serif", fontSize: "0.82rem", fontWeight: 700, color: "var(--t1)" }}>Actualités</h3>
+            </div>
+            <div style={{ padding: "4px 0" }}>
+              {news.isLoading ? (
+                <div style={{ padding: 16, textAlign: "center" }}><LoadingSpinner size="sm" /></div>
+              ) : (news.data?.news ?? []).slice(0, 5).map((n, i) => (
+                <a key={i} href={n.link} target="_blank" rel="noopener noreferrer"
+                  style={{ display: "block", padding: "10px 18px", borderBottom: "1px solid var(--card-border)", textDecoration: "none" }}>
+                  <p style={{ fontSize: "0.74rem", color: "var(--t1)", lineHeight: 1.35, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+                    {n.title}
+                  </p>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
+                    <span style={{ fontSize: "0.62rem", color: "var(--t3)" }}>{n.publisher}</span>
+                    <span style={{ fontSize: "0.62rem", color: "var(--t3)" }}>·</span>
+                    <span style={{ fontSize: "0.62rem", color: "var(--t3)" }}>{timeAgo(n.published)}</span>
+                    <ExternalLink size={9} style={{ color: "var(--t3)", marginLeft: "auto" }} />
+                  </div>
+                </a>
+              ))}
+            </div>
+          </div>
+
+          <div style={{ background: "var(--bg-card)", border: "1px solid var(--card-border)", borderRadius: "var(--r-xl)", overflow: "hidden" }}>
+            <div style={{ padding: "12px 18px", borderBottom: "1px solid var(--card-border)", display: "flex", alignItems: "center", gap: 8 }}>
+              <Bell size={12} style={{ color: "var(--orange)" }} />
+              <h3 style={{ fontFamily: "Manrope, DM Sans, sans-serif", fontSize: "0.82rem", fontWeight: 700, color: "var(--t1)" }}>Vos alertes</h3>
+              <Link href="/alerts" style={{ fontSize: "0.62rem", color: "var(--orange)", textDecoration: "none", marginLeft: "auto" }}>Gérer →</Link>
+            </div>
+            <div style={{ padding: 18, fontSize: "0.78rem", color: "var(--t3)", textAlign: "center", lineHeight: 1.5 }}>
+              Aucune alerte déclenchée aujourd&apos;hui.
+              <br />
+              <Link href="/alerts" style={{ color: "var(--orange)", fontSize: "0.72rem" }}>Créer une alerte</Link>
+            </div>
+          </div>
+        </section>
+
+      </div>
+
+      {/* ── QR Performance share modal ── */}
+      {(() => {
+        const pfName = trackerResult
+          ? (trackerPortfolios.find(p => p.id === selectedTrkId)?.name ?? "Tracker")
+          : (optPortfolios.find(p => p.id === selectedOptId)?.name ?? "Portfolio");
+        const returnPct = userReturn != null ? (userReturn * 100).toFixed(1) : "0";
+        const origin = typeof window !== "undefined" ? window.location.origin : "";
+        const shareUrl = `${origin}/share/performance?name=${encodeURIComponent(pfName)}&return=${returnPct}`;
+        return (
+          <QRShareModal
+            open={qrPerfOpen}
+            onClose={() => setQrPerfOpen(false)}
+            url={shareUrl}
+            title="Share Performance"
+            subtitle={`${pfName} · ${returnPct >= "0" ? "+" : ""}${returnPct}%`}
+          />
+        );
+      })()}
+    </ErrorBoundary>
   );
 }

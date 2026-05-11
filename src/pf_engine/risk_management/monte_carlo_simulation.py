@@ -12,14 +12,24 @@ def run_monte_carlo_portfolio(
 
     num_assets = len(weights)
     dt = 1.0 / 252.0
-    
-    try:
-        # Factorisation de Cholesky de la matrice de covariance annuelle
-        L = np.linalg.cholesky(cov_matrix)
-    except np.linalg.LinAlgError:
-        # Régularisation légère si la matrice n'est pas parfaitement définie positive
-        cov_matrix = cov_matrix + np.eye(num_assets) * 1e-6
-        L = np.linalg.cholesky(cov_matrix)
+
+    # Guard: covariance matrix must be finite and square
+    if not np.all(np.isfinite(cov_matrix)):
+        raise ValueError(f"Covariance matrix contains NaN/inf. Check historical data quality.")
+    if cov_matrix.shape != (num_assets, num_assets):
+        raise ValueError(f"cov_matrix shape {cov_matrix.shape} does not match {num_assets} assets.")
+
+    # Cholesky with progressive regularization — handles near-singular matrices
+    L = None
+    for eps in (0.0, 1e-8, 1e-6, 1e-4, 1e-2):
+        try:
+            mat = cov_matrix + np.eye(num_assets) * eps
+            L = np.linalg.cholesky(mat)
+            break
+        except np.linalg.LinAlgError:
+            continue
+    if L is None:
+        raise ValueError("Covariance matrix is not positive semi-definite even after regularization.")
     
     # Chocs aléatoires normaux indépendants (Z ~ N(0, 1))
     Z = np.random.normal(0, 1, size=(num_assets, horizon_days, n_simulations))

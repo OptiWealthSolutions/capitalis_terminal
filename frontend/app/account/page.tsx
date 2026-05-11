@@ -70,8 +70,8 @@ const PLANS: Plan[] = [
   },
   {
     id: "pro", name: "Pro",
-    monthlyPrice: "€6.99", annualPrice: "€69.90", annualMonthly: "€5.83",
-    discount: "2 mois offerts",
+    monthlyPrice: "€6.99", annualPrice: "€75.49", annualMonthly: "€6.29",
+    discount: "Save 10%",
     billing: "/ month",
     badge: "MOST POPULAR", icon: <Zap size={16} />, color: "var(--orange)",
     features: [
@@ -96,8 +96,8 @@ const PLANS: Plan[] = [
   },
   {
     id: "premium", name: "Premium",
-    monthlyPrice: "€19.99", annualPrice: "€199.90", annualMonthly: "€16.66",
-    discount: "2 mois offerts",
+    monthlyPrice: "€19.99", annualPrice: "€215.89", annualMonthly: "€17.99",
+    discount: "Save 10%",
     billing: "/ month",
     icon: <Building2 size={16} />, color: "#A97CC0",
     features: [

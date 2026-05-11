@@ -19,6 +19,12 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from ..cache.memory_cache import cache, EQUITY_TTL
+from ..equity_cache import (
+    read as eq_cache_read,
+    read_stale as eq_cache_stale,
+    write as eq_cache_write,
+)
+from ..yf_safe import safe_download, safe_ticker_info
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -84,7 +90,7 @@ def get_price_history(
         return cached
 
     try:
-        df = yf.download(t, period=period, interval=interval, progress=False, auto_adjust=True)
+        df = safe_download(t, period=period, interval=interval)
         if df.empty:
             raise HTTPException(status_code=404, detail=f"No data found for ticker {t!r}.")
 
@@ -123,22 +129,33 @@ def get_price_history(
 # ---------------------------------------------------------------------------
 @router.get("/{ticker}/fundamentals")
 def get_fundamentals(ticker: str) -> Any:
-    """yfinance fast_info + .info fundamental data."""
+    """yfinance fast_info + .info fundamental data. Falls back to SQLite cache."""
     t = _assert_valid_ticker(ticker)
-    key = f"equity_fund_{t}"
-    cached = cache.get(key)
+    mem_key = f"equity_fund_{t}"
+
+    # 1. Memory cache
+    cached = cache.get(mem_key)
     if cached is not None:
         return cached
 
-    try:
-        tkr = yf.Ticker(t)
-        info: dict = tkr.info or {}
-    except Exception as exc:
-        logger.error("yfinance fundamentals error for %s: %s", t, exc, exc_info=True)
-        raise HTTPException(status_code=503, detail="Fundamentals unavailable.")
+    # 2. SQLite fresh cache (< 4h)
+    db_fresh = eq_cache_read(t, "fundamentals", ttl=4 * 3600)
+    if db_fresh is not None:
+        cache.set(mem_key, db_fresh, ttl=EQUITY_TTL)
+        return db_fresh
 
-    if not info or info.get("marketCap") is None:
-        raise HTTPException(status_code=404, detail=f"No fundamental data found for {t!r}.")
+    # 3. Fetch from yfinance (with timeout + retry via yf_safe)
+    info = safe_ticker_info(t, cache_fallback=False)
+    yf_ok = bool(info and info.get("marketCap") is not None)
+
+    if not yf_ok:
+        # 4. Fallback: any cached data regardless of age
+        stale = eq_cache_stale(t, "fundamentals")
+        if stale:
+            logger.info("Serving stale fundamentals for %s from SQLite", t)
+            cache.set(mem_key, stale, ttl=300)
+            return stale
+        raise HTTPException(status_code=503, detail="Fundamentals temporarily unavailable.")
 
     selected_fields = [
         "longName", "sector", "industry", "country", "currency",
@@ -192,7 +209,10 @@ def get_fundamentals(ticker: str) -> Any:
         result["debtToEquity"] = info.get("debt_to_equity")
     if result.get("dividendYield") is None:
         result["dividendYield"] = info.get("yield") or info.get("trailingAnnualDividendYield")
-    cache.set(key, result, ttl=EQUITY_TTL)
+
+    # Persist to SQLite + memory cache
+    eq_cache_write(t, "fundamentals", result)
+    cache.set(mem_key, result, ttl=EQUITY_TTL)
     return result
 
 
@@ -209,7 +229,7 @@ def get_returns_stats(ticker: str) -> Any:
         return cached
 
     try:
-        df = yf.download(t, period="5y", interval="1d", progress=False, auto_adjust=True)
+        df = safe_download(t, period="5y", interval="1d")
         if df.empty:
             raise HTTPException(status_code=404, detail=f"No price data for {t!r}.")
         if isinstance(df.columns, pd.MultiIndex):
@@ -252,26 +272,49 @@ def get_returns_stats(ticker: str) -> Any:
 # ---------------------------------------------------------------------------
 @router.get("/{ticker}/financials")
 def get_financials(ticker: str) -> Any:
-    """Annual + quarterly income statement and cash flow metrics."""
+    """Annual + quarterly income statement and cash flow metrics. Falls back to SQLite cache."""
     t = _assert_valid_ticker(ticker)
-    key = f"equity_fin_{t}"
-    cached = cache.get(key)
+    mem_key = f"equity_fin_{t}"
+
+    # 1. Memory cache
+    cached = cache.get(mem_key)
     if cached is not None:
         return cached
 
+    # 2. SQLite fresh cache (< 24h)
+    db_fresh = eq_cache_read(t, "financials", ttl=24 * 3600)
+    if db_fresh is not None:
+        cache.set(mem_key, db_fresh, ttl=86400)
+        return db_fresh
+
+    # 3. Fetch from yfinance (with timeout + retry)
+    yf_ok = True
+    inc_ann = inc_q = cf_ann = cf_q = None
     try:
+        from backend.yf_safe import _run_with_timeout
         tkr = yf.Ticker(t)
-        inc_ann = tkr.income_stmt
-        inc_q   = tkr.quarterly_income_stmt
-        cf_ann = getattr(tkr, "cashflow", None)
-        if cf_ann is None:
-            cf_ann = getattr(tkr, "cash_flow", None)
-        cf_q = getattr(tkr, "quarterly_cashflow", None)
-        if cf_q is None:
-            cf_q = getattr(tkr, "quarterly_cash_flow", None)
+        def _fetch_financials(_tkr=tkr):
+            return (
+                _tkr.income_stmt,
+                _tkr.quarterly_income_stmt,
+                getattr(_tkr, "cashflow", None) or getattr(_tkr, "cash_flow", None),
+                getattr(_tkr, "quarterly_cashflow", None) or getattr(_tkr, "quarterly_cash_flow", None),
+            )
+        result = _run_with_timeout(_fetch_financials, timeout=30)
+        if result:
+            inc_ann, inc_q, cf_ann, cf_q = result
     except Exception as exc:
-        logger.error("yfinance financials %s: %s", t, exc)
-        raise HTTPException(status_code=503, detail="Financial data unavailable.")
+        logger.warning("yfinance financials %s: %s", t, exc)
+        yf_ok = False
+
+    if not yf_ok or inc_ann is None:
+        # 4. Fallback: any cached data regardless of age
+        stale = eq_cache_stale(t, "financials")
+        if stale:
+            logger.info("Serving stale financials for %s from SQLite", t)
+            cache.set(mem_key, stale, ttl=300)
+            return stale
+        raise HTTPException(status_code=503, detail="Financial data temporarily unavailable.")
 
     def _safe_v(v: Any) -> float | None:
         try:
@@ -337,7 +380,8 @@ def get_financials(ticker: str) -> Any:
         "annual":    _extract(inc_ann, cf_ann),
         "quarterly": _extract(inc_q, cf_q),
     }
-    cache.set(key, result, ttl=86400)
+    eq_cache_write(t, "financials", result)
+    cache.set(mem_key, result, ttl=86400)
     return result
 
 
@@ -353,12 +397,18 @@ def get_holders(ticker: str) -> Any:
         return cached
 
     try:
+        from backend.yf_safe import _run_with_timeout
         tkr = yf.Ticker(t)
-        inst = getattr(tkr, "institutional_holders", None)
-        mf   = getattr(tkr, "mutualfund_holders", None)
-        major = getattr(tkr, "major_holders", None)
-        insider_tx = getattr(tkr, "insider_transactions", None)
-        insider_pct = getattr(tkr, "insider_roster_holders", None)
+        def _fetch_holders(_tkr=tkr):
+            return (
+                getattr(_tkr, "institutional_holders", None),
+                getattr(_tkr, "mutualfund_holders", None),
+                getattr(_tkr, "major_holders", None),
+                getattr(_tkr, "insider_transactions", None),
+                getattr(_tkr, "insider_roster_holders", None),
+            )
+        _res = _run_with_timeout(_fetch_holders, timeout=25)
+        inst, mf, major, insider_tx, insider_pct = _res if _res else (None, None, None, None, None)
     except Exception as exc:
         logger.error("Holders fetch %s: %s", t, exc)
         raise HTTPException(status_code=503, detail="Holder data unavailable.")
@@ -427,9 +477,9 @@ def get_corporate_events(tickers: str = Query(..., min_length=1, max_length=512)
     for sym in syms:
         rec: dict = {"ticker": sym, "next_earnings": None, "next_dividend": None, "dividend_rate": None}
         try:
+            from backend.yf_safe import _run_with_timeout
             tkr = yf.Ticker(sym)
-
-            cal = getattr(tkr, "calendar", None)
+            cal = _run_with_timeout(lambda _t=tkr: getattr(_t, "calendar", None), timeout=15) or None
             earn_date = None
             if isinstance(cal, dict):
                 ev = cal.get("Earnings Date")
@@ -464,4 +514,38 @@ def get_corporate_events(tickers: str = Query(..., min_length=1, max_length=512)
 
     result = {"events": out}
     cache.set(key, result, ttl=3600)
+    return result
+
+
+# ---------------------------------------------------------------------------
+# GET /equity/{ticker}/logo
+# Returns logo URL via Clearbit (free, no key) using yfinance website lookup.
+# Cached 24h. Falls back to null if domain unresolvable (frontend renders initials).
+# ---------------------------------------------------------------------------
+@router.get("/{ticker}/logo")
+def get_logo(ticker: str) -> Any:
+    tk = ticker.upper().strip()
+    if not re.fullmatch(r"[A-Z0-9.\-^]{1,12}", tk):
+        raise HTTPException(status_code=400, detail="Invalid ticker.")
+
+    cache_key = f"logo:{tk}"
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return cached
+
+    domain: str | None = None
+    try:
+        info = safe_ticker_info(tk, cache_fallback=True)
+        site = info.get("website") or ""
+        if site:
+            domain = re.sub(r"^https?://(www\.)?", "", site).split("/")[0].strip().lower() or None
+    except Exception as e:
+        logger.warning("logo lookup failed for %s: %s", tk, e)
+
+    result = {
+        "ticker": tk,
+        "domain": domain,
+        "url": f"https://logo.clearbit.com/{domain}" if domain else None,
+    }
+    cache.set(cache_key, result, ttl=86_400)
     return result
