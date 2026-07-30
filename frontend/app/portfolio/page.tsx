@@ -497,8 +497,8 @@ export default function PortfolioPage() {
         ════════════════════════════════════════════════ */}
         <div style={{ display: "grid", gridTemplateColumns: "3fr 2fr", gap: 16, marginTop: 20, alignItems: "start" }}>
 
-          {/* ── Left: Strategy Construction panel — dark institutional panel ── */}
-          <Card variant="dark" pad="none" style={{ overflow: "hidden" }}>
+          {/* ── Left: Strategy Construction panel ── */}
+          <Card variant="default" pad="none" style={{ overflow: "hidden" }}>
             <CardHeader
               title="Strategy Construction"
               icon={<Target size={13} />}
@@ -674,15 +674,33 @@ export default function PortfolioPage() {
               <div>
                 <SectionLabel style={{ marginBottom: 10 }}>Risk Constraints</SectionLabel>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                  {/* Min Weight — decimal 0-1 (e.g. 0.05 = 5%) */}
                   <div>
-                    <label style={{ display: "block", fontSize: "0.63rem", color: "var(--t3)", marginBottom: 5, letterSpacing: "0.05em", textTransform: "uppercase" }}>Min Weight</label>
-                    <input type="number" step={0.01} {...register("min_weight", { valueAsNumber: true })}
-                      style={{ width: "100%", fontSize: "0.8rem", padding: "7px 10px", borderRadius: "var(--r-md)", border: "1px solid var(--card-border)", background: "var(--bg-inner)", color: "var(--t1)", outline: "none", boxSizing: "border-box" }} />
+                    <label style={{ display: "block", fontSize: "0.63rem", color: "var(--t3)", marginBottom: 5, letterSpacing: "0.05em", textTransform: "uppercase" }}>
+                      Min Weight <span style={{ textTransform: "none", letterSpacing: 0, opacity: 0.65 }}>(0–1)</span>
+                    </label>
+                    <div style={{ position: "relative" }}>
+                      <input type="number" step={0.01} min={0} max={1} placeholder="0.02"
+                        {...register("min_weight", { valueAsNumber: true })}
+                        style={{ width: "100%", fontSize: "0.8rem", padding: "7px 32px 7px 10px", borderRadius: "var(--r-md)", border: "1px solid var(--card-border)", background: "var(--bg-inner)", color: "var(--t1)", outline: "none", boxSizing: "border-box" }} />
+                      <span style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", fontSize: "0.68rem", color: "var(--t3)", pointerEvents: "none" }}>
+                        {(() => { const v = watch("min_weight"); return v != null && !isNaN(v) ? `${(v * 100).toFixed(0)}%` : "%"; })()}
+                      </span>
+                    </div>
                   </div>
+                  {/* Max Weight — decimal 0-1 (e.g. 0.40 = 40%) */}
                   <div>
-                    <label style={{ display: "block", fontSize: "0.63rem", color: "var(--t3)", marginBottom: 5, letterSpacing: "0.05em", textTransform: "uppercase" }}>Max Weight</label>
-                    <input type="number" step={0.01} {...register("max_weight", { valueAsNumber: true })}
-                      style={{ width: "100%", fontSize: "0.8rem", padding: "7px 10px", borderRadius: "var(--r-md)", border: "1px solid var(--card-border)", background: "var(--bg-inner)", color: "var(--t1)", outline: "none", boxSizing: "border-box" }} />
+                    <label style={{ display: "block", fontSize: "0.63rem", color: "var(--t3)", marginBottom: 5, letterSpacing: "0.05em", textTransform: "uppercase" }}>
+                      Max Weight <span style={{ textTransform: "none", letterSpacing: 0, opacity: 0.65 }}>(0–1)</span>
+                    </label>
+                    <div style={{ position: "relative" }}>
+                      <input type="number" step={0.01} min={0} max={1} placeholder="0.40"
+                        {...register("max_weight", { valueAsNumber: true })}
+                        style={{ width: "100%", fontSize: "0.8rem", padding: "7px 32px 7px 10px", borderRadius: "var(--r-md)", border: "1px solid var(--card-border)", background: "var(--bg-inner)", color: "var(--t1)", outline: "none", boxSizing: "border-box" }} />
+                      <span style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", fontSize: "0.68rem", color: "var(--t3)", pointerEvents: "none" }}>
+                        {(() => { const v = watch("max_weight"); return v != null && !isNaN(v) ? `${(v * 100).toFixed(0)}%` : "%"; })()}
+                      </span>
+                    </div>
                   </div>
                   <div>
                     <label style={{ display: "block", fontSize: "0.63rem", color: "var(--t3)", marginBottom: 5, letterSpacing: "0.05em", textTransform: "uppercase" }}>Risk Aversion</label>

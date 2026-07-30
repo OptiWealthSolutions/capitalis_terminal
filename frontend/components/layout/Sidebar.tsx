@@ -8,9 +8,9 @@ import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth";
 import { useI18n } from "@/lib/i18n";
 import {
-  LayoutDashboard, Filter, Star, Briefcase, Wallet,
-  TrendingUp, FileText, Settings, BookOpen,
-  Search, Bell, ChevronLeft, ChevronRight, Network, Users,
+  LayoutDashboard, SlidersHorizontal, Target, Map,
+  PieChart, LineChart, Microscope, FileText, Settings, BookOpen,
+  Search, Bell, ChevronLeft, ChevronRight, Users,
   type LucideProps,
 } from "lucide-react";
 import type { ForwardRefExoticComponent, RefAttributes } from "react";
@@ -93,15 +93,15 @@ export default function Sidebar({ isOpen, onClose, isCollapsed, onToggleCollapse
   }, [searchQuery]);
 
   const MAIN_NAV: NavItem[] = [
-    { href: "/dashboard",    label: t.nav.dashboard,   icon: LayoutDashboard, section: t.sections.overview },
-    { href: "/screener",     label: t.nav.screener,    icon: Filter,          section: t.sections.research },
-    { href: "/scorer",       label: t.nav.scorer,      icon: Star },
-    { href: "/value-chain",  label: t.nav.valueChain,  icon: Network },
-    { href: "/portfolio",    label: t.nav.portfolio,   icon: Briefcase,       section: t.sections.capital },
-    { href: "/tracker",      label: t.nav.tracker,     icon: Wallet },
-    { href: "/equity",       label: t.nav.equity,      icon: TrendingUp,      section: t.sections.deepDive },
+    { href: "/dashboard",    label: t.nav.dashboard,   icon: LayoutDashboard,   section: t.sections.overview },
+    { href: "/screener",     label: t.nav.screener,    icon: SlidersHorizontal, section: t.sections.research },
+    { href: "/scorer",       label: t.nav.scorer,      icon: Target },
+    { href: "/value-chain",  label: t.nav.valueChain,  icon: Map },
+    { href: "/portfolio",    label: t.nav.portfolio,   icon: PieChart,          section: t.sections.capital },
+    { href: "/tracker",      label: t.nav.tracker,     icon: LineChart },
+    { href: "/equity",       label: t.nav.equity,      icon: Microscope,        section: t.sections.deepDive },
     { href: "/alerts",       label: t.nav.alerts,      icon: Bell },
-    { href: "/community",    label: t.nav.community,   icon: Users,       section: "Community" },
+    { href: "/community",    label: t.nav.community,   icon: Users,             section: "Community" },
     { href: "/reporting",    label: t.nav.reporting,   icon: FileText },
     { href: "/docs",         label: t.nav.docs,        icon: BookOpen },
   ];

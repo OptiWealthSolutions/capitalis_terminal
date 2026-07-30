@@ -22,16 +22,38 @@ interface SectorData {
 }
 
 interface BreadthData {
-  vix: number;
-  vix_change_pct: number;
-  advancing: number;
-  declining: number;
-  ad_ratio: number;
-  sectors_above_200ma: number;
-  sectors_above_50ma: number;
-  bullish: number;
-  avg_rsi_14: number;
+  vix?: number;
+  vix_change_pct?: number;
+  advancing?: number;
+  declining?: number;
+  ad_ratio?: number;
+  sectors_above_200ma?: number;
+  sectors_above_50ma?: number;
+  bullish?: number;
+  bearish?: number;
+  avg_rsi_14?: number;
+  fear_greed?: number;
+  fear_greed_label?: string;
+  yield_spread?: number | null;
   total?: number;
+}
+
+interface MacroItem {
+  symbol: string;
+  label: string;
+  category: string;
+  price: number;
+  change_1d_pct: number;
+  change_1w_pct: number;
+  change_1m_pct: number;
+  change_3m_pct: number;
+  spark: number[];
+}
+
+interface MacroData {
+  macro: MacroItem[];
+  curve_spread: number | null;
+  inverted: boolean;
 }
 
 interface IndexItem {
@@ -107,11 +129,21 @@ function computeRegimeLabel(breadth: BreadthData | undefined, sectors: SectorDat
 
 function fearGreedProxy(breadth: BreadthData | undefined): { score: number; label: string; color: string } {
   if (!breadth) return { score: 50, label: "—", color: "var(--t3)" };
-  // Simple composite 0–100
-  const vixScore = Math.max(0, Math.min(100, 100 - (breadth.vix / 50) * 100));
-  const adScore  = Math.max(0, Math.min(100, (breadth.ad_ratio / 3) * 100));
-  const maScore  = Math.max(0, Math.min(100, (breadth.sectors_above_200ma / 11) * 100));
-  const rsiScore = Math.max(0, Math.min(100, ((breadth.avg_rsi_14 - 20) / 60) * 100));
+  // Use backend-computed value when available
+  if (breadth.fear_greed != null) {
+    const score = Math.round(breadth.fear_greed);
+    const label = breadth.fear_greed_label ?? (
+      score >= 75 ? "Extreme Greed" : score >= 60 ? "Greed" :
+      score >= 45 ? "Neutral" : score >= 30 ? "Fear" : "Extreme Fear"
+    );
+    const color = score >= 60 ? "var(--green)" : score >= 45 ? "var(--t1)" : score >= 30 ? "var(--orange)" : "var(--red)";
+    return { score, label, color };
+  }
+  // Fallback: compute from available fields
+  const vixScore = Math.max(0, Math.min(100, 100 - ((breadth.vix ?? 0) / 50) * 100));
+  const adScore  = Math.max(0, Math.min(100, ((breadth.ad_ratio ?? 1) / 3) * 100));
+  const maScore  = Math.max(0, Math.min(100, ((breadth.sectors_above_200ma ?? 0) / 11) * 100));
+  const rsiScore = Math.max(0, Math.min(100, (((breadth.avg_rsi_14 ?? 50) - 20) / 60) * 100));
   const score = Math.round((vixScore * 0.35) + (adScore * 0.25) + (maScore * 0.25) + (rsiScore * 0.15));
   let label: string;
   let color: string;
@@ -201,11 +233,11 @@ function KpiStrip({
           letterSpacing: "-0.02em", lineHeight: 1,
           fontVariantNumeric: "tabular-nums",
         }}>
-          {breadth ? breadth.vix.toFixed(1) : "—"}
+          {breadth?.vix != null ? breadth.vix.toFixed(1) : "—"}
         </div>
         <p style={{ fontSize: "0.68rem", color: "var(--t3)", margin: 0 }}>
           1d: <span style={{ color: pctColor(-(breadth?.vix_change_pct ?? 0)), fontWeight: 600 }}>
-            {breadth ? fmtPct(breadth.vix_change_pct) : "—"}
+            {breadth?.vix_change_pct != null ? fmtPct(breadth.vix_change_pct) : "—"}
           </span>
         </p>
       </Card>
@@ -246,7 +278,7 @@ function KpiStrip({
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
           {[
             { l: ">200MA", v: `${breadth?.sectors_above_200ma ?? 0}/${sectors.length || 11}` },
-            { l: "RSI", v: breadth ? breadth.avg_rsi_14.toFixed(0) : "—" },
+            { l: "RSI", v: breadth?.avg_rsi_14 != null ? breadth.avg_rsi_14.toFixed(0) : "—" },
           ].map(b => (
             <span key={b.l} style={{
               fontSize: "0.58rem", fontWeight: 600, padding: "2px 7px",
@@ -397,7 +429,7 @@ function SectorCard({ s, isExpanded, onToggle }: {
           </table>
           <div style={{ marginTop: 10, display: "flex", gap: 8 }}>
             {[
-              { l: "RSI", v: s.rsi_14.toFixed(0), color: s.rsi_14 > 70 ? "var(--red)" : s.rsi_14 < 30 ? "var(--green)" : "var(--t2)" },
+              { l: "RSI", v: s.rsi_14 != null ? s.rsi_14.toFixed(0) : "—", color: (s.rsi_14 ?? 50) > 70 ? "var(--red)" : (s.rsi_14 ?? 50) < 30 ? "var(--green)" : "var(--t2)" },
               { l: ">200MA", v: s.above_200ma ? "Yes" : "No", color: s.above_200ma ? "var(--green)" : "var(--red)" },
               { l: ">50MA",  v: s.above_50ma  ? "Yes" : "No", color: s.above_50ma  ? "var(--green)" : "var(--red)" },
             ].map(m => (
@@ -562,6 +594,348 @@ function ScreenerShortcuts() {
     </div>
   );
 }
+
+// ---------------------------------------------------------------------------
+// Indices View
+// ---------------------------------------------------------------------------
+function SparkInline({ data, color }: { data: number[]; color: string }) {
+  if (data.length < 2) return null;
+  const min = Math.min(...data), max = Math.max(...data);
+  const range = max - min || 1;
+  const pts = data.map((v, i) => {
+    const x = (i / (data.length - 1)) * 60;
+    const y = 14 - ((v - min) / range) * 14;
+    return `${x},${y}`;
+  }).join(" ");
+  return (
+    <svg width={60} height={16} style={{ display: "block", flexShrink: 0 }}>
+      <polyline points={pts} fill="none" stroke={color} strokeWidth={1.5} strokeLinejoin="round" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function IndicesView({ overview }: { overview: OverviewData | undefined }) {
+  if (!overview) return <div style={{ padding: 40, textAlign: "center", color: "var(--t3)", fontSize: "0.8rem" }}>Loading indices…</div>;
+
+  const CATEGORY: Record<string, string> = {
+    "^GSPC": "US Equity", "^NDX": "US Equity", "^DJI": "US Equity", "^RUT": "US Equity",
+    "^STOXX50E": "Global", "^FTSE": "Global", "^N225": "Global",
+    "^VIX": "Volatility", "^TNX": "Rates",
+    "GC=F": "Commodities", "CL=F": "Commodities",
+    "BTC-USD": "Crypto",
+  };
+
+  const groups = Array.from(new Set(overview.indices.map(i => CATEGORY[i.symbol] ?? "Other")));
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+      {groups.map(grp => {
+        const items = overview.indices.filter(i => (CATEGORY[i.symbol] ?? "Other") === grp);
+        return (
+          <Card key={grp} variant="default" pad="none">
+            <div style={{ padding: "10px 20px 8px", borderBottom: "1px solid var(--card-border)" }}>
+              <span style={{ fontSize: "0.6rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--orange)" }}>{grp}</span>
+            </div>
+            <div>
+              {items.map((idx, i) => {
+                const c1d = idx.change_1d_pct;
+                const sparkColor = c1d >= 0 ? "var(--green)" : "var(--red)";
+                return (
+                  <div key={idx.symbol} style={{
+                    display: "grid", gridTemplateColumns: "1fr auto auto auto 70px",
+                    alignItems: "center", gap: 16,
+                    padding: "11px 20px",
+                    borderBottom: i < items.length - 1 ? "1px solid var(--card-border)" : "none",
+                  }}>
+                    <div>
+                      <div style={{ fontSize: "0.82rem", fontWeight: 700, color: "var(--t1)", letterSpacing: "-0.005em" }}>{idx.label}</div>
+                      <div style={{ fontSize: "0.58rem", color: "var(--t3)", fontVariantNumeric: "tabular-nums", marginTop: 1 }}>{idx.symbol}</div>
+                    </div>
+                    <div style={{ fontFamily: "Manrope, sans-serif", fontSize: "0.95rem", fontWeight: 700, color: "var(--t1)", fontVariantNumeric: "tabular-nums", textAlign: "right", minWidth: 80 }}>
+                      {idx.price.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                    </div>
+                    <div style={{ fontWeight: 700, fontSize: "0.78rem", color: pctColor(c1d), fontVariantNumeric: "tabular-nums", textAlign: "right", minWidth: 56 }}>
+                      {fmtPct(c1d)}
+                    </div>
+                    <div style={{ fontWeight: 600, fontSize: "0.72rem", color: pctColor(idx.change_5d_pct ?? 0), fontVariantNumeric: "tabular-nums", textAlign: "right", minWidth: 56 }}>
+                      5D {fmtPct(idx.change_5d_pct ?? 0, 1)}
+                    </div>
+                    <SparkInline data={idx.spark} color={sparkColor} />
+                  </div>
+                );
+              })}
+            </div>
+          </Card>
+        );
+      })}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Macro View
+// ---------------------------------------------------------------------------
+function MacroView({ macro }: { macro: MacroData | undefined }) {
+  if (!macro) return <div style={{ padding: 40, textAlign: "center", color: "var(--t3)", fontSize: "0.8rem" }}>Loading macro data…</div>;
+
+  const ORDER = ["equity", "rates", "volatility", "currency", "commodities", "bonds", "crypto"];
+  const LABELS: Record<string, string> = {
+    equity: "Equity", rates: "Rates", volatility: "Volatility",
+    currency: "Currency", commodities: "Commodities", bonds: "Bonds", crypto: "Crypto",
+  };
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      {/* Yield curve banner */}
+      {macro.curve_spread != null && (
+        <Card variant="dark" pad="md" style={{ display: "flex", alignItems: "center", gap: 20 }}>
+          <div>
+            <SectionLabel>Yield Curve (10Y – 3M)</SectionLabel>
+            <div style={{ fontFamily: "Manrope, sans-serif", fontSize: "1.65rem", fontWeight: 700, color: macro.inverted ? "var(--red)" : "var(--green)", fontVariantNumeric: "tabular-nums", letterSpacing: "-0.02em", marginTop: 4 }}>
+              {macro.curve_spread > 0 ? "+" : ""}{macro.curve_spread.toFixed(2)}%
+            </div>
+          </div>
+          <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.08)" }} />
+          <div style={{ padding: "8px 18px", borderRadius: "var(--r-xl)", background: macro.inverted ? "rgba(212,133,133,0.15)" : "rgba(134,179,138,0.15)", border: `1px solid ${macro.inverted ? "rgba(212,133,133,0.3)" : "rgba(134,179,138,0.3)"}` }}>
+            <div style={{ fontSize: "0.58rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: macro.inverted ? "var(--red)" : "var(--green)", marginBottom: 2 }}>
+              {macro.inverted ? "Inverted" : "Normal"}
+            </div>
+            <div style={{ fontSize: "0.7rem", color: "var(--t3)" }}>
+              {macro.inverted ? "Recession signal" : "Expansion regime"}
+            </div>
+          </div>
+        </Card>
+      )}
+
+      {ORDER.map(cat => {
+        const items = macro.macro.filter(m => m.category === cat);
+        if (items.length === 0) return null;
+        return (
+          <Card key={cat} variant="default" pad="none">
+            <div style={{ padding: "10px 20px 8px", borderBottom: "1px solid var(--card-border)" }}>
+              <span style={{ fontSize: "0.6rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--orange)" }}>{LABELS[cat]}</span>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))" }}>
+              {items.map((m, i) => (
+                <div key={m.symbol} style={{
+                  padding: "14px 18px",
+                  borderRight: (i + 1) % Math.ceil(items.length / Math.ceil(items.length / 4)) === 0 ? "none" : "1px solid var(--card-border)",
+                  borderBottom: i < items.length - Math.ceil(items.length / 2) ? "1px solid var(--card-border)" : "none",
+                }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
+                    <div>
+                      <div style={{ fontSize: "0.7rem", fontWeight: 700, color: "var(--t1)" }}>{m.label}</div>
+                      <div style={{ fontSize: "0.56rem", color: "var(--t3)", marginTop: 1 }}>{m.symbol}</div>
+                    </div>
+                    <SparkInline data={m.spark} color={m.change_1m_pct >= 0 ? "var(--green)" : "var(--red)"} />
+                  </div>
+                  <div style={{ fontFamily: "Manrope, sans-serif", fontSize: "1.15rem", fontWeight: 700, color: "var(--t1)", fontVariantNumeric: "tabular-nums", letterSpacing: "-0.01em", marginBottom: 8 }}>
+                    {m.price.toLocaleString(undefined, { maximumFractionDigits: m.price < 10 ? 4 : m.price < 100 ? 2 : 0 })}
+                  </div>
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    {[
+                      { l: "1D", v: m.change_1d_pct },
+                      { l: "1W", v: m.change_1w_pct },
+                      { l: "1M", v: m.change_1m_pct },
+                      { l: "3M", v: m.change_3m_pct },
+                    ].map(d => (
+                      <div key={d.l} style={{ textAlign: "center" }}>
+                        <div style={{ fontSize: "0.5rem", color: "var(--t3)", textTransform: "uppercase", letterSpacing: "0.06em" }}>{d.l}</div>
+                        <div style={{ fontSize: "0.68rem", fontWeight: 700, color: pctColor(d.v), fontVariantNumeric: "tabular-nums" }}>{fmtPct(d.v, 1)}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Card>
+        );
+      })}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Internals (Breadth deep-dive)
+// ---------------------------------------------------------------------------
+function InternalsView({ breadth, overview }: { breadth: BreadthData | undefined; overview: OverviewData | undefined }) {
+  const fg = fearGreedProxy(breadth);
+
+  const fgArc = (score: number) => {
+    const angle = (score / 100) * Math.PI;
+    const r = 52;
+    const cx = 70, cy = 70;
+    const x = cx - r * Math.cos(angle);
+    const y = cy - r * Math.sin(angle);
+    return `M ${cx - r} ${cy} A ${r} ${r} 0 0 1 ${x} ${y}`;
+  };
+
+  const stressScore = overview?.stress?.score ?? 0;
+  const stressComponents = overview?.stress?.components ?? {};
+
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16 }}>
+
+      {/* Fear / Greed gauge */}
+      <Card variant="dark" pad="lg" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
+        <SectionLabel style={{ alignSelf: "flex-start" }}>Fear / Greed Index</SectionLabel>
+        <div style={{ position: "relative", width: 140, height: 78 }}>
+          <svg viewBox="0 0 140 80" style={{ width: 140, height: 80 }}>
+            {/* BG arc */}
+            <path d="M 18 70 A 52 52 0 0 1 122 70" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth={10} strokeLinecap="round" />
+            {/* Colored arc */}
+            <path d={fgArc(fg.score).replace("M 18 70", "M 18 70")} fill="none"
+              stroke={fg.color.replace("var(--green)", "#86B38A").replace("var(--orange)", "#D4943A").replace("var(--red)", "#D48585").replace("var(--t1)", "#CBD5E1")}
+              strokeWidth={10} strokeLinecap="round" />
+          </svg>
+          <div style={{ position: "absolute", bottom: 0, left: "50%", transform: "translateX(-50%)", textAlign: "center" }}>
+            <div style={{ fontFamily: "Manrope, sans-serif", fontSize: "1.85rem", fontWeight: 700, color: fg.color, lineHeight: 1, letterSpacing: "-0.02em" }}>{fg.score}</div>
+          </div>
+        </div>
+        <div style={{ fontSize: "0.82rem", fontWeight: 700, color: fg.color, letterSpacing: "0.02em" }}>{fg.label}</div>
+        <div style={{ display: "flex", gap: 4, fontSize: "0.55rem", color: "var(--t3)" }}>
+          {["Extreme Fear", "Fear", "Neutral", "Greed", "Extreme Greed"].map((l, i) => (
+            <span key={l} style={{ padding: "2px 5px", borderRadius: 3, background: "rgba(255,255,255,0.05)" }}>{l}</span>
+          ))}
+        </div>
+      </Card>
+
+      {/* Yield Curve */}
+      <Card variant="dark" pad="lg" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        <SectionLabel>Yield Curve</SectionLabel>
+        <div style={{ fontFamily: "Manrope, sans-serif", fontSize: "1.65rem", fontWeight: 700, letterSpacing: "-0.02em", lineHeight: 1, color: breadth?.yield_spread != null ? (breadth.yield_spread < 0 ? "var(--red)" : "var(--green)") : "var(--t3)" }}>
+          {breadth?.yield_spread != null ? `${breadth.yield_spread > 0 ? "+" : ""}${breadth.yield_spread.toFixed(2)}%` : "—"}
+        </div>
+        <div style={{ fontSize: "0.68rem", color: "var(--t3)" }}>10Y – 3M spread</div>
+        {breadth?.yield_spread != null && (
+          <div style={{ padding: "8px 12px", borderRadius: "var(--r-md)", background: breadth.yield_spread < 0 ? "rgba(212,133,133,0.12)" : "rgba(134,179,138,0.12)", marginTop: 4 }}>
+            <div style={{ fontSize: "0.7rem", fontWeight: 700, color: breadth.yield_spread < 0 ? "var(--red)" : "var(--green)" }}>
+              {breadth.yield_spread < 0 ? "Inverted — recession signal" : "Normal — expansionary"}
+            </div>
+          </div>
+        )}
+        <div style={{ marginTop: 4 }}>
+          {[
+            { l: "US 10Y", v: overview?.indices?.find(i => i.symbol === "^TNX")?.price },
+            { l: "Gold",   v: overview?.indices?.find(i => i.symbol === "GC=F")?.price },
+          ].filter(r => r.v != null).map(r => (
+            <div key={r.l} style={{ display: "flex", justifyContent: "space-between", fontSize: "0.68rem", padding: "4px 0", borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+              <span style={{ color: "var(--t3)" }}>{r.l}</span>
+              <span style={{ color: "var(--t1)", fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>{r.v?.toFixed(2)}</span>
+            </div>
+          ))}
+        </div>
+      </Card>
+
+      {/* Market Stress */}
+      <Card variant="dark" pad="lg" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        <SectionLabel>Market Stress Score</SectionLabel>
+        <div style={{ display: "flex", alignItems: "flex-end", gap: 10 }}>
+          <div style={{ fontFamily: "Manrope, sans-serif", fontSize: "1.85rem", fontWeight: 700, color: stressScore >= 75 ? "var(--red)" : stressScore >= 50 ? "var(--orange)" : stressScore >= 25 ? "var(--t1)" : "var(--green)", letterSpacing: "-0.02em", lineHeight: 1 }}>
+            {stressScore.toFixed(0)}
+          </div>
+          <div style={{ fontSize: "0.72rem", color: "var(--t3)", marginBottom: 4 }}>{overview?.stress?.regime ?? "—"}</div>
+        </div>
+        <div style={{ height: 4, background: "rgba(255,255,255,0.08)", borderRadius: 2, overflow: "hidden", marginTop: 2 }}>
+          <div style={{ height: "100%", width: `${stressScore}%`, background: stressScore >= 75 ? "var(--red)" : stressScore >= 50 ? "var(--orange)" : "var(--green)", borderRadius: 2, transition: "width 0.5s" }} />
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 5, marginTop: 6 }}>
+          {Object.entries(stressComponents).map(([k, v]) => (
+            <div key={k} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+              <span style={{ fontSize: "0.62rem", color: "var(--t3)", textTransform: "capitalize" }}>{k.replace(/_/g, " ")}</span>
+              <div style={{ flex: 1, height: 2, background: "rgba(255,255,255,0.06)", borderRadius: 1, overflow: "hidden", maxWidth: 70 }}>
+                <div style={{ height: "100%", width: `${v}%`, background: v >= 75 ? "var(--red)" : v >= 50 ? "var(--orange)" : "var(--green)", borderRadius: 1 }} />
+              </div>
+              <span style={{ fontSize: "0.62rem", color: "var(--t1)", fontWeight: 600, fontVariantNumeric: "tabular-nums", minWidth: 24, textAlign: "right" }}>{v.toFixed(0)}</span>
+            </div>
+          ))}
+        </div>
+      </Card>
+
+      {/* A/D Breadth */}
+      <Card variant="default" pad="lg" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        <SectionLabel>Advancers / Decliners</SectionLabel>
+        <div style={{ fontFamily: "Manrope, sans-serif", fontSize: "1.65rem", fontWeight: 700, color: (breadth?.ad_ratio ?? 1) >= 1 ? "var(--green)" : "var(--red)", fontVariantNumeric: "tabular-nums", letterSpacing: "-0.02em", lineHeight: 1 }}>
+          {breadth?.advancing ?? 0} <span style={{ fontSize: "0.9rem", color: "var(--t3)", fontWeight: 500 }}>vs</span> {breadth?.declining ?? 0}
+        </div>
+        <div style={{ height: 6, background: "var(--bg-inner)", borderRadius: 3, overflow: "hidden" }}>
+          <div style={{ height: "100%", width: `${((breadth?.advancing ?? 0) / ((breadth?.advancing ?? 0) + (breadth?.declining ?? 0) || 1)) * 100}%`, background: "var(--green)", borderRadius: 3, transition: "width 0.4s" }} />
+        </div>
+        <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.65rem" }}>
+          <span style={{ color: "var(--green)" }}>▲ Advancing sectors</span>
+          <span style={{ color: "var(--red)" }}>▼ Declining</span>
+        </div>
+        <div style={{ marginTop: 4, display: "flex", justifyContent: "space-between", fontSize: "0.7rem" }}>
+          <span style={{ color: "var(--t3)" }}>A/D Ratio</span>
+          <span style={{ fontWeight: 700, color: (breadth?.ad_ratio ?? 1) >= 1 ? "var(--green)" : "var(--red)", fontVariantNumeric: "tabular-nums" }}>{(breadth?.ad_ratio ?? 1).toFixed(2)}x</span>
+        </div>
+      </Card>
+
+      {/* RSI Overview */}
+      <Card variant="default" pad="lg" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        <SectionLabel>Market RSI (avg)</SectionLabel>
+        <div style={{ fontFamily: "Manrope, sans-serif", fontSize: "1.65rem", fontWeight: 700, fontVariantNumeric: "tabular-nums", letterSpacing: "-0.02em", lineHeight: 1,
+          color: (breadth?.avg_rsi_14 ?? 50) > 70 ? "var(--red)" : (breadth?.avg_rsi_14 ?? 50) < 30 ? "var(--green)" : "var(--t1)" }}>
+          {breadth?.avg_rsi_14 != null ? breadth.avg_rsi_14.toFixed(1) : "—"}
+        </div>
+        <div style={{ position: "relative", height: 6, background: "var(--bg-inner)", borderRadius: 3, overflow: "hidden" }}>
+          <div style={{ height: "100%", width: `${breadth?.avg_rsi_14 ?? 50}%`, background: `linear-gradient(to right, var(--green), var(--orange) 60%, var(--red))`, borderRadius: 3 }} />
+        </div>
+        <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.58rem", color: "var(--t3)" }}>
+          <span>0 Oversold</span><span>50</span><span>Overbought 100</span>
+        </div>
+        <div style={{ marginTop: 4, display: "flex", gap: 8 }}>
+          {[
+            { l: ">200MA", v: `${breadth?.sectors_above_200ma ?? 0}/${breadth?.total ?? 11}` },
+            { l: ">50MA",  v: `${breadth?.sectors_above_50ma  ?? 0}/${breadth?.total ?? 11}` },
+          ].map(m => (
+            <div key={m.l} style={{ flex: 1, padding: "6px 8px", background: "var(--bg-inner)", borderRadius: "var(--r-md)", textAlign: "center" }}>
+              <div style={{ fontSize: "0.5rem", color: "var(--t3)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 2 }}>{m.l}</div>
+              <div style={{ fontSize: "0.78rem", fontWeight: 700, color: "var(--t1)", fontVariantNumeric: "tabular-nums" }}>{m.v}</div>
+            </div>
+          ))}
+        </div>
+      </Card>
+
+      {/* Bullish/Bearish tally */}
+      <Card variant="default" pad="lg" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        <SectionLabel>Bull/Bear Tally</SectionLabel>
+        <div style={{ display: "flex", gap: 16 }}>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: "0.58rem", fontWeight: 700, letterSpacing: "0.07em", textTransform: "uppercase", color: "var(--green)", marginBottom: 4 }}>Bullish</div>
+            <div style={{ fontFamily: "Manrope, sans-serif", fontSize: "1.65rem", fontWeight: 700, color: "var(--green)", lineHeight: 1, letterSpacing: "-0.02em" }}>{breadth?.bullish ?? 0}</div>
+            <div style={{ fontSize: "0.62rem", color: "var(--t3)", marginTop: 2 }}>above 200MA + up 1M</div>
+          </div>
+          <div style={{ width: 1, background: "var(--card-border)" }} />
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: "0.58rem", fontWeight: 700, letterSpacing: "0.07em", textTransform: "uppercase", color: "var(--red)", marginBottom: 4 }}>Bearish</div>
+            <div style={{ fontFamily: "Manrope, sans-serif", fontSize: "1.65rem", fontWeight: 700, color: "var(--red)", lineHeight: 1, letterSpacing: "-0.02em" }}>{breadth?.bearish ?? 0}</div>
+            <div style={{ fontSize: "0.62rem", color: "var(--t3)", marginTop: 2 }}>below 200MA + down 1M</div>
+          </div>
+        </div>
+        <div style={{ marginTop: 8 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.68rem", marginBottom: 4 }}>
+            <span style={{ color: "var(--t3)" }}>Bias</span>
+            <span style={{ fontWeight: 700, color: (breadth?.bullish ?? 0) > (breadth?.bearish ?? 0) ? "var(--green)" : "var(--red)" }}>
+              {(breadth?.bullish ?? 0) > (breadth?.bearish ?? 0) ? "Bullish" : (breadth?.bullish ?? 0) < (breadth?.bearish ?? 0) ? "Bearish" : "Mixed"}
+            </span>
+          </div>
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Tab Bar
+// ---------------------------------------------------------------------------
+type MarketTab = "sectors" | "indices" | "macro" | "internals";
+const TABS: { id: MarketTab; label: string }[] = [
+  { id: "sectors",   label: "Sectors" },
+  { id: "indices",   label: "Global Indices" },
+  { id: "macro",     label: "Macro" },
+  { id: "internals", label: "Internals" },
+];
 
 // ---------------------------------------------------------------------------
 // Page

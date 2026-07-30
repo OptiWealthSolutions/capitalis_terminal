@@ -93,7 +93,8 @@ export function InvestorModeProvider({ children }: { children: ReactNode }) {
       try { setProfileState(JSON.parse(p)); } catch {}
     } else {
       // First visit — auto-open profile modal after 1.2s delay
-      if (!localStorage.getItem(ONBOARDED_KEY)) {
+      const neverShow = localStorage.getItem("capitalis_profile_modal_never");
+      if (!localStorage.getItem(ONBOARDED_KEY) && !neverShow) {
         const timer = setTimeout(() => setShow(true), 1200);
         return () => clearTimeout(timer);
       }

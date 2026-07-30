@@ -11,6 +11,7 @@ import { useI18n } from "@/lib/i18n";
 import { get, post, del, errMsg } from "@/lib/api";
 import BrokerConnector from "@/components/BrokerConnector";
 import ShareButton from "@/components/ShareButton";
+import TickerLogo from "@/components/ui/TickerLogo";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -242,13 +243,18 @@ export default function TrackerPage() {
 
   // ---------------------------------------------------------------------------
   return (
-    <div className="p-4 sm:p-6 xl:px-8 max-w-[2000px] mx-auto fade-in">
+    <div className="fade-in" style={{ padding: "28px 32px", maxWidth: 1600, margin: "0 auto" }}>
 
       {/* ── Header ── */}
-      <div className="mb-5 flex items-start justify-between flex-wrap gap-3">
+      <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", flexWrap: "wrap", gap: 14, marginBottom: 24 }}>
         <div>
-          <h1 style={{ fontSize: "1.5rem", fontWeight: 600, color: "var(--t1)" }}>{t.tracker.title}</h1>
-          <p style={{ color: "var(--t2)", fontSize: "0.85rem", marginTop: 4 }}>
+          <p style={{ fontSize: "0.7rem", fontWeight: 500, letterSpacing: "0.06em", color: "var(--t3)", marginBottom: 4, textTransform: "uppercase" }}>
+            Capital
+          </p>
+          <h1 style={{ fontFamily: "Manrope, DM Sans, sans-serif", fontSize: "1.75rem", fontWeight: 700, color: "var(--t1)", letterSpacing: "-0.015em", lineHeight: 1.15 }}>
+            {t.tracker.title}
+          </h1>
+          <p style={{ fontSize: "0.82rem", color: "var(--t3)", marginTop: 4 }}>
             {t.tracker.subtitle}
           </p>
         </div>
@@ -313,36 +319,32 @@ export default function TrackerPage() {
 
       {/* ── Portfolio tabs ── */}
       {portfolios.length > 0 && (
-        <div
-          className="flex items-center gap-0 mb-5 border-b"
-          style={{ borderColor: "var(--border)" }}
-        >
+        <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 20, borderBottom: "1px solid var(--card-border)", paddingBottom: 0 }}>
           {portfolios.map(pf => (
-            <div key={pf.id} className="flex items-center group">
+            <div key={pf.id} style={{ display: "flex", alignItems: "center", position: "relative" }} className="group">
               <button
                 onClick={() => setActiveId(pf.id)}
-                className="flex items-center gap-1.5 pb-2.5 px-1 mr-5 text-xs border-b-2 -mb-px transition-colors"
                 style={{
-                  borderColor: activeId === pf.id ? "var(--orange)" : "transparent",
+                  display: "flex", alignItems: "center", gap: 6,
+                  paddingBottom: 10, paddingLeft: 4, paddingRight: 4, marginRight: 16,
+                  marginBottom: -1,
+                  fontSize: "0.78rem", background: "none", border: "none",
+                  borderBottom: `2px solid ${activeId === pf.id ? "var(--orange)" : "transparent"}`,
                   color: activeId === pf.id ? "var(--orange)" : "var(--t3)",
                   fontWeight: activeId === pf.id ? 600 : 400,
+                  cursor: "pointer", transition: "color 0.1s",
                 }}
               >
                 {pf.name}
-                <span
-                  className="text-xs"
-                  style={{ color: activeId === pf.id ? "var(--orange)" : "var(--t3)", opacity: 0.7 }}
-                >
-                  ({pf.positions.length})
-                </span>
+                <span style={{ fontSize: "0.65rem", opacity: 0.7 }}>({pf.positions.length})</span>
               </button>
               <button
                 onClick={() => deletePortfolio(pf.id)}
-                className="opacity-0 group-hover:opacity-100 -ml-4 mr-3 mb-2.5 transition-opacity"
-                style={{ color: "var(--t3)" }}
+                className="opacity-0 group-hover:opacity-100"
+                style={{ position: "absolute", right: 0, top: 0, color: "var(--t3)", background: "none", border: "none", cursor: "pointer", padding: 2 }}
                 title="Delete portfolio"
               >
-                <X size={11} />
+                <X size={10} />
               </button>
             </div>
           ))}
@@ -352,9 +354,11 @@ export default function TrackerPage() {
       {portfolios.length === 0 ? (
         /* ── Empty state ── */
         <div
-          className="flex flex-col items-center justify-center rounded border text-center"
           style={{
-            borderColor: "var(--border)", borderStyle: "dashed",
+            display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+            textAlign: "center",
+            borderRadius: "var(--r-xl)",
+            border: "1px dashed var(--card-border)",
             background: "var(--bg-card)", minHeight: 320, gap: 12,
           }}
         >
@@ -370,7 +374,7 @@ export default function TrackerPage() {
       ) : (
         <>
           {/* ── KPI tiles ── */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 12, marginBottom: 20 }}>
             <StatTile label="Invested"     value={fmtEur(totals.cost)} icon={<Wallet size={14} />} />
             <StatTile label="Market value" value={fmtEur(totals.mv)}   icon={<TrendingUp size={14} />} />
             <StatTile
@@ -387,7 +391,7 @@ export default function TrackerPage() {
 
           {/* ── Add position form ── */}
           {formOpen && (
-            <section className="card mb-5">
+            <section style={{ background: "var(--bg-card)", border: "1px solid var(--card-border)", borderRadius: "var(--r-xl)", padding: "20px 24px", marginBottom: 16 }}>
               <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
                 <Field label="Ticker">
                   <input
@@ -433,7 +437,7 @@ export default function TrackerPage() {
           )}
 
           {/* ── Positions table ── */}
-          <section className="card" style={{ padding: 0, overflow: "hidden" }}>
+          <section style={{ background: "var(--bg-card)", border: "1px solid var(--card-border)", borderRadius: "var(--r-xl)", padding: 0, overflow: "hidden" }}>
             {rows.length === 0 ? (
               <div style={{ padding: "48px 24px", textAlign: "center", color: "var(--t3)", fontSize: "0.85rem" }}>
                 No positions in <strong style={{ color: "var(--t1)" }}>{activePf?.name}</strong>.
@@ -461,7 +465,12 @@ export default function TrackerPage() {
                     const tone = r.pnl === null ? "" : r.pnl >= 0 ? "delta-up" : "delta-down";
                     return (
                       <tr key={r.p.id}>
-                        <td className="ticker">{r.p.ticker}</td>
+                        <td className="ticker">
+                          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                            <TickerLogo ticker={r.p.ticker} size={22} />
+                            <span>{r.p.ticker}</span>
+                          </div>
+                        </td>
                         <td style={{ color: "var(--t2)" }}>{r.p.entry_date}</td>
                         <td className="num">{r.p.shares}</td>
                         <td className="num">{r.p.entry_price.toFixed(2)}</td>
@@ -497,8 +506,7 @@ export default function TrackerPage() {
           style={{ background: "rgba(0,0,0,0.55)", backdropFilter: "blur(4px)" }}
         >
           <div
-            className="w-72 rounded-lg border p-6 space-y-4"
-            style={{ background: "var(--bg-card)", borderColor: "var(--border)" }}
+            style={{ width: 320, background: "var(--bg-surface)", border: "1px solid var(--card-border)", borderRadius: "var(--r-xl)", padding: "24px", display: "flex", flexDirection: "column", gap: 16, boxShadow: "0 16px 48px rgba(0,0,0,0.4)" }}
           >
             <div className="flex items-center justify-between">
               <span className="text-sm font-semibold" style={{ color: "var(--t1)" }}>New Portfolio</span>
@@ -548,18 +556,14 @@ function StatTile({ label, value, icon, tone }: {
   const color = tone === "up" ? "var(--green)" : tone === "down" ? "var(--red)" : "var(--t1)";
   return (
     <div style={{
-      background: "var(--bg-card)", border: "1px solid var(--border)",
-      borderTopColor: "var(--border-hi)", borderRadius: "var(--r)",
-      padding: "14px 16px", boxShadow: "var(--card-shadow)",
+      background: "var(--bg-card)", border: "1px solid var(--card-border)",
+      borderRadius: "var(--r-xl)", padding: "16px 20px",
     }}>
-      <div className="flex items-center gap-1.5" style={{
-        color: "var(--t2)", fontSize: "0.65rem", fontWeight: 600,
-        letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: 8,
-      }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 6, color: "var(--t3)", fontSize: "0.6rem", fontWeight: 600, letterSpacing: "0.07em", textTransform: "uppercase", marginBottom: 10 }}>
         <span style={{ color: "var(--orange)" }}>{icon}</span>
         {label}
       </div>
-      <div className="mono" style={{ fontSize: "1.3rem", fontWeight: 600, color, letterSpacing: "-0.02em", lineHeight: 1.1 }}>
+      <div style={{ fontFamily: "Manrope, DM Sans, sans-serif", fontSize: "1.35rem", fontWeight: 700, color, letterSpacing: "-0.02em", lineHeight: 1, fontVariantNumeric: "tabular-nums" }}>
         {value}
       </div>
     </div>

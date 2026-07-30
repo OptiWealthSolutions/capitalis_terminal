@@ -21,9 +21,17 @@ import yfinance as yf
 
 logger = logging.getLogger(__name__)
 
+import requests
+
 _DEFAULT_TIMEOUT = 30   # seconds per yfinance call
 _MAX_RETRIES     = 2
 _RETRY_DELAY     = 1.5  # seconds between retries
+
+# Global session with browser-like headers to avoid "Invalid Crumb" / 401 errors
+_SESSION = requests.Session()
+_SESSION.headers.update({
+    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36"
+})
 
 
 def _run_with_timeout(fn, *args, timeout: float = _DEFAULT_TIMEOUT, **kwargs):
@@ -61,6 +69,7 @@ def safe_download(
                 progress=False,
                 auto_adjust=True,
                 timeout=timeout,
+                session=_SESSION,
                 **kwargs,
             )
             if result is None:
@@ -97,7 +106,7 @@ def safe_ticker_info(
     for attempt in range(retries + 1):
         try:
             result = _run_with_timeout(
-                lambda t=ticker: yf.Ticker(t).info,
+                lambda t=ticker: yf.Ticker(t, session=_SESSION).info,
                 timeout=timeout,
             )
             if result and isinstance(result, dict) and result.get("symbol"):
@@ -135,7 +144,7 @@ def safe_ticker_fast_info(
     """
     try:
         result = _run_with_timeout(
-            lambda t=ticker: dict(yf.Ticker(t).fast_info),
+            lambda t=ticker: dict(yf.Ticker(t, session=_SESSION).fast_info),
             timeout=timeout,
         )
         return result or {}

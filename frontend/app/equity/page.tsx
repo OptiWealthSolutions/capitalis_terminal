@@ -496,9 +496,9 @@ export default function EquityPage() {
               <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
 
                 {/* Key Statistics card */}
-                <div style={{ background: "var(--bg-card)", border: "1px solid var(--card-border)", borderRadius: "var(--r-xl)", overflow: "hidden" }}>
-                  <div style={{ padding: "14px 20px", borderBottom: "1px solid var(--card-border)" }}>
-                    <span style={{ fontFamily: "Manrope, DM Sans, sans-serif", fontSize: "1rem", fontWeight: 700, color: "var(--t1)" }}>Key Statistics</span>
+                <div style={{ background: "#0F172A", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "var(--r-xl)", overflow: "hidden" }}>
+                  <div style={{ padding: "14px 20px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+                    <span style={{ fontFamily: "Manrope, DM Sans, sans-serif", fontSize: "1rem", fontWeight: 700, color: "#F1F5F9" }}>Key Statistics</span>
                   </div>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", padding: "4px 0" }}>
                     {[
@@ -509,25 +509,25 @@ export default function EquityPage() {
                       { label: "52W HIGH",    value: fund?.fiftyTwoWeekHigh != null ? formatCurrency(n(fund.fiftyTwoWeekHigh)!, (fund.currency as string) ?? "USD") : "—" },
                       { label: "52W LOW",     value: fund?.fiftyTwoWeekLow  != null ? formatCurrency(n(fund.fiftyTwoWeekLow)!,  (fund.currency as string) ?? "USD") : "—" },
                     ].map((stat, i) => (
-                      <div key={stat.label} style={{ padding: "14px 20px", borderBottom: i < 4 ? "1px solid var(--card-border)" : "none", borderRight: i % 2 === 0 ? "1px solid var(--card-border)" : "none" }}>
-                        <p style={{ fontSize: "0.58rem", fontWeight: 700, letterSpacing: "0.07em", textTransform: "uppercase", color: "var(--t3)", marginBottom: 6 }}>{stat.label}</p>
-                        <p style={{ fontFamily: "Manrope, sans-serif", fontSize: "1.15rem", fontWeight: 700, color: "var(--t1)", fontVariantNumeric: "tabular-nums", letterSpacing: "-0.01em" }}>{stat.value}</p>
+                      <div key={stat.label} style={{ padding: "14px 20px", borderBottom: i < 4 ? "1px solid rgba(255,255,255,0.06)" : "none", borderRight: i % 2 === 0 ? "1px solid rgba(255,255,255,0.06)" : "none" }}>
+                        <p style={{ fontSize: "0.58rem", fontWeight: 700, letterSpacing: "0.07em", textTransform: "uppercase", color: "rgba(241,245,249,0.45)", marginBottom: 6 }}>{stat.label}</p>
+                        <p style={{ fontFamily: "Manrope, sans-serif", fontSize: "1.15rem", fontWeight: 700, color: "#F1F5F9", fontVariantNumeric: "tabular-nums", letterSpacing: "-0.01em" }}>{stat.value}</p>
                       </div>
                     ))}
                   </div>
                   {recLabel != null && (
-                    <div style={{ padding: "14px 20px", borderTop: "1px solid var(--card-border)" }}>
-                      <p style={{ fontSize: "0.58rem", fontWeight: 700, letterSpacing: "0.07em", textTransform: "uppercase", color: "var(--t3)", marginBottom: 10 }}>
+                    <div style={{ padding: "14px 20px", borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+                      <p style={{ fontSize: "0.58rem", fontWeight: 700, letterSpacing: "0.07em", textTransform: "uppercase", color: "rgba(241,245,249,0.45)", marginBottom: 10 }}>
                         Analyst Consensus{fund?.numberOfAnalystOpinions != null && ` · ${String(fund.numberOfAnalystOpinions)} analysts`}
                       </p>
                       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                        <div style={{ flex: 1, height: 6, borderRadius: 3, background: "var(--bg-hover)", overflow: "hidden" }}>
+                        <div style={{ flex: 1, height: 6, borderRadius: 3, background: "rgba(255,255,255,0.08)", overflow: "hidden" }}>
                           <div style={{ width: `${recBarPct}%`, height: "100%", background: recColor, borderRadius: 3, transition: "width 0.4s ease" }} />
                         </div>
                         <span style={{ fontSize: "0.78rem", fontWeight: 800, color: recColor, letterSpacing: "0.04em", flexShrink: 0 }}>{recLabel}</span>
                       </div>
                       {fund?.targetMeanPrice != null && currentPrice != null && (
-                        <p style={{ fontSize: "0.68rem", color: "var(--t3)", marginTop: 6 }}>
+                        <p style={{ fontSize: "0.68rem", color: "rgba(241,245,249,0.45)", marginTop: 6 }}>
                           Mean target: <span style={{ color: n(fund.targetMeanPrice)! > currentPrice ? "var(--green)" : "var(--red)", fontWeight: 600 }}>{formatCurrency(n(fund.targetMeanPrice)!, (fund.currency as string) ?? "USD")}</span>
                           <span style={{ marginLeft: 6 }}>({((n(fund.targetMeanPrice)! - currentPrice) / currentPrice * 100).toFixed(1)}% upside)</span>
                         </p>

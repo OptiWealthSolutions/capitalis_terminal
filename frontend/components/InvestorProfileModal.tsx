@@ -163,6 +163,7 @@ export default function InvestorProfileModal() {
 
   function neverShow() {
     localStorage.setItem("capitalis_profile_modal_never", "1");
+    localStorage.setItem("capitalis_onboarded", "1");
     sessionStorage.setItem("capitalis_profile_modal_dismissed", "1");
     closeProfileModal();
   }

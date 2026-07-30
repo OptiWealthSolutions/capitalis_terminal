@@ -1,5 +1,6 @@
 "use client";
 
+import React from "react";
 import type { CSSProperties, ReactNode } from "react";
 
 /**
@@ -25,6 +26,12 @@ const VARIANT_BG: Record<CardVariant, string> = {
   inner:   "var(--bg-inner)",
   dark:    "#0F172A",
   ghost:   "transparent",
+};
+const VARIANT_COLOR: Record<CardVariant, string | undefined> = {
+  default: undefined,
+  inner:   undefined,
+  dark:    "#F1F5F9",
+  ghost:   undefined,
 };
 const VARIANT_BORDER: Record<CardVariant, string> = {
   default: "1px solid var(--card-border)",
@@ -63,8 +70,15 @@ export function Card({
         border:       VARIANT_BORDER[variant],
         borderRadius: "var(--r-xl)",
         padding:      PAD[pad],
+        color:        VARIANT_COLOR[variant],
         cursor:       onClick ? "pointer" : undefined,
         transition:   hoverable ? "border-color 0.15s, background 0.12s" : undefined,
+        ...(variant === "dark" ? {
+          "--t1": "#F1F5F9",
+          "--t2": "#CBD5E1",
+          "--t3": "rgba(241,245,249,0.45)",
+          "--card-border": "rgba(255,255,255,0.06)",
+        } as React.CSSProperties : {}),
         ...style,
       }}
       onMouseEnter={hoverable ? e => (e.currentTarget.style.borderColor = "var(--orange-border)") : undefined}

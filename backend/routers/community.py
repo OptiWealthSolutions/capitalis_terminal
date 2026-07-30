@@ -177,3 +177,156 @@ def admin_deactivate_poll(poll_id: str, current_user: dict = Depends(get_current
     if not _is_admin(current_user):
         raise HTTPException(status_code=403, detail="Admin access required.")
     deactivate_poll(poll_id)
+
+
+# ---------------------------------------------------------------------------
+# GET /community/leaderboard
+# Real performance ranking from user tracker portfolios.
+# Computes total return since entry (current value vs cost basis).
+# Cached 30 min — recomputation cost dominated by yfinance batch fetch.
+# ---------------------------------------------------------------------------
+@router.get("/leaderboard")
+def get_leaderboard(
+    limit: int = Query(default=10, ge=1, le=50),
+    current_user: dict = Depends(get_current_user),
+):
+    import json as _json
+    import sqlite3 as _sq3
+    from pathlib import Path as _P
+    import yfinance as _yf
+    import numpy as _np
+
+    from ..cache.memory_cache import cache as _cache
+
+    cache_key = f"leaderboard:totalret:{limit}"
+    cached = _cache.get(cache_key)
+
+    if cached is None:
+        ROOT = _P(__file__).resolve().parent.parent.parent
+        tracker_db = ROOT / "data" / "tracker_v2.db"
+        users_db   = ROOT / "data" / "users.db"
+
+        rows: list[dict] = []
+        try:
+            with _sq3.connect(str(tracker_db)) as tconn:
+                tconn.row_factory = _sq3.Row
+                trk_rows = tconn.execute(
+                    "SELECT user_id, name, data, created_at FROM tracker_portfolios ORDER BY created_at DESC"
+                ).fetchall()
+        except Exception as e:
+            logger.warning("tracker_db read failed: %s", e)
+            trk_rows = []
+
+        try:
+            with _sq3.connect(str(users_db)) as uconn:
+                uconn.row_factory = _sq3.Row
+                user_rows = uconn.execute(
+                    "SELECT id, email, display_name, avatar_url FROM users"
+                ).fetchall()
+            users_by_id = {r["id"]: dict(r) for r in user_rows}
+        except Exception as e:
+            logger.warning("users_db read failed: %s", e)
+            users_by_id = {}
+
+        # Pick latest portfolio per user
+        latest: dict[str, dict] = {}
+        for r in trk_rows:
+            uid = r["user_id"]
+            if uid in latest:
+                continue
+            try:
+                payload = _json.loads(r["data"])
+                positions = payload.get("positions") or []
+                if positions:
+                    latest[uid] = {"name": r["name"], "positions": positions}
+            except Exception:
+                continue
+
+        all_tickers = sorted({(p.get("ticker") or "").upper().strip()
+                              for d in latest.values() for p in d["positions"]
+                              if p.get("ticker")})
+
+        prices: dict[str, float] = {}
+        if all_tickers:
+            try:
+                # Batch fetch last 5d closes, take last
+                hist = _yf.download(
+                    tickers=all_tickers, period="5d", progress=False, auto_adjust=True,
+                )
+                if hist is not None and not hist.empty:
+                    closes = hist["Close"] if "Close" in getattr(hist, "columns", []) else hist
+                    if hasattr(closes, "iloc"):
+                        last = closes.iloc[-1]
+                        if hasattr(last, "items"):
+                            for tk, v in last.items():
+                                try:
+                                    f = float(v)
+                                    if not _np.isnan(f):
+                                        prices[str(tk).upper()] = f
+                                except Exception:
+                                    continue
+                        else:
+                            try:
+                                f = float(last)
+                                if not _np.isnan(f):
+                                    prices[all_tickers[0]] = f
+                            except Exception:
+                                pass
+            except Exception as e:
+                logger.warning("leaderboard price fetch failed: %s", e)
+
+        # Compute total return per user
+        leaderboard: list[dict] = []
+        for uid, d in latest.items():
+            cost = 0.0
+            value = 0.0
+            for p in d["positions"]:
+                tk = (p.get("ticker") or "").upper().strip()
+                shares = float(p.get("shares") or 0)
+                entry  = float(p.get("entry_price") or 0)
+                if not tk or shares <= 0 or entry <= 0:
+                    continue
+                last_px = prices.get(tk)
+                if last_px is None:
+                    continue
+                cost += shares * entry
+                value += shares * last_px
+            if cost <= 0:
+                continue
+            ret_pct = (value - cost) / cost * 100.0
+            u = users_by_id.get(uid, {})
+            handle = u.get("display_name") or (u.get("email") or "").split("@")[0] or uid[:8]
+            leaderboard.append({
+                "user_id":      uid,
+                "display_name": handle,
+                "avatar_url":   u.get("avatar_url"),
+                "return_pct":   round(ret_pct, 2),
+                "cost":         round(cost, 2),
+                "value":        round(value, 2),
+                "positions_count": len([1 for p in d["positions"]
+                                        if (p.get("ticker") or "").upper() in prices]),
+            })
+
+        leaderboard.sort(key=lambda x: x["return_pct"], reverse=True)
+        for i, row in enumerate(leaderboard, 1):
+            row["rank"] = i
+
+        cached = {"leaderboard": leaderboard, "total_users": len(leaderboard)}
+        _cache.set(cache_key, cached, ttl=1800)
+
+    full = cached["leaderboard"]
+    total_users = cached["total_users"]
+
+    me_row = next((r for r in full if r["user_id"] == current_user["sub"]), None)
+    me_rank = me_row["rank"] if me_row else None
+    percentile = None
+    if me_rank is not None and total_users > 1:
+        percentile = round((1 - (me_rank - 1) / total_users) * 100)
+
+    return {
+        "top":         full[:limit],
+        "me":          me_row,
+        "me_rank":     me_rank,
+        "me_percentile": percentile,
+        "total_users": total_users,
+    }

@@ -351,12 +351,20 @@ def get_market_breadth() -> Any:
     above_50  = sum(1 for s in sectors if s.get("above_50ma"))
     avg_rsi   = round(sum(s.get("rsi_14", 50) for s in sectors) / total, 1) if total else 50.0
 
-    # ── Fear & Greed (0 = extreme fear, 100 = extreme greed) ──
+    advancing = sum(1 for s in sectors if s.get("change_1d_pct", 0) > 0)
+    declining = sum(1 for s in sectors if s.get("change_1d_pct", 0) < 0)
+    ad_ratio  = round(advancing / declining, 2) if declining > 0 else float(advancing or 1)
+
+    # ── VIX + Fear & Greed (0 = extreme fear, 100 = extreme greed) ──
     fear_greed = 50.0
     fg_label   = "Neutral"
+    vix_val: float | None = None
+    vix_change_pct: float | None = None
+    yield_spread: float | None = None
+
     try:
         fg_raw = yf.download(
-            ["^VIX", "^GSPC", "TLT", "^IRX"], period="6mo", interval="1d",
+            ["^VIX", "^GSPC", "TLT", "^IRX", "^TNX"], period="6mo", interval="1d",
             progress=False, auto_adjust=True, group_by="ticker", threads=True,
         )
         comps: list[float] = []
@@ -364,15 +372,20 @@ def get_market_breadth() -> Any:
         def _series(sym: str) -> pd.Series | None:
             if isinstance(fg_raw.columns, pd.MultiIndex):
                 return fg_raw[sym]["Close"].dropna() if sym in fg_raw.columns.get_level_values(0) else None
-            return fg_raw["Close"].dropna() if len([s for s, _ in [("^VIX", "")]] ) == 1 else None
+            return fg_raw["Close"].dropna() if len([s for s, _ in [("^VIX", "")]]) == 1 else None
 
         vix_c = _series("^VIX")
         spx_c = _series("^GSPC")
         tlt_c = _series("TLT")
         irx_c = _series("^IRX")
+        tnx_c = _series("^TNX")
 
-        if vix_c is not None and len(vix_c) > 0:
-            v = float(vix_c.iloc[-1])
+        # Extract VIX value and 1d change
+        if vix_c is not None and len(vix_c) >= 2:
+            v      = float(vix_c.iloc[-1])
+            v_prev = float(vix_c.iloc[-2])
+            vix_val        = round(v, 2)
+            vix_change_pct = round((v / v_prev - 1) * 100, 2)
             comps.append(float(np.clip(100 - (v - 10) / 30 * 100, 0, 100)))
 
         if spx_c is not None and len(spx_c) >= 20:
@@ -402,14 +415,12 @@ def get_market_breadth() -> Any:
             "Extreme Greed"
         )
 
-        # Yield curve spread (10Y - 3M) in bps
-        yield_spread = None
-        if irx_c is not None and len(irx_c) > 0 and vix_c is not None:
-            tnx_data = yf.download("^TNX", period="5d", interval="1d", progress=False, auto_adjust=True)
-            if not tnx_data.empty:
-                tnx_val = float(tnx_data["Close"].dropna().iloc[-1])
-                irx_val = float(irx_c.iloc[-1])
-                yield_spread = round(tnx_val - irx_val, 2)
+        # Yield curve spread (10Y - 3M)
+        if tnx_c is not None and len(tnx_c) > 0 and irx_c is not None and len(irx_c) > 0:
+            tnx_val = float(tnx_c.iloc[-1])
+            irx_val = float(irx_c.iloc[-1])
+            yield_spread = round(tnx_val - irx_val, 2)
+
     except Exception as exc:
         logger.warning("Fear & Greed calc error: %s", exc)
 
@@ -417,9 +428,14 @@ def get_market_breadth() -> Any:
         "total":               total,
         "sectors_above_200ma": above_200,
         "sectors_above_50ma":  above_50,
-        "avg_rsi":             avg_rsi,
+        "avg_rsi_14":          avg_rsi,
+        "advancing":           advancing,
+        "declining":           declining,
+        "ad_ratio":            ad_ratio,
         "bullish":  sum(1 for s in sectors if s.get("above_200ma") and s.get("change_1m_pct", 0) > 0),
         "bearish":  sum(1 for s in sectors if not s.get("above_200ma") and s.get("change_1m_pct", 0) < 0),
+        "vix":              vix_val,
+        "vix_change_pct":   vix_change_pct,
         "fear_greed":       fear_greed,
         "fear_greed_label": fg_label,
         "yield_spread":     yield_spread,

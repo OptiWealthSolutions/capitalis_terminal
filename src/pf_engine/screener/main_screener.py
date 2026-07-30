@@ -210,13 +210,15 @@ def _save_universe_cache(df: pd.DataFrame) -> None:
         logger.warning("Universe save failed: %s", exc)
 
 
+from backend.yf_safe import safe_ticker_info
+
 # ---------------------------------------------------------------------------
 # Per-ticker fetcher
 # ---------------------------------------------------------------------------
 
 def _fetch_one(ticker: str) -> dict | None:
     try:
-        info = yf.Ticker(ticker).info
+        info = safe_ticker_info(ticker)
         if not info or info.get("marketCap") is None:
             return None
         return {k: info.get(k) for k in _FIELDS}
